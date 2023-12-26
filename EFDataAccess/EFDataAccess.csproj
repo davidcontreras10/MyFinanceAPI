@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net7.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Migrations\20230524052631_CurrencyConverter_FKs.cs" />
+    <Compile Remove="Migrations\20230524052631_CurrencyConverter_FKs.Designer.cs" />
+    <Compile Remove="Migrations\20230528205135_AutoKeyAccP.cs" />
+    <Compile Remove="Migrations\20230528205135_AutoKeyAccP.Designer.cs" />
+    <Compile Remove="Migrations\20230529163817_AddIndexToAccUser.cs" />
+    <Compile Remove="Migrations\20230529163817_AddIndexToAccUser.Designer.cs" />
+    <Compile Remove="Migrations\20230529164610_AddIndexToAccUser.cs" />
+    <Compile Remove="Migrations\20230529164610_AddIndexToAccUser.Designer.cs" />
+    <Compile Remove="Migrations\20230529213823_AddIndexToAccUser.cs" />
+    <Compile Remove="Migrations\20230529213823_AddIndexToAccUser.Designer.cs" />
+    <Compile Remove="Migrations\20230717051219_TransferRecordPK.cs" />
+    <Compile Remove="Migrations\20230717051219_TransferRecordPK.Designer.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DContre.MyFinance.StUtilities" Version="1.0.0" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="5.1.2" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="7.0.14" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="7.0.14">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="7.0.14" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="7.0.14">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MyFinanceBackend\MyFinanceBackend.csproj" />
+    <ProjectReference Include="..\MyFinanceModel\MyFinanceModel.csproj" />
+  </ItemGroup>
+
+</Project>
