@@ -23,6 +23,7 @@ namespace EFDataAccess.Models
         public Guid UserId { get; set; }
         public int PeriodTypeId { get; set; }
         public string Days { get; set; }
+        public bool IsPending { get; set; }
 
         public virtual Account Account { get; set; }
         public virtual Currency Currency { get; set; }

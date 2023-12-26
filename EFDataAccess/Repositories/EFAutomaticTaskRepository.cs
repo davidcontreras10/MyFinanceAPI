@@ -204,7 +204,8 @@ namespace EFDataAccess.Repositories
 				PeriodTypeId = clientScheduledTask.FrequencyType,
 				SpendTypeId = clientScheduledTask.SpendTypeId,
 				UserId = userId,
-				TaskDescription = clientScheduledTask.Description
+				TaskDescription = clientScheduledTask.Description,
+				IsPending = clientScheduledTask.IsPending
 			};
 		}
 
@@ -242,6 +243,7 @@ namespace EFDataAccess.Repositories
 			scheduledTaskVm.AccountName = automaticTaskDef.AutomaticTaskNavigation.Account.Name;
 			scheduledTaskVm.FrequencyType = (ScheduledTaskFrequencyType)automaticTaskDef.AutomaticTaskNavigation.PeriodTypeId;
 			scheduledTaskVm.Days = CreateArrayFromStringArray(automaticTaskDef.AutomaticTaskNavigation.Days);
+			scheduledTaskVm.IsPending = automaticTaskDef.AutomaticTaskNavigation.IsPending;
 			if (automaticTaskDef.AutomaticTaskNavigation.ExecutedTask.FirstOrDefault() is ExecutedTask executedTask)
 			{
 				scheduledTaskVm.LastExecutedStatus = (ExecutedTaskStatus)executedTask.ExecutionStatus;

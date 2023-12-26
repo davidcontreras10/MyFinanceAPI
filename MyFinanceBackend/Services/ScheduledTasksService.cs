@@ -239,7 +239,7 @@ namespace MyFinanceBackend.Services
 				AccountPeriodId = currentAccountPeriod.AccountPeriodId,
 				SpendTypeId = transferScheduledTask.SpendTypeId,
 				CurrencyId = transferScheduledTask.CurrencyId,
-				IsPending = false,
+				IsPending = transferScheduledTask.IsPending,
 				Amount = transferScheduledTask.Amount,
 				UserId = currentAccountPeriod.UserId,
 				AmountTypeId = TransactionTypeIds.Ignore,
@@ -284,9 +284,9 @@ namespace MyFinanceBackend.Services
 				AccountPeriodId = currentAccountPeriod.AccountPeriodId,
 				SpendTypeId = basicScheduledTaskVm.SpendTypeId,
 				CurrencyId = basicScheduledTaskVm.CurrencyId,
-				IsPending = false,
+				IsPending = basicScheduledTaskVm.IsPending,
 				Amount = basicScheduledTaskVm.Amount,
-				UserId = currentAccountPeriod.UserId
+				UserId = currentAccountPeriod.UserId,
 			};
 
 			await _spendsService.AddBasicTransactionAsync(basicTrxCreate, basicTrxCreate.AmountTypeId);
