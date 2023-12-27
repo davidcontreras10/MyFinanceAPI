@@ -30,6 +30,8 @@ namespace MyFinanceModel.ClientViewModel
 		[Required]
 		public IEnumerable<int> Days { get; set; }
 
+		public bool IsPending { get; set; }
+
 		public class Basic : ClientScheduledTask
 		{
 			public bool IsSpendTrx { get; set; }

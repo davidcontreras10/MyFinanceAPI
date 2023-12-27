@@ -47,7 +47,9 @@ namespace MyFinanceModel.ViewModel
 		public string LastExecutedMsg { get; set; }
 
 		public abstract ScheduledTaskType TaskType { get; }
-	}
+        
+		public bool IsPending { get; set; }
+    }
 
 	public class TransferScheduledTaskVm : BaseScheduledTaskVm
 	{
