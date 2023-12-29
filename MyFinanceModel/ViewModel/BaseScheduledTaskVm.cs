@@ -16,7 +16,8 @@ namespace MyFinanceModel.ViewModel
 	{
 		Invalid = 0,
 		Monthly = 1,
-		Weekly = 2
+		Weekly = 2,
+		Manual = 3
 	}
 
 	[JsonConverter(typeof(ScheduledTaskVmSerializer))]

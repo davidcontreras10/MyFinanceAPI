@@ -155,17 +155,14 @@ namespace MyFinanceBackend.Services
 				return false;
 			}
 
-			switch (baseScheduledTaskVm.FrequencyType)
+			return baseScheduledTaskVm.FrequencyType switch
 			{
-				case ScheduledTaskFrequencyType.Invalid:
-					return false;
-				case ScheduledTaskFrequencyType.Monthly:
-					return baseScheduledTaskVm.Days.Contains(GetDayOfMonth(today));
-				case ScheduledTaskFrequencyType.Weekly:
-					return baseScheduledTaskVm.Days.Contains(GetDayOfWeek(today));
-				default:
-					throw new ArgumentOutOfRangeException();
-			}
+				ScheduledTaskFrequencyType.Invalid => false,
+				ScheduledTaskFrequencyType.Manual => false,
+				ScheduledTaskFrequencyType.Monthly => baseScheduledTaskVm.Days.Contains(GetDayOfMonth(today)),
+				ScheduledTaskFrequencyType.Weekly => baseScheduledTaskVm.Days.Contains(GetDayOfWeek(today)),
+				_ => throw new ArgumentOutOfRangeException(),
+			};
 		}
 
 		private int GetDayOfWeek(DateTime dateTime)
