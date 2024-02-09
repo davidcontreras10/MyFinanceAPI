@@ -16,7 +16,8 @@ namespace MyFinanceModel.ViewModel
 	{
 		Invalid = 0,
 		Monthly = 1,
-		Weekly = 2
+		Weekly = 2,
+		Manual = 3
 	}
 
 	[JsonConverter(typeof(ScheduledTaskVmSerializer))]
@@ -47,7 +48,9 @@ namespace MyFinanceModel.ViewModel
 		public string LastExecutedMsg { get; set; }
 
 		public abstract ScheduledTaskType TaskType { get; }
-	}
+        
+		public bool IsPending { get; set; }
+    }
 
 	public class TransferScheduledTaskVm : BaseScheduledTaskVm
 	{

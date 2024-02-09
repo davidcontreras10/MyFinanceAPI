@@ -48,7 +48,7 @@ namespace MyFinanceWebApiCore
 			services.AddControllers(options =>
 			{
 				options.Filters.Add<HttpResponseExceptionFilter>();
-			});
+			}).AddNewtonsoftJson();
 			RegisterServices(services);
 			services.AddHttpClient();
 			services.ConfigureSettings(Configuration);

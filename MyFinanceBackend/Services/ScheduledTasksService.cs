@@ -155,17 +155,14 @@ namespace MyFinanceBackend.Services
 				return false;
 			}
 
-			switch (baseScheduledTaskVm.FrequencyType)
+			return baseScheduledTaskVm.FrequencyType switch
 			{
-				case ScheduledTaskFrequencyType.Invalid:
-					return false;
-				case ScheduledTaskFrequencyType.Monthly:
-					return baseScheduledTaskVm.Days.Contains(GetDayOfMonth(today));
-				case ScheduledTaskFrequencyType.Weekly:
-					return baseScheduledTaskVm.Days.Contains(GetDayOfWeek(today));
-				default:
-					throw new ArgumentOutOfRangeException();
-			}
+				ScheduledTaskFrequencyType.Invalid => false,
+				ScheduledTaskFrequencyType.Manual => false,
+				ScheduledTaskFrequencyType.Monthly => baseScheduledTaskVm.Days.Contains(GetDayOfMonth(today)),
+				ScheduledTaskFrequencyType.Weekly => baseScheduledTaskVm.Days.Contains(GetDayOfWeek(today)),
+				_ => throw new ArgumentOutOfRangeException(),
+			};
 		}
 
 		private int GetDayOfWeek(DateTime dateTime)
@@ -239,7 +236,7 @@ namespace MyFinanceBackend.Services
 				AccountPeriodId = currentAccountPeriod.AccountPeriodId,
 				SpendTypeId = transferScheduledTask.SpendTypeId,
 				CurrencyId = transferScheduledTask.CurrencyId,
-				IsPending = false,
+				IsPending = transferScheduledTask.IsPending,
 				Amount = transferScheduledTask.Amount,
 				UserId = currentAccountPeriod.UserId,
 				AmountTypeId = TransactionTypeIds.Ignore,
@@ -284,9 +281,9 @@ namespace MyFinanceBackend.Services
 				AccountPeriodId = currentAccountPeriod.AccountPeriodId,
 				SpendTypeId = basicScheduledTaskVm.SpendTypeId,
 				CurrencyId = basicScheduledTaskVm.CurrencyId,
-				IsPending = false,
+				IsPending = basicScheduledTaskVm.IsPending,
 				Amount = basicScheduledTaskVm.Amount,
-				UserId = currentAccountPeriod.UserId
+				UserId = currentAccountPeriod.UserId,
 			};
 
 			await _spendsService.AddBasicTransactionAsync(basicTrxCreate, basicTrxCreate.AmountTypeId);

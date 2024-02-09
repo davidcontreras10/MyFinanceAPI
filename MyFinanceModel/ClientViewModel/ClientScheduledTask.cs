@@ -23,12 +23,14 @@ namespace MyFinanceModel.ClientViewModel
 		[Required]
 		public int AccountId { get; set; }
 
-		[Range(1, 2)]
+		[Range(1, 3)]
 		[Required]
 		public int FrequencyType { get; set; }
 		
 		[Required]
 		public IEnumerable<int> Days { get; set; }
+
+		public bool IsPending { get; set; }
 
 		public class Basic : ClientScheduledTask
 		{
