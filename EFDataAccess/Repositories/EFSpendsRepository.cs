@@ -465,16 +465,29 @@ namespace EFDataAccess.Repositories
 			var accountViewModels = new List<AddSpendViewModel>();
 			foreach (var accountPeriod in accountPeriods)
 			{
+				var endDate = accountPeriod.EndDate ?? new DateTime();
+				var initialDate = accountPeriod.InitialDate ?? new DateTime();
+				var suggesteDate = DateTime.Now;
+				if(suggesteDate > endDate)
+				{
+					suggesteDate = endDate.AddMinutes(-1);
+				}
+
+				if(suggesteDate < initialDate)
+				{
+					suggesteDate = initialDate;
+				}
 				var addSpendViewModel = new AddSpendViewModel
 				{
 					AccountId = accountPeriod.Account.AccountId,
 					AccountName = accountPeriod.Account.Name,
 					AccountPeriodId = accountPeriod.AccountPeriodId,
 					CurrencyId = accountPeriod.Account.CurrencyId ?? 0,
-					EndDate = accountPeriod.EndDate ?? new DateTime(),
+					EndDate = endDate,
 					GlobalOrder = accountPeriod.Account.Position ?? 0,
-					InitialDate = accountPeriod.InitialDate ?? new DateTime(),
-					SpendTypeViewModels = spendTypes.Select(spt => spt.ToSpendTypeViewModel(accountPeriod.Account.DefaultSpendTypeId))
+					InitialDate = initialDate,
+					SpendTypeViewModels = spendTypes.Select(spt => spt.ToSpendTypeViewModel(accountPeriod.Account.DefaultSpendTypeId)),
+					SuggestedDate = suggesteDate
 				};
 				var currencyMethods = currencyConverterMethods
 					.Where(ccm => ccm.CurrencyConverter.CurrencyIdTwo == accountPeriod.Account.CurrencyId);
