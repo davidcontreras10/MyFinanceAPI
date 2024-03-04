@@ -1,10 +1,23 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
 
 namespace MyFinanceModel.Utilities
 {
+    public static class Misc
+    {
+		public static T DeepCopy<T>(this T obj)
+		{
+			if (obj == null)
+				throw new ArgumentNullException(nameof(obj), "Object cannot be null");
+
+            var jsonString = JsonConvert.SerializeObject(obj);
+			return JsonConvert.DeserializeObject<T>(jsonString);
+		}
+	}
+
 	public static class EnumUtil
 	{
 		public static IEnumerable<T> GetValues<T>()

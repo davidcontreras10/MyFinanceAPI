@@ -15,7 +15,7 @@ namespace MyFinanceBackend.Services
 	    );
 		UserAccountsViewModel GetAccountsByUserId(string userId);
 		IEnumerable<AccountDetailsInfoViewModel> GetAccountDetailsViewModel(IEnumerable<int> accountIds, string userId);
-        IEnumerable<AccountIncludeViewModel> GetAccountIncludeViewModel(string userId, int currencyId);
+        IEnumerable<AccountIncludeViewModel> GetAccountIncludeViewModel(string userId, int currencyId, int? financialEntityId = null);
         Task<AccountMainViewModel> GetAccountDetailsViewModelAsync(string userId, int? accountGroupId);
 	    Task<IEnumerable<ItemModified>> UpdateAccountPositionsAsync(string userId, IEnumerable<ClientAccountPosition> accountPositions);
 	    Task UpdateAccountAsync(string userId, ClientEditAccount clientEditAccount);
