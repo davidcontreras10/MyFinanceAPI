@@ -186,7 +186,8 @@ namespace EFDataAccess.Repositories
 				CuttingDate = pd.CuttingDate,
 				PeriodDefinitionId = pd.PeriodDefinitionId,
 				PeriodTypeId = pd.PeriodTypeId,
-				PeriodTypeName = pd.PeriodType.Name
+				PeriodTypeName = pd.PeriodType.Name,
+				Repetition = pd.Repetition ?? 0
 			});
 
 			var userAccounts = Context.Account.Where(acc => acc.UserId == userGuid);
@@ -286,7 +287,8 @@ namespace EFDataAccess.Repositories
 					InitialDate = accp.InitialDate ?? new DateTime(),
 					EndDate = accp.EndDate ?? new DateTime(),
 					Budget = accp.Budget ?? 0,
-					UserId = accp.Account.UserId.ToString()
+					UserId = accp.Account.UserId.ToString(),
+					IsBasicMontly = accp.Account.PeriodDefinitionId == 2
 				});
 		}
 
@@ -381,7 +383,8 @@ namespace EFDataAccess.Repositories
 						Budget = accp.Budget ?? 0,
 						EndDate = accp.EndDate ?? new DateTime(),
 						InitialDate = accp.InitialDate ?? new DateTime(),
-						UserId = acc.UserId.ToString()
+						UserId = acc.UserId.ToString(),
+						IsBasicMontly = acc.PeriodDefinitionId == 2
 					}).ToList(),
 					AccountId = acc.AccountId,
 					AccountName = acc.Name,

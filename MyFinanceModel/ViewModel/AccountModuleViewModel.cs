@@ -81,6 +81,11 @@ namespace MyFinanceModel.ViewModel
 	    public string Name => GetName();
 	    public bool IsSelected => IsDefault;
 
+		public bool IsFriendlyMonthlyName()
+		{
+			return PeriodDefinitionId == 2 && PeriodTypeId == 2 && CuttingDate == "1";
+		}
+
 	    private string GetName()
 		{
 			return $"{PeriodTypeName} CD: {CuttingDate} RPT: {Repetition}";
