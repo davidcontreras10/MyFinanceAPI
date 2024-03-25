@@ -803,7 +803,7 @@ namespace EFDataAccess.Repositories
 				{
 					methodIds.Add(new MethodId
 					{
-						Id = currencyConverterMethod.CurrencyConverterId,
+						Id = currencyConverterMethod.CurrencyConverterMethodId,
 						IsDefault = currencyConverterMethod.IsDefault ?? false,
 						Name = currencyConverterMethod.Name,
 						IsSelected = defaultAccountInclude != null &&
