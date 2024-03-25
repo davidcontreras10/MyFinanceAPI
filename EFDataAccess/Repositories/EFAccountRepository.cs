@@ -194,8 +194,7 @@ namespace EFDataAccess.Repositories
 			var queryAccounts = Context.Account
 				.Where(acc => accountIds.Contains(acc.AccountId))
 				.Include(acc => acc.AccountIncludeAccount)
-				.ToList()
-				;
+				.ToList();
 			var efCurrencies = Context.Currency.ToList();
 			var efAccountGroups = Context.AccountGroup.ToList();
 			var acc = queryAccounts.Select(acc => new AccountDetailsInfoViewModel
@@ -765,15 +764,15 @@ namespace EFDataAccess.Repositories
 				: userAccounts;
 			var currentCurrencyId = currentAccount?.CurrencyId != null ? currentAccount.CurrencyId.Value : 1;
 
-			return GetPossibleAccountIncludes(defaultAccountIncludes, userAccounts, currencyConverters, applicableUserAccounts, currentCurrencyId);
+			return GetPossibleAccountIncludes(defaultAccountIncludes, currencyConverters, applicableUserAccounts, currentCurrencyId, currentAccount.FinancialEntityId);
 		}
 
 		private static IEnumerable<AccountIncludeViewModel> GetPossibleAccountIncludes(
 			IReadOnlyCollection<AccountInclude> defaultAccountIncludes,
-			IReadOnlyCollection<Account> userAccounts,
 			IReadOnlyCollection<CurrencyConverter> currencyConverters,
 			IReadOnlyCollection<Account> applicableUserAccounts,
-			int currentCurrencyId
+			int currentCurrencyId,
+			int? currentFinancialEntitytId
 		)
 		{
 			var accountIncludes = new List<AccountIncludeViewModel>();
@@ -781,7 +780,7 @@ namespace EFDataAccess.Repositories
 			{
 				var appCurrencyConverters = currencyConverters
 					.Where(cc => cc.CurrencyIdOne == currentCurrencyId && cc.CurrencyIdTwo == appAccount.CurrencyId).ToList();
-				var accountIncludeViewModel = CreateAccountIncludeViewModel(appAccount, appCurrencyConverters, defaultAccountIncludes);
+				var accountIncludeViewModel = CreateAccountIncludeViewModel(appAccount, appCurrencyConverters, defaultAccountIncludes, currentFinancialEntitytId);
 				accountIncludes.Add(accountIncludeViewModel);
 			}
 
@@ -793,6 +792,7 @@ namespace EFDataAccess.Repositories
 			Account includeAccount
 			, IReadOnlyCollection<CurrencyConverter> currencyConverters
 			, IReadOnlyCollection<AccountInclude> defaultAccountIncludes
+			, int? financialEntityId
 			)
 		{
 			var defaultAccountInclude = defaultAccountIncludes?.FirstOrDefault(d => d.AccountIncludeId == includeAccount.AccountId);
@@ -801,13 +801,25 @@ namespace EFDataAccess.Repositories
 			{
 				foreach (var currencyConverterMethod in currencyConverter.CurrencyConverterMethod)
 				{
+					bool isSelected;
+					if(defaultAccountInclude != null)
+					{
+						isSelected = defaultAccountInclude.CurrencyConverterMethodId == currencyConverterMethod.CurrencyConverterMethodId;
+					}
+					else if(financialEntityId != null)
+					{
+						isSelected = currencyConverterMethod.FinancialEntityId == financialEntityId;
+					}
+					else
+					{
+						isSelected = false;
+					}
 					methodIds.Add(new MethodId
 					{
 						Id = currencyConverterMethod.CurrencyConverterMethodId,
 						IsDefault = currencyConverterMethod.IsDefault ?? false,
 						Name = currencyConverterMethod.Name,
-						IsSelected = defaultAccountInclude != null &&
-							defaultAccountInclude.CurrencyConverterMethodId == currencyConverterMethod.CurrencyConverterMethodId,
+						IsSelected = isSelected,
 					});
 				}
 			}
@@ -818,11 +830,6 @@ namespace EFDataAccess.Repositories
 				MethodIds = methodIds,
 				IsSelected = defaultAccountInclude != null
 			};
-		}
-
-		private int GetAccountNextId()
-		{
-			return Context.Account.Max(x => x.AccountId) + 1;
 		}
 
 		private static FrontStyleData CreateFrontStyleData(string json)
