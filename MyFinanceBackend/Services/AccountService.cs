@@ -76,9 +76,9 @@ namespace MyFinanceBackend.Services
 			await _accountRepository.UpdateAccountAsync(userId, clientEditAccount);
 		}
 
-		public IEnumerable<AccountIncludeViewModel> GetAccountIncludeViewModel(string userId, int currencyId)
+		public IEnumerable<AccountIncludeViewModel> GetAccountIncludeViewModel(string userId, int currencyId, int? financialEntityId = null)
 		{
-			return _accountRepository.GetAccountIncludeViewModel(userId, currencyId);
+			return _accountRepository.GetAccountIncludeViewModel(userId, currencyId, financialEntityId);
 		}
 
 		public IEnumerable<AccountDetailsInfoViewModel> GetAccountDetailsViewModel(IEnumerable<int> accountIds, string userId)

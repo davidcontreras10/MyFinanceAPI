@@ -22,7 +22,7 @@ namespace MyFinanceModel.ViewModel
     }
 
 
-	public class AddAccountViewModel
+	public class AddAccountViewModel //add
     {
         public FrontStyleData AccountStyle { get; set; }
         public float BaseBudget { get; set; }
@@ -36,8 +36,18 @@ namespace MyFinanceModel.ViewModel
         public IEnumerable<AccountGroupViewModel> AccountGroupViewModels { get; set; } 
     }
 
-    public class AccountDetailsInfoViewModel : AccountDetailsViewModel
+    public class AccountDetailsInfoViewModel : AccountDetailsViewModel //edit
 	{
+		/*
+		public int AccountPosition { get; set; }
+        public int AccountGroupId { get; set; }
+        public FrontStyleData AccountStyle { get; set; }
+	    public float BaseBudget { get; set; }
+		public int GlobalOrder { get; set; }
+		public int AccountId { get; set; }
+        public string AccountName { get; set; }
+		 */
+
 		public IEnumerable<SpendTypeViewModel> SpendTypeViewModels { get; set; }
 		public IEnumerable<AccountTypeViewModel> AccountTypeViewModels { set; get; } 
 		public IEnumerable<PeriodTypeViewModel> PeriodTypeViewModels { set; get; }
@@ -70,6 +80,11 @@ namespace MyFinanceModel.ViewModel
 		public int Id => PeriodDefinitionId;
 	    public string Name => GetName();
 	    public bool IsSelected => IsDefault;
+
+		public bool IsFriendlyMonthlyName()
+		{
+			return PeriodDefinitionId == 2 && PeriodTypeId == 2 && CuttingDate == "1";
+		}
 
 	    private string GetName()
 		{

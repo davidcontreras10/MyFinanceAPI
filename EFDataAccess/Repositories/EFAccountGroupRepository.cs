@@ -105,11 +105,9 @@ namespace EFDataAccess.Repositories
 				? userAccountGroups.OrderBy(accg => accg.AccountGroupPosition)
 				: (IEnumerable<AccountGroup>)Context.AccountGroup.Where(accg => accg.UserId == userId).OrderBy(accg => accg.AccountGroupPosition);
 			var pos = 1;
-			Debug.WriteLine("UpdatePositions");
 			foreach (var positionAccg in updatePositions)
 			{
 				positionAccg.AccountGroupPosition = pos++;
-				Debug.WriteLine($"Accg {positionAccg.AccountGroupName}: {positionAccg.AccountGroupPosition}");
 			}
 		}
 	}

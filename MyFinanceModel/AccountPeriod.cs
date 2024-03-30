@@ -5,7 +5,7 @@ namespace MyFinanceModel
     public class AccountPeriod
     {
         #region Attributes
-
+        public bool IsBasicMontly { get; set; }
         public int AccountPeriodId { get; set; }
         public int AccountId { get; set; }
         public float Budget { get; set; }
@@ -21,6 +21,12 @@ namespace MyFinanceModel
         public virtual string GetDateInfo(bool prefix)
         {
             var initial = prefix ? "Period: " : "";
+            if(IsBasicMontly)
+            {
+                initial += $"{InitialDate.ToString("MMMM")} - {InitialDate.Year}";
+                return initial;
+			}
+
             return string.Format(initial + "{0} - {1}", InitialDate.ToShortDateString(), EndDate.AddDays(-1).ToShortDateString());
         }
 

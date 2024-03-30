@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Net;
+using System;
 
 namespace MyFinanceWebApiCore.Controllers
 {
@@ -42,24 +43,28 @@ namespace MyFinanceWebApiCore.Controllers
 		public int AddAccountGroup(AccountGroupClientViewModel accountGroupViewModel)
 		{
 			accountGroupViewModel.AccountGroupId = 0;
+			accountGroupViewModel.UserId = GetUserId();
 			var result = _accountGroupService.AddorEditAccountGroup(accountGroupViewModel);
-			if (string.IsNullOrEmpty(accountGroupViewModel.UserId))
-			{
-				accountGroupViewModel.UserId = GetUserId();
-			}
 
 			return result;
 		}
 
+		[Obsolete]
 		[HttpPatch]
 		public int EditccountGroup(AccountGroupClientViewModel accountGroupViewModel)
 		{
+			accountGroupViewModel.UserId = GetUserId();
 			var result = _accountGroupService.AddorEditAccountGroup(accountGroupViewModel);
-			if (string.IsNullOrEmpty(accountGroupViewModel.UserId))
-			{
-				accountGroupViewModel.UserId = GetUserId();
-			}
+			return result;
+		}
 
+		[Route("{accountGroupId}")]
+		[HttpPatch]
+		public int EditAccountGroup([FromBody]AccountGroupClientViewModel accountGroupViewModel, [FromRoute] int accountGroupId)
+		{
+			accountGroupViewModel.AccountGroupId = accountGroupId;
+			accountGroupViewModel.UserId = GetUserId();
+			var result = _accountGroupService.AddorEditAccountGroup(accountGroupViewModel);
 			return result;
 		}
 

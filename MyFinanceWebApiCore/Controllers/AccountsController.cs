@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using System;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using System.Linq;
 
 namespace MyFinanceWebApiCore.Controllers
 {
@@ -111,10 +112,14 @@ namespace MyFinanceWebApiCore.Controllers
 
 		[Route("include/{currencyId}")]
 		[HttpGet]
-		public IEnumerable<AccountIncludeViewModel> GetAccountIncludeViewModel(int currencyId)
+		public IEnumerable<AccountIncludeViewModel> GetAccountIncludeViewModel([FromRoute]int currencyId, [FromQuery]int? financialEntityId = null)
 		{
 			var userId = GetUserId();
-			var result = _accountService.GetAccountIncludeViewModel(userId, currencyId);
+			if(financialEntityId != null && financialEntityId < 1)
+			{
+				financialEntityId = null;
+			}
+			var result = _accountService.GetAccountIncludeViewModel(userId, currencyId, financialEntityId);
 			return result;
 		}
 
@@ -124,6 +129,8 @@ namespace MyFinanceWebApiCore.Controllers
 		{
 			var userId = GetUserId();
 			var result = await _accountService.GetAddAccountViewModelAsync(userId);
+			var element = result.SpendTypeViewModels.ElementAt(4);
+			element.IsDefault = true;
 			return result;
 		}
 
