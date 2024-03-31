@@ -228,6 +228,11 @@ namespace EFDataAccess.Repositories
 					spend.SpendTypeId = model.SpendTypeId;
 				}
 
+				if(model.ModifyList.Any(m => m == ClientEditSpendModel.Field.AmountType))
+				{
+					spend.AmountTypeId = (int)model.AmountTypeId;
+				}
+
 				modifyList.AddRange(spend.SpendOnPeriod.Select(sop => new SpendItemModified
 				{
 					AccountId = sop.AccountPeriod.AccountId ?? 0,
