@@ -44,7 +44,6 @@ namespace MyFinanceModel.ClientViewModel
 
         public DateTime PaymentDate => SpendDate;
 
-        [JsonIgnore]
         public TransactionTypeIds AmountTypeId { get; set; } = TransactionTypeIds.Invalid;
     }
 
