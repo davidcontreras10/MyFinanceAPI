@@ -45,21 +45,32 @@ namespace MyFinanceWebApiCore.Controllers
 		}
 
 		[HttpPost]
-		public async Task<IEnumerable<int>> AddSpendType(ClientAddSpendType spendType)
+		public async Task<ActionResult> AddSpendType(ClientAddSpendType spendType, bool entireResponse = false)
 		{
 			if (spendType == null)
 			{
-				throw new ArgumentNullException("spendType");
+				throw new ArgumentNullException(nameof(spendType));
 			}
 
 			var userId = GetUserId();
 			spendType.SpendTypeId = 0;
 			var result = await _spendTypeService.AddEditSpendTypesAsync(userId, spendType);
-			return result;
+			if (entireResponse)
+			{
+				return Ok(result);
+			}
+			else
+			{
+				var response = new[]
+				{
+					result.SpendTypeId
+				};
+				return Ok(response);
+			}
 		}
 
 		[HttpPatch]
-		public async Task<IEnumerable<int>> EditSpendType(ClientEditSpendType spendType)
+		public async Task<ActionResult> EditSpendType(ClientEditSpendType spendType, bool entireResponse = false)
 		{
 			if (spendType == null)
 			{
@@ -72,8 +83,19 @@ namespace MyFinanceWebApiCore.Controllers
 			}
 
 			var userId = GetUserId();
-			var result =  await _spendTypeService.AddEditSpendTypesAsync(userId, spendType);
-			return result;
+			var result = await _spendTypeService.AddEditSpendTypesAsync(userId, spendType);
+			if (entireResponse)
+			{
+				return Ok(result);
+			}
+			else
+			{
+				var response = new[]
+				{
+					result.SpendTypeId
+				};
+				return Ok(response);
+			}
 		}
 
 		[Route("user")]
