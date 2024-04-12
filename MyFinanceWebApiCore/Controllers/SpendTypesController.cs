@@ -98,6 +98,7 @@ namespace MyFinanceWebApiCore.Controllers
 			}
 		}
 
+		[Obsolete]
 		[Route("user")]
 		[HttpPost]
 		public async Task<IEnumerable<int>> AddSpendTypeUser([FromBody] ClientSpendTypeId clientSpendTypeId)
@@ -107,6 +108,7 @@ namespace MyFinanceWebApiCore.Controllers
 			return result;
 		}
 
+		[Obsolete]
 		[Route("user")]
 		[HttpDelete]
 		public async Task<IEnumerable<int>> DeleteSpendTypeUser([FromBody] ClientSpendTypeId clientSpendTypeId)
@@ -116,6 +118,24 @@ namespace MyFinanceWebApiCore.Controllers
 			return result;
 		}
 
+		[Route("{trxTypeId}/user")]
+		[HttpDelete]
+		public async Task<IEnumerable<int>> DeleteSpendTypeUser([FromRoute] int trxTypeId)
+		{
+			var userId = GetUserId();
+			var result = await _spendTypeService.DeleteSpendTypeUserAsync(userId, trxTypeId);
+			return result;
+		}
+
+
+		[Route("{trxTypeId}/user")]
+		[HttpPost]
+		public async Task<IEnumerable<int>> AddSpendTypeUser([FromRoute] int trxTypeId)
+		{
+			var userId = GetUserId();
+			var result = await _spendTypeService.AddSpendTypeUserAsync(userId, trxTypeId);
+			return result;
+		}
 		#endregion
 	}
 }
