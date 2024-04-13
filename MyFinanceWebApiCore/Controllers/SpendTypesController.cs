@@ -37,6 +37,7 @@ namespace MyFinanceWebApiCore.Controllers
 			return result;
 		}
 
+		[Obsolete]
 		[HttpDelete]
 		public async Task DeleteSpendType([FromBody] ClientSpendTypeId clientSpendTypeId)
 		{
@@ -44,8 +45,16 @@ namespace MyFinanceWebApiCore.Controllers
 			await _spendTypeService.DeleteSpendTypeAsync(userId, clientSpendTypeId.SpendTypeId);
 		}
 
+		[Route("{spendTypeId}")]
+		[HttpDelete]
+		public async Task DeleteSpendType([FromRoute]int spendTypeId)
+		{
+			var userId = GetUserId();
+			await _spendTypeService.DeleteSpendTypeAsync(userId, spendTypeId);
+		}
+
 		[HttpPost]
-		public async Task<ActionResult> AddSpendType(ClientAddSpendType spendType, bool entireResponse = false)
+		public async Task<ActionResult> AddSpendType([FromBody]ClientAddSpendType spendType, [FromQuery]bool entireResponse = false)
 		{
 			if (spendType == null)
 			{
