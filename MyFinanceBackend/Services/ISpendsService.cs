@@ -10,7 +10,8 @@ namespace MyFinanceBackend.Services
 {
     public interface ISpendsService
     {
-        Task<IEnumerable<SpendItemModified>> AddIncomeAsync(ClientAddSpendModel clientAddSpendModel);
+        Task<IEnumerable<SpendItemModified>> ConfirmPendingTransactionsAsync(IReadOnlyCollection<int> transactionIds, DateTime newPaymentDate);
+		Task<IEnumerable<SpendItemModified>> AddIncomeAsync(ClientAddSpendModel clientAddSpendModel);
         Task<IEnumerable<SpendItemModified>> AddSpendAsync(ClientAddSpendModel clientAddSpendModel);
         Task<IEnumerable<SpendItemModified>> DeleteSpendAsync(string userId, int spendId);
         Task<IEnumerable<SpendItemModified>> EditSpendAsync(ClientEditSpendModel model);

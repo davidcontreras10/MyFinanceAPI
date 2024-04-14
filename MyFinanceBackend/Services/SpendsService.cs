@@ -1,6 +1,9 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using MyFinanceBackend.Data;
 using MyFinanceBackend.Models;
@@ -122,30 +125,28 @@ namespace MyFinanceBackend.Services
 			return result;
 		}
 
-		public async Task<IEnumerable<SpendItemModified>> ConfirmPendingSpendAsync(int spendId, DateTime newPaymentDate)
+		public async Task<IEnumerable<SpendItemModified>> ConfirmPendingTransactionsAsync(IReadOnlyCollection<int> transactionIds, DateTime newPaymentDate)
 		{
-			var spends = await _spendsRepository.GetSavedSpendsAsync(spendId);
-			if (spends == null || !spends.Any())
+			if (transactionIds == null || !transactionIds.Any())
 			{
-				return new SpendItemModified[0];
+				return Array.Empty<SpendItemModified>();
 			}
 
-			var modifiedList = new List<SpendItemModified>();
 			_spendsRepository.BeginTransaction();
+			var modifiedList = new ConcurrentBag<SpendItemModified>();
 			try
 			{
-				foreach (var savedSpend in spends)
+				await Parallel.ForEachAsync(transactionIds, async (int trxId, CancellationToken cancellationToken) =>
 				{
-					var financeSpend = CreateFinanceSpend(savedSpend, newPaymentDate);
-					if (!savedSpend.IsPending)
+					var modifieds = await ExecuteConfirmPendingTransactionAsync(trxId, newPaymentDate);
+					foreach (var modified in modifieds)
 					{
-						throw new SpendNotPendingException(financeSpend.SpendId);
+						modifiedList.Add(modified);
 					}
+				});
 
-					var modifiedItems = await _spendsRepository.EditSpendAsync(financeSpend);
-					modifiedList.AddRange(modifiedItems);
-				}
 				_spendsRepository.Commit();
+				return modifiedList;
 			}
 			catch (Exception)
 			{
@@ -153,12 +154,50 @@ namespace MyFinanceBackend.Services
 				throw;
 			}
 
-			return modifiedList;
+		}
+
+		public async Task<IEnumerable<SpendItemModified>> ConfirmPendingSpendAsync(int spendId, DateTime newPaymentDate)
+		{
+			_spendsRepository.BeginTransaction();
+			try
+			{
+				var modifiedList = await ExecuteConfirmPendingTransactionAsync(spendId, newPaymentDate);
+				_spendsRepository.Commit();
+				return modifiedList;
+			}
+			catch (Exception)
+			{
+				_spendsRepository.RollbackTransaction();
+				throw;
+			}
 		}
 
 		#endregion
 
 		#region Privates
+
+		private async Task<IEnumerable<SpendItemModified>> ExecuteConfirmPendingTransactionAsync(int spendId, DateTime newPaymentDate)
+		{
+			var spends = await _spendsRepository.GetSavedSpendsAsync(spendId);
+			if (spends == null || !spends.Any())
+			{
+				return Array.Empty<SpendItemModified>();
+			}
+			var modifiedList = new List<SpendItemModified>();
+			foreach (var savedSpend in spends)
+			{
+				var financeSpend = CreateFinanceSpend(savedSpend, newPaymentDate);
+				if (!savedSpend.IsPending)
+				{
+					throw new SpendNotPendingException(financeSpend.SpendId);
+				}
+
+				var modifiedItems = await _spendsRepository.EditSpendAsync(financeSpend);
+				modifiedList.AddRange(modifiedItems);
+			}
+
+			return modifiedList;
+		}
 
 		private static FinanceSpend CreateFinanceSpend(SavedSpend savedSpend, DateTime newDateTime)
 		{

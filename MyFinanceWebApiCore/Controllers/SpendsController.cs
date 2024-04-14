@@ -42,6 +42,19 @@ namespace MyFinanceWebApiCore.Controllers
 			return result;
 		}
 
+		[Route("bulk-confirmation")]
+		[HttpPut]
+		public async Task<ActionResult<IEnumerable<SpendItemModified>>> ConfirmPendingSpend([FromBody] BulkConfirmPendingTransactions request)
+		{
+			if(request == null)
+			{
+				return BadRequest(request);
+			}
+
+			var modifiedItems = await _spendsService.ConfirmPendingTransactionsAsync(request.TransactionIds, request.TransactionDate);
+			return Ok(modifiedItems);
+		}
+
 		[Route("confirmation")]
 		[HttpPut]
 		public async Task<IEnumerable<SpendItemModified>> ConfirmPendingSpend([FromQuery] int spendId, [FromBody] DateTimeModel newDateTime)
