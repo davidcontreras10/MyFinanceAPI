@@ -12,7 +12,7 @@ namespace MyFinanceBackend.Services
 		Task<IEnumerable<int>> AddSpendTypeUserAsync(string userId, int spendTypeId);
 		Task<IEnumerable<SpendTypeViewModel>> GeSpendTypeByAccountViewModelsAsync(string userId, int? accountId);
 		Task<IEnumerable<SpendTypeViewModel>> GeSpendTypesAsync(string userId, bool includeAll = true);
-        Task<IEnumerable<int>> AddEditSpendTypesAsync(string userId, ClientSpendType clientSpendType);
+        Task<SpendTypeViewModel> AddEditSpendTypesAsync(string userId, ClientSpendType clientSpendType);
         Task DeleteSpendTypeAsync(string userId, int spendTypeId);
     }
 
@@ -57,7 +57,7 @@ namespace MyFinanceBackend.Services
 		    return result;
 	    }
 
-        public async Task<IEnumerable<int>> AddEditSpendTypesAsync(string userId, ClientSpendType clientSpendType)
+        public async Task<SpendTypeViewModel> AddEditSpendTypesAsync(string userId, ClientSpendType clientSpendType)
         {
             var result = await _spendTypeRepository.AddEditSpendTypesAsync(userId, clientSpendType);
             return result;
