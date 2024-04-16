@@ -14,6 +14,6 @@ namespace MyFinanceModel.ClientViewModel
         public IReadOnlyCollection<int> TransactionIds { get; set; }
 
 		[Required]
-		public DateTime TransactionDate { get; set; }
+		public DateTime NewDateTime { get; set; }
     }
 }

@@ -143,22 +143,19 @@ namespace EFDataAccess.Repositories
 			return clientAddSpendModel;
 		}
 
-		public async Task<IEnumerable<SpendItemModified>> DeleteSpendAsync(string userId, int spendId)
+		public async Task<IEnumerable<SpendItemModified>> DeleteSpendAsync(string userId, IReadOnlyCollection<int> transactionIds)
 		{
 			try
 			{
-				await ValidateSpendIdInLoanAsync(spendId);
+				await ValidateSpendIdInLoanAsync(transactionIds);
 				var spendsToDelete = new List<Spend>
-			{
-				await Context.Spend.Where(sp => sp.SpendId == spendId).FirstAsync()
-			};
+				{
+					await Context.Spend.Where(sp => transactionIds.Contains(sp.SpendId)).FirstAsync()
+				};
 
-				var spendDependencies = await GetSpendDependenciesAsync(spendId);
-				var spendIds = new List<int>()
-			{
-				spendId
-			};
-
+				var spendDependencies = await GetSpendDependenciesAsync(transactionIds);
+				var spendIds = new List<int>();
+				spendIds.AddRange(transactionIds);
 				spendIds.AddRange(spendDependencies.Select(sp => sp.SpendId));
 				var affectedAccounts = await Context.SpendOnPeriod.AsNoTracking()
 					.Where(sop => spendIds.Contains(sop.SpendId))
@@ -228,7 +225,7 @@ namespace EFDataAccess.Repositories
 					spend.SpendTypeId = model.SpendTypeId;
 				}
 
-				if(model.ModifyList.Any(m => m == ClientEditSpendModel.Field.AmountType))
+				if (model.ModifyList.Any(m => m == ClientEditSpendModel.Field.AmountType))
 				{
 					spend.AmountTypeId = (int)model.AmountTypeId;
 				}
@@ -473,12 +470,12 @@ namespace EFDataAccess.Repositories
 				var endDate = accountPeriod.EndDate ?? new DateTime();
 				var initialDate = accountPeriod.InitialDate ?? new DateTime();
 				var suggesteDate = DateTime.Now;
-				if(suggesteDate > endDate)
+				if (suggesteDate > endDate)
 				{
 					suggesteDate = endDate.AddMinutes(-1);
 				}
 
-				if(suggesteDate < initialDate)
+				if (suggesteDate < initialDate)
 				{
 					suggesteDate = initialDate;
 				}
@@ -649,7 +646,7 @@ namespace EFDataAccess.Repositories
 
 		public async Task<SpendActionAttributes> GetSpendAttributesAsync(int spendId)
 		{
-			var isLoan = await IsLoanSpendDependentAsync(spendId);
+			var isLoan = await IsLoanSpendDependentAsync(new[] { spendId });
 			var isTransfer = await Context.TransferRecord.AnyAsync(tr => tr.SpendId == spendId);
 			return new SpendActionAttributes
 			{
@@ -676,11 +673,11 @@ namespace EFDataAccess.Repositories
 
 		#endregion
 
-		private async Task<bool> IsLoanSpendDependentAsync(int spendId)
+		private async Task<bool> IsLoanSpendDependentAsync(IReadOnlyCollection<int> requestedSpendIds)
 		{
-			var dependencies = await GetSpendDependenciesAsync(spendId);
-			var spendIds = dependencies.Select(x=>x.SpendId).ToList();
-			spendIds.Add(spendId);
+			var dependencies = await GetSpendDependenciesAsync(requestedSpendIds);
+			var spendIds = dependencies.Select(x => x.SpendId).ToList();
+			spendIds.AddRange(requestedSpendIds);
 			return await Context.LoanRecord.AnyAsync(lr => spendIds.Contains(lr.SpendId))
 				|| await Context.LoanSpend.AnyAsync(ls => spendIds.Contains(ls.SpendId));
 		}
@@ -816,26 +813,25 @@ namespace EFDataAccess.Repositories
 			await Context.SaveChangesAsync();
 		}
 
-		private async Task<IReadOnlyCollection<Spend>> GetSpendDependenciesAsync(int spendId)
+		private async Task<IReadOnlyCollection<Spend>> GetSpendDependenciesAsync(IReadOnlyCollection<int> spendIds)
 		{
 			var dependencies = new List<Spend>();
-			var trasnferId = await Context.TransferRecord.AsNoTracking()
-				.Where(tr => tr.SpendId == spendId)
+			var trasnferIds = await Context.TransferRecord.AsNoTracking()
+				.Where(tr => spendIds.Contains(tr.SpendId))
 				.Select(tr => tr.TransferRecordId)
-				.FirstOrDefaultAsync();
-			if (trasnferId > 0)
+				.ToListAsync();
+			if (trasnferIds.Any())
 			{
-				dependencies.AddRange(
-					await Context.TransferRecord.AsNoTracking()
-						.Where(t => t.TransferRecordId == trasnferId)
+				var transferDeps = await Context.TransferRecord.AsNoTracking()
+						.Where(t => trasnferIds.Contains(t.TransferRecordId))
 						.Select(t => t.Spend)
-						.Where(sp => sp.SpendId != spendId)
-						.ToListAsync()
-					);
+						.Where(sp => !spendIds.Contains(sp.SpendId))
+						.ToListAsync();
+				dependencies.AddRange(transferDeps);
 			}
 
 			var loanId = await Context.LoanRecord.AsNoTracking()
-				.Where(lr => lr.SpendId == spendId)
+				.Where(lr => spendIds.Contains(lr.SpendId))
 				.Select(lr => lr.LoanRecordId)
 				.FirstOrDefaultAsync();
 			if (loanId > 0)
@@ -849,7 +845,7 @@ namespace EFDataAccess.Repositories
 			}
 
 			var allEvaluate = await Context.Spend.AsNoTracking()
-				.Where(sp => sp.SpendId == spendId)
+				.Where(sp => spendIds.Contains(sp.SpendId))
 				.ToListAsync();
 			allEvaluate.AddRange(dependencies);
 			dependencies.AddRange(await GetDependenciesRecursivleyAsync(allEvaluate));
@@ -884,10 +880,10 @@ namespace EFDataAccess.Repositories
 				.ToListAsync();
 		}
 
-		private async Task ValidateSpendIdInLoanAsync(int spendId)
+		private async Task ValidateSpendIdInLoanAsync(IReadOnlyCollection<int> spendIds)
 		{
 			var existsInLoan = await Context.LoanRecord
-				.Where(lr => lr.SpendId == spendId).AnyAsync();
+				.Where(lr => spendIds.Contains(lr.SpendId)).AnyAsync();
 			if (existsInLoan)
 			{
 				throw new Exception("Not allowed to delete loan record spend");
@@ -896,7 +892,7 @@ namespace EFDataAccess.Repositories
 			if (await Context.SpendDependencies
 				.Include(spd => spd.Spend)
 					.ThenInclude(sp => sp.LoanRecord)
-				.AnyAsync(spd => spd.DependencySpendId == spendId && spd.Spend.LoanRecord != null))
+				.AnyAsync(spd => spendIds.Contains(spd.DependencySpendId) && spd.Spend.LoanRecord != null))
 			{
 				throw new Exception("Not allowed to delete loan record spend");
 			}

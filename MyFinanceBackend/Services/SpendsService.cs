@@ -108,9 +108,9 @@ namespace MyFinanceBackend.Services
 			return result;
 		}
 
-		public async Task<IEnumerable<SpendItemModified>> DeleteSpendAsync(string userId, int spendId)
+		public async Task<IEnumerable<SpendItemModified>> DeleteSpendAsync(string userId, IReadOnlyCollection<int> transactionIds)
 		{
-			var result = await _spendsRepository.DeleteSpendAsync(userId, spendId);
+			var result = await _spendsRepository.DeleteSpendAsync(userId, transactionIds);
 			return result;
 		}
 
@@ -133,22 +133,29 @@ namespace MyFinanceBackend.Services
 			}
 
 			_spendsRepository.BeginTransaction();
-			var modifiedList = new ConcurrentBag<SpendItemModified>();
+			var modifiedList = new List<SpendItemModified>();
 			try
 			{
-				await Parallel.ForEachAsync(transactionIds, async (int trxId, CancellationToken cancellationToken) =>
+				//await Parallel.ForEachAsync(transactionIds, async (int trxId, CancellationToken cancellationToken) =>
+				//{
+				//	var modifieds = await ExecuteConfirmPendingTransactionAsync(trxId, newPaymentDate);
+				//	foreach (var modified in modifieds)
+				//	{
+				//		modifiedList.Add(modified);
+				//	}
+				//});
+
+				foreach (var transactionId in transactionIds)
 				{
-					var modifieds = await ExecuteConfirmPendingTransactionAsync(trxId, newPaymentDate);
-					foreach (var modified in modifieds)
-					{
-						modifiedList.Add(modified);
-					}
-				});
+					var modifieds = await ExecuteConfirmPendingTransactionAsync(transactionId, newPaymentDate);
+					var notIncluded = modifieds.Where(m => !modifiedList.Any(mli => mli == m));
+					modifiedList.AddRange(notIncluded);
+				}
 
 				_spendsRepository.Commit();
 				return modifiedList;
 			}
-			catch (Exception)
+			catch (Exception ex)
 			{
 				_spendsRepository.RollbackTransaction();
 				throw;

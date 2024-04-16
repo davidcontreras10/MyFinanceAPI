@@ -13,7 +13,7 @@ namespace MyFinanceBackend.Services
         Task<IEnumerable<SpendItemModified>> ConfirmPendingTransactionsAsync(IReadOnlyCollection<int> transactionIds, DateTime newPaymentDate);
 		Task<IEnumerable<SpendItemModified>> AddIncomeAsync(ClientAddSpendModel clientAddSpendModel);
         Task<IEnumerable<SpendItemModified>> AddSpendAsync(ClientAddSpendModel clientAddSpendModel);
-        Task<IEnumerable<SpendItemModified>> DeleteSpendAsync(string userId, int spendId);
+        Task<IEnumerable<SpendItemModified>> DeleteSpendAsync(string userId, IReadOnlyCollection<int> transactionIds);
         Task<IEnumerable<SpendItemModified>> EditSpendAsync(ClientEditSpendModel model);
         Task<IEnumerable<AccountCurrencyPair>> GetAccountsCurrencyAsync(IEnumerable<int> accountIdsArray);
         Task<IEnumerable<SavedSpend>> GetSavedSpendsAsync(int spendId);

@@ -51,7 +51,7 @@ namespace MyFinanceWebApiCore.Controllers
 				return BadRequest(request);
 			}
 
-			var modifiedItems = await _spendsService.ConfirmPendingTransactionsAsync(request.TransactionIds, request.TransactionDate);
+			var modifiedItems = await _spendsService.ConfirmPendingTransactionsAsync(request.TransactionIds, request.NewDateTime);
 			return Ok(modifiedItems);
 		}
 
@@ -125,7 +125,7 @@ namespace MyFinanceWebApiCore.Controllers
 		}
 
 		[HttpDelete]
-		public async Task<IEnumerable<ItemModified>> DeleteSpend(int spendId)
+		public async Task<IEnumerable<ItemModified>> DeleteSpend([FromQuery]int[] spendId)
 		{
 			var userId = GetUserId();
 			var itemModifiedList = await _spendsService.DeleteSpendAsync(userId, spendId);
