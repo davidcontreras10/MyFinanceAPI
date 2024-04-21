@@ -16,10 +16,12 @@ namespace EFDataAccess.Repositories
 		{
 		}
 
-		public async Task<IEnumerable<int>> AddEditSpendTypesAsync(string userId, ClientSpendType clientSpendType)
+		public async Task<SpendTypeViewModel> AddEditSpendTypesAsync(string userId, ClientSpendType clientSpendType)
 		{
 			var currentSpendType = clientSpendType.SpendTypeId > 0
-				? await Context.SpendType.FirstOrDefaultAsync(x => x.SpendTypeId == clientSpendType.SpendTypeId)
+				? await Context.SpendType
+					.Include(x => x.UserSpendType)
+					.FirstOrDefaultAsync(x => x.SpendTypeId == clientSpendType.SpendTypeId)
 				: null;
 			if (currentSpendType == null)
 			{
@@ -48,7 +50,19 @@ namespace EFDataAccess.Repositories
 			}
 
 			await Context.SaveChangesAsync();
-			return new[] { currentSpendType.SpendTypeId };
+			var x = new LocalUserSpendType
+			{
+				SpendType = currentSpendType,
+				IsContainedByUser = currentSpendType.UserSpendType.Any(u => u.UserId == new Guid(userId))
+			};
+
+			return new SpendTypeViewModel
+			{
+				Description = x.SpendType.Description,
+				IsDefault = x.IsContainedByUser,
+				SpendTypeId = x.SpendType.SpendTypeId,
+				SpendTypeName = x.SpendType.Name
+			};
 		}
 
 		public async Task<IEnumerable<int>> AddSpendTypeUserAsync(string userId, int spendTypeId)
@@ -133,7 +147,7 @@ namespace EFDataAccess.Repositories
 				spendTypes = await Context.SpendType.AsNoTracking()
 					.Select(x => new LocalUserSpendType
 					{
-						UserId = null,
+						IsContainedByUser = x.UserSpendType.Any(usp => usp.UserId == userGuid),
 						SpendType = x,
 					})
 					.ToListAsync();
@@ -146,7 +160,7 @@ namespace EFDataAccess.Repositories
 					.Select(x => new LocalUserSpendType
 					{
 						SpendType = x.SpendType,
-						UserId = x.UserId
+						UserId = x.UserId,
 					})
 					.ToListAsync();
 			}
@@ -155,7 +169,7 @@ namespace EFDataAccess.Repositories
 				.Select(x => new SpendTypeViewModel
 				{
 					Description = x.SpendType.Description,
-					IsDefault = includeAll && userGuid == x.UserId,
+					IsDefault = x.IsContainedByUser,
 					SpendTypeId = x.SpendType.SpendTypeId,
 					SpendTypeName = x.SpendType.Name
 				}).ToList();
@@ -167,6 +181,7 @@ namespace EFDataAccess.Repositories
 		{
 			public Guid? UserId { get; set; }
 			public SpendType SpendType { get; set; }
-		}
+            public bool IsContainedByUser { get; set; }
+        }
 	}
 }

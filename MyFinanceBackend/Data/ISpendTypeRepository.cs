@@ -11,7 +11,7 @@ namespace MyFinanceBackend.Data
 		Task<IEnumerable<int>> AddSpendTypeUserAsync(string userId, int spendTypeId);
 		Task<IEnumerable<SpendTypeViewModel>> GetSpendTypeByAccountViewModelsAsync(string userId, int? accountId);
 		Task<IEnumerable<SpendTypeViewModel>> GetSpendTypesAsync(string userId, bool includeAll = true);
-		Task<IEnumerable<int>> AddEditSpendTypesAsync(string userId, ClientSpendType clientSpendType);
+		Task<SpendTypeViewModel> AddEditSpendTypesAsync(string userId, ClientSpendType clientSpendType);
 	    Task DeleteSpendTypeAsync(string userId, int spendTypeId);
 	}
 }

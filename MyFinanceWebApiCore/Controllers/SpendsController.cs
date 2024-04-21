@@ -42,6 +42,19 @@ namespace MyFinanceWebApiCore.Controllers
 			return result;
 		}
 
+		[Route("bulk-confirmation")]
+		[HttpPut]
+		public async Task<ActionResult<IEnumerable<SpendItemModified>>> ConfirmPendingSpend([FromBody] BulkConfirmPendingTransactions request)
+		{
+			if(request == null)
+			{
+				return BadRequest(request);
+			}
+
+			var modifiedItems = await _spendsService.ConfirmPendingTransactionsAsync(request.TransactionIds, request.NewDateTime);
+			return Ok(modifiedItems);
+		}
+
 		[Route("confirmation")]
 		[HttpPut]
 		public async Task<IEnumerable<SpendItemModified>> ConfirmPendingSpend([FromQuery] int spendId, [FromBody] DateTimeModel newDateTime)
@@ -112,7 +125,7 @@ namespace MyFinanceWebApiCore.Controllers
 		}
 
 		[HttpDelete]
-		public async Task<IEnumerable<ItemModified>> DeleteSpend(int spendId)
+		public async Task<IEnumerable<ItemModified>> DeleteSpend([FromQuery]int[] spendId)
 		{
 			var userId = GetUserId();
 			var itemModifiedList = await _spendsService.DeleteSpendAsync(userId, spendId);
