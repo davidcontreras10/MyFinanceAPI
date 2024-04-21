@@ -129,8 +129,6 @@ namespace MyFinanceWebApiCore.Controllers
 		{
 			var userId = GetUserId();
 			var result = await _accountService.GetAddAccountViewModelAsync(userId);
-			var element = result.SpendTypeViewModels.ElementAt(4);
-			element.IsDefault = true;
 			return result;
 		}
 
