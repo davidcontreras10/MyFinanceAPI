@@ -40,7 +40,9 @@ namespace EFDataAccess.Repositories
 				AccountTypeId = (int)clientAddAccount.AccountTypeId,
 				DefaultSpendTypeId = clientAddAccount.SpendTypeId,
 				FinancialEntityId = clientAddAccount.FinancialEntityId,
-				UserId = new Guid(userId)
+				UserId = new Guid(userId),
+				DefaultSelectCurrencyId = clientAddAccount.DefaultCurrencyId,
+				DefaultSelectIsPending = clientAddAccount.IsDefaultPending
 			};
 
 			Context.Account.Add(efAccount);
@@ -147,7 +149,9 @@ namespace EFDataAccess.Repositories
 					AccountPosition = acc.Position ?? 0,
 					AccountStyle = CreateFrontStyleData(acc.HeaderColor),
 					BaseBudget = acc.BaseBudget ?? 0,
-					GlobalOrder = acc.Position ?? 0
+					GlobalOrder = acc.Position ?? 0,
+					DefaultCurrencyId = acc.DefaultSelectCurrencyId,
+					IsDefaultPending = acc.DefaultSelectIsPending
 				});
 
 			var accountGroupViewModels = Context.AccountGroup
@@ -203,9 +207,9 @@ namespace EFDataAccess.Repositories
 				AccountPosition = acc.Position ?? 0,
 				AccountGroupId = acc.AccountGroupId ?? 0,
 				AccountId = acc.AccountId,
-				SpendTypeViewModels = Context.UserSpendType.Where(ust => ust.UserId == userGuid)
+				SpendTypeViewModels = Context.UserSpendType.Where(ust => ust.UserId == userGuid || (acc.DefaultSpendTypeId != null && acc.DefaultSpendTypeId == ust.SpendTypeId))
 					.Include(x => x.SpendType)
-					.Select(x => x.SpendType.ToSpendTypeViewModel(acc.DefaultSpendTypeId)),
+					.Select(x => x.SpendType.ToSpendTypeViewModel(acc.DefaultSpendTypeId ?? 1)),
 				AccountTypeViewModels = efAccountTypes.Select(acct => new AccountTypeViewModel
 				{
 					AccountTypeId = acct.AccountTypeId,
@@ -238,7 +242,9 @@ namespace EFDataAccess.Repositories
 				}),
 				BaseBudget = acc.BaseBudget ?? 0,
 				AccountStyle = CreateFrontStyleData(acc.HeaderColor),
-				GlobalOrder = acc.Position ?? 0
+				GlobalOrder = acc.Position ?? 0,
+				DefaultCurrencyId = acc.DefaultSelectCurrencyId,
+				IsDefaultPending = acc.DefaultSelectIsPending
 			}).ToList();
 
 			return acc;
@@ -631,6 +637,17 @@ namespace EFDataAccess.Repositories
 					});
 				}
 			}
+
+			if (clientEditAccount.Contains(AccountFiedlds.IsDefaultPending))
+			{
+				account.DefaultSelectIsPending = clientEditAccount.IsDefaultPending;
+			}
+
+			if (clientEditAccount.Contains(AccountFiedlds.DefaultCurrencyId))
+			{
+				account.DefaultSelectCurrencyId = clientEditAccount.DefaultCurrencyId;
+			}
+
 			await Context.SaveChangesAsync();
 		}
 

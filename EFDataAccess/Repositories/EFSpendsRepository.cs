@@ -725,6 +725,7 @@ namespace EFDataAccess.Repositories
 				var currency = currencies.FirstOrDefault(c => c.CurrencyId == ccm.CurrencyConverter.CurrencyIdOne);
 				if (currency == null)
 				{
+					var defaultCurrencyId = account.DefaultSelectCurrencyId != null ? account.DefaultSelectCurrencyId : account.CurrencyId;
 					currency = new CurrencyViewModel
 					{
 						CurrencyId = ccmCurrency.CurrencyId,
@@ -732,7 +733,7 @@ namespace EFDataAccess.Repositories
 						CurrencyName = ccmCurrency.Name,
 						MethodIds = new List<MethodId>(),
 						Symbol = ccmCurrency.Symbol,
-						Isdefault = ccmCurrency.CurrencyId == account.CurrencyId
+						Isdefault = ccmCurrency.CurrencyId == defaultCurrencyId
 					};
 
 					currencies.Add(currency);

@@ -28,7 +28,8 @@ namespace MyFinanceModel.ClientViewModel
             SpendType = 5,
             //CurrencyId = 6,
             AmountType = 7
-        }
+
+		}
     }
 
     public class ClientAddSpendAccount
