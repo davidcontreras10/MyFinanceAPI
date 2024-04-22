@@ -26,7 +26,7 @@ namespace MyFinanceModel.ViewModel
 
 	public class AddAccountViewModel //add
     {
-        public FrontStyleData AccountStyle { get; set; }
+		public FrontStyleData AccountStyle { get; set; }
         public float BaseBudget { get; set; }
         public string AccountName { get; set; }
         public IEnumerable<SpendTypeViewModel> SpendTypeViewModels { get; set; }

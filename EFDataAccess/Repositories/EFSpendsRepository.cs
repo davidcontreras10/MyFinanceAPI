@@ -489,7 +489,8 @@ namespace EFDataAccess.Repositories
 					GlobalOrder = accountPeriod.Account.Position ?? 0,
 					InitialDate = initialDate,
 					SpendTypeViewModels = spendTypes.Select(spt => spt.ToSpendTypeViewModel(accountPeriod.Account.DefaultSpendTypeId)),
-					SuggestedDate = suggesteDate
+					SuggestedDate = suggesteDate,
+					IsDefaultPending = accountPeriod.Account.DefaultSelectIsPending
 				};
 				var currencyMethods = currencyConverterMethods
 					.Where(ccm => ccm.CurrencyConverter.CurrencyIdTwo == accountPeriod.Account.CurrencyId);

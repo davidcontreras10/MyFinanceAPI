@@ -425,7 +425,7 @@ namespace EFDataAccess.Repositories
 				AccountTypeId = acct.AccountTypeId,
 				AccountTypeName = acct.AccountTypeName
 			}).ToListAsync();
-			var userData = await Context.AppUser
+			var userData = await Context.AppUser.AsNoTracking()
 				.Include(u => u.UserSpendType)
 					.ThenInclude(ust => ust.SpendType)
 				.Where(u => u.UserId == userGuid)
@@ -448,8 +448,8 @@ namespace EFDataAccess.Repositories
 				Symbol = c.Symbol
 			}).ToListAsync();
 
-			var financialEntityViewModels = await Context.FinancialEntity.
-				Select(fe => new FinancialEntityViewModel
+			var financialEntityViewModels = await Context.FinancialEntity.AsNoTracking()
+				.Select(fe => new FinancialEntityViewModel
 				{
 					FinancialEntityId = fe.FinancialEntityId,
 					FinancialEntityName = fe.Name
