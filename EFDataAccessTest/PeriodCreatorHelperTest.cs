@@ -15,8 +15,8 @@ namespace EFDataAccessTest
 			var assertInitialDate = new DateTime(2023, 5, 15);
 			var assertEndDate = new DateTime(2023, 5, 22);
 			var result = PeriodCreatorHelper.GetNewPeriodDates(weeklyAccount, currentDate);
-			Assert.AreEqual(assertInitialDate, result.InitialDate);
-			Assert.AreEqual(assertEndDate, result.EndDate);
+			Assert.That(assertInitialDate, Is.EqualTo(result.InitialDate));
+			Assert.That(assertEndDate, Is.EqualTo(result.EndDate));
 		}
 
 		[Test]
@@ -27,8 +27,8 @@ namespace EFDataAccessTest
 			var assertInitialDate = new DateTime(2023, 5, 10);
 			var assertEndDate = new DateTime(2023, 5, 17);
 			var result = PeriodCreatorHelper.GetNewPeriodDates(weeklyAccount, currentDate);
-			Assert.AreEqual(assertInitialDate, result.InitialDate);
-			Assert.AreEqual(assertEndDate, result.EndDate);
+			Assert.That(assertInitialDate, Is.EqualTo(result.InitialDate));
+			Assert.That(assertEndDate, Is.EqualTo(result.EndDate));
 		}
 
 		[Test]
@@ -39,8 +39,8 @@ namespace EFDataAccessTest
 			var assertInitialDate = new DateTime(2023, 5, 1);
 			var assertEndDate = new DateTime(2023, 6, 1);
 			var result = PeriodCreatorHelper.GetNewPeriodDates(weeklyAccount, currentDate);
-			Assert.AreEqual(assertInitialDate, result.InitialDate);
-			Assert.AreEqual(assertEndDate, result.EndDate);
+			Assert.That(assertInitialDate, Is.EqualTo(result.InitialDate));
+			Assert.That(assertEndDate, Is.EqualTo(result.EndDate));
 		}
 
 		[Test]
@@ -51,8 +51,8 @@ namespace EFDataAccessTest
 			var assertInitialDate = new DateTime(2023, 4, 15);
 			var assertEndDate = new DateTime(2023, 5, 15);
 			var result = PeriodCreatorHelper.GetNewPeriodDates(weeklyAccount, currentDate);
-			Assert.AreEqual(assertInitialDate, result.InitialDate);
-			Assert.AreEqual(assertEndDate, result.EndDate);
+			Assert.That(assertInitialDate, Is.EqualTo(result.InitialDate));
+			Assert.That(assertEndDate, Is.EqualTo(result.EndDate));
 		}
 
 		[TestCase("2023-04-28")]
@@ -65,8 +65,8 @@ namespace EFDataAccessTest
 			var assertInitialDate = new DateTime(2023, 4, 15);
 			var assertEndDate = new DateTime(2023, 5, 15);
 			var result = PeriodCreatorHelper.GetNewPeriodDates(weeklyAccount, currentDate);
-			Assert.AreEqual(assertInitialDate, result.InitialDate);
-			Assert.AreEqual(assertEndDate, result.EndDate);
+			Assert.That(assertInitialDate, Is.EqualTo(result.InitialDate));
+			Assert.That(assertEndDate, Is.EqualTo(result.EndDate));
 
 		}
 

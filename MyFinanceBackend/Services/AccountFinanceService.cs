@@ -22,7 +22,7 @@ namespace MyFinanceBackend.Services
 
 		#region Publics
 
-		public async Task<IEnumerable<AccountFinanceViewModel>> GetAccountFinanceViewModelAsync(IEnumerable<ClientAccountFinanceViewModel> requestItems, string userId)
+		public async Task<IReadOnlyCollection<AccountFinanceViewModel>> GetAccountFinanceViewModelAsync(IEnumerable<ClientAccountFinanceViewModel> requestItems, string userId)
 		{
 			return await _spendsRepository.GetAccountFinanceViewModelAsync(requestItems, userId);
 		}
