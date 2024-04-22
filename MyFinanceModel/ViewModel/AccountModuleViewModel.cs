@@ -14,7 +14,9 @@ namespace MyFinanceModel.ViewModel
         public int AccountGroupId { get; set; }
         public FrontStyleData AccountStyle { get; set; }
 	    public float BaseBudget { get; set; }
-    }
+		public int? DefaultCurrencyId { get; set; }
+		public bool IsDefaultPending { get; set; }
+	}
 
     public class AccountDetailsPeriodViewModel : AccountDetailsViewModel
     {
@@ -24,7 +26,7 @@ namespace MyFinanceModel.ViewModel
 
 	public class AddAccountViewModel //add
     {
-        public FrontStyleData AccountStyle { get; set; }
+		public FrontStyleData AccountStyle { get; set; }
         public float BaseBudget { get; set; }
         public string AccountName { get; set; }
         public IEnumerable<SpendTypeViewModel> SpendTypeViewModels { get; set; }

@@ -12,6 +12,7 @@ namespace EFDataAccess.Models
         public Currency()
         {
             Account = new HashSet<Account>();
+            AccountsSelection = new HashSet<Account>();
             AccountPeriod = new HashSet<AccountPeriod>();
             AutomaticTask = new HashSet<AutomaticTask>();
             Spend = new HashSet<Spend>();
@@ -22,7 +23,8 @@ namespace EFDataAccess.Models
         public string Symbol { get; set; }
 
         public virtual ICollection<Account> Account { get; set; }
-        public virtual ICollection<AccountPeriod> AccountPeriod { get; set; }
+		public virtual ICollection<Account> AccountsSelection { get; set; }
+		public virtual ICollection<AccountPeriod> AccountPeriod { get; set; }
         public virtual ICollection<AutomaticTask> AutomaticTask { get; set; }
         public virtual ICollection<Spend> Spend { get; set; }
     }

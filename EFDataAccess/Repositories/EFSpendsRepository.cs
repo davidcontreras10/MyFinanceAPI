@@ -489,7 +489,8 @@ namespace EFDataAccess.Repositories
 					GlobalOrder = accountPeriod.Account.Position ?? 0,
 					InitialDate = initialDate,
 					SpendTypeViewModels = spendTypes.Select(spt => spt.ToSpendTypeViewModel(accountPeriod.Account.DefaultSpendTypeId)),
-					SuggestedDate = suggesteDate
+					SuggestedDate = suggesteDate,
+					IsDefaultPending = accountPeriod.Account.DefaultSelectIsPending
 				};
 				var currencyMethods = currencyConverterMethods
 					.Where(ccm => ccm.CurrencyConverter.CurrencyIdTwo == accountPeriod.Account.CurrencyId);
@@ -725,6 +726,7 @@ namespace EFDataAccess.Repositories
 				var currency = currencies.FirstOrDefault(c => c.CurrencyId == ccm.CurrencyConverter.CurrencyIdOne);
 				if (currency == null)
 				{
+					var defaultCurrencyId = account.DefaultSelectCurrencyId != null ? account.DefaultSelectCurrencyId : account.CurrencyId;
 					currency = new CurrencyViewModel
 					{
 						CurrencyId = ccmCurrency.CurrencyId,
@@ -732,7 +734,7 @@ namespace EFDataAccess.Repositories
 						CurrencyName = ccmCurrency.Name,
 						MethodIds = new List<MethodId>(),
 						Symbol = ccmCurrency.Symbol,
-						Isdefault = ccmCurrency.CurrencyId == account.CurrencyId
+						Isdefault = ccmCurrency.CurrencyId == defaultCurrencyId
 					};
 
 					currencies.Add(currency);

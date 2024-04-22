@@ -3,7 +3,6 @@ using MyFinanceBackend.Services;
 using MyFinanceModel.ClientViewModel;
 using MyFinanceModel.ViewModel;
 using MyFinanceModel;
-
 using System.Collections.Generic;
 using System;
 using MyFinanceWebApiCore.Authentication;

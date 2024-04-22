@@ -163,6 +163,7 @@ namespace MyFinanceModel.ViewModel
     {
         #region Properties
 
+        public bool IsDefaultPending { get; set; }
         public DateTime UserEndDate => GetUserEndDate();
 	    public DateTime SuggestedDate { get; set; } = DateTime.Now;
         public IEnumerable<CurrencyViewModel> SupportedCurrencies { get; set; }
