@@ -309,7 +309,7 @@ namespace EFDataAccess.Repositories
 			return viewModels.First();
 		}
 
-		public async Task<IEnumerable<AccountFinanceViewModel>> GetAccountFinanceViewModelAsync(IEnumerable<ClientAccountFinanceViewModel> requestItems, string userId)
+		public async Task<IReadOnlyCollection<AccountFinanceViewModel>> GetAccountFinanceViewModelAsync(IEnumerable<ClientAccountFinanceViewModel> requestItems, string userId)
 		{
 			var res = await GetAccountFinanceViewModelAsync(requestItems.ToList(), null);
 			return res;

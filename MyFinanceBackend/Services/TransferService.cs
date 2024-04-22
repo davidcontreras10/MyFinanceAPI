@@ -249,7 +249,6 @@ namespace MyFinanceBackend.Services
 				GeneralBalanceToday = accountFinanceViewModel.GeneralBalanceToday,
 				InitialDate = accountFinanceViewModel.InitialDate,
 				PeriodBalance = accountFinanceViewModel.PeriodBalance,
-				SpendTable = accountFinanceViewModel.SpendTable,
 				SpendViewModels = accountFinanceViewModel.SpendViewModels,
 				Spent = accountFinanceViewModel.Spent,
 				SupportedCurrencies = currencyViewModels,
