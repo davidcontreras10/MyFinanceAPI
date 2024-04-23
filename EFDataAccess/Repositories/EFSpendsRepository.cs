@@ -935,7 +935,7 @@ namespace EFDataAccess.Repositories
 				.Select(accp => new { accp.AccountId, accp.AccountPeriodId })
 				.ToListAsync();
 			var accountIds = infoIds.Select(acc => acc.AccountId);
-			IQueryable<Models.Account> query = Context.Account.AsNoTracking()
+			IQueryable<Account> query = Context.Account.AsNoTracking()
 				.Where(acc => accountIds.Contains(acc.AccountId))
 				.Include(acc => acc.Currency)
 				.Include(acc => acc.AccountPeriod)
