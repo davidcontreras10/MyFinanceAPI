@@ -63,7 +63,9 @@ namespace MyFinanceModel.ClientViewModel
         public bool PendingSpends { get; set; } = true;
         public bool LoanSpends { get; set; } = false;
         public int AmountTypeId { get; set; } = 0;
-    }
+        public TrxFiltersContainer TrxFilters { get; set; }
+	}
+
 
     #region SpendType
 

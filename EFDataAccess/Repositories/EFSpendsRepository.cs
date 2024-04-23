@@ -1000,6 +1000,36 @@ namespace EFDataAccess.Repositories
 			, int selectedPeriodId
 			)
 		{
+			return requestParams.TrxFilters != null
+				? SumPeriodsByFilters(accountPeriods, requestParams)
+				: SumPeriodsBySelectedPeriod(accountPeriods, requestParams, currentPeriodId, selectedPeriodId);
+		}
+
+		private static AccountPeriodsSumRes SumPeriodsByFilters(ICollection<Models.AccountPeriod> accountPeriods, ClientAccountFinanceViewModel requestParams)
+		{
+			var sumResult = new AccountPeriodsSumRes();
+			if (accountPeriods == null || !accountPeriods.Any())
+			{
+				return sumResult;
+			}
+
+			foreach (var accountPeriod in accountPeriods)
+			{
+				var trxSumResult = GetTrxSumResult(accountPeriod.SpendOnPeriod, requestParams, false);
+				sumResult.CurrentIncludedTrxSum += trxSumResult.BalanceSum;
+				sumResult.CurrentIncludedBudgetSum += accountPeriod.Budget ?? 0;
+			}
+
+			return sumResult;
+		}
+
+		private static AccountPeriodsSumRes SumPeriodsBySelectedPeriod(
+			ICollection<Models.AccountPeriod> accountPeriods
+			, ClientAccountFinanceViewModel requestParams
+			, int? currentPeriodId
+			, int selectedPeriodId
+			)
+		{
 			var sumResult = new AccountPeriodsSumRes();
 			if (accountPeriods == null || !accountPeriods.Any())
 			{
@@ -1046,19 +1076,31 @@ namespace EFDataAccess.Repositories
 			return sumResult;
 		}
 
-		private static bool FilterSpend(Models.Spend spend, ClientAccountFinanceViewModel request)
+		private static bool FilterSpend(Spend spend, ClientAccountFinanceViewModel request)
 		{
-			if (!request.PendingSpends && spend.IsPending)
+			if(request.TrxFilters != null)
 			{
-				return false;
+				return FilterSpend(spend, request.TrxFilters);
 			}
-
-			if (!request.LoanSpends && spend.LoanRecord != null)
+			else
 			{
-				return false;
-			}
+				if (!request.PendingSpends && spend.IsPending)
+				{
+					return false;
+				}
 
-			return request.AmountTypeId == 0 || spend.AmountTypeId == request.AmountTypeId;
+				if (!request.LoanSpends && spend.LoanRecord != null)
+				{
+					return false;
+				}
+
+				return request.AmountTypeId == 0 || spend.AmountTypeId == request.AmountTypeId;
+			}
+		}
+
+		private static bool FilterSpend(Spend spend, TrxFiltersContainer trxFiltersContainer)
+		{
+			throw new NotImplementedException();
 		}
 
 		private async Task<IEnumerable<AddSpendAccountDbValues>> GetConvertedAccountIncludedAsync(ISpendCurrencyConvertible spendCurrencyConvertible)
