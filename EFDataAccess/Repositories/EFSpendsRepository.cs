@@ -1117,8 +1117,8 @@ namespace EFDataAccess.Repositories
 				return false;
 			}
 
-			if(trxFiltersContainer.DescriptionTrxFilter != null && !string.IsNullOrWhiteSpace(spend.Description) 
-				&& !spend.Description.Contains(trxFiltersContainer.DescriptionTrxFilter.SearchText))
+			if(trxFiltersContainer.DescriptionTrxFilter != null && 
+				(string.IsNullOrWhiteSpace(spend.Description) || !spend.Description.Contains(trxFiltersContainer.DescriptionTrxFilter.SearchText) ))
 			{
 				return false;
 			}
