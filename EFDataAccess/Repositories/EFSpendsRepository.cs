@@ -983,6 +983,7 @@ namespace EFDataAccess.Repositories
 					GeneralBalance = (float)(periodsSumResult.NotCurrentTotalBudgetSum - periodsSumResult.NotCurrentTotalTrxSum),
 					GeneralBalanceToday = (float)(periodsSumResult.CurrentIncludedBudgetSum - periodsSumResult.CurrentIncludedTrxSum),
 					PeriodBalance = (float)(periodBudget - periodsSumResult.SelectedPeriodSum.BalanceSum),
+					TrxFilters = requestParams.TrxFilters
 				};
 
 				accViewModels.Add(viewModel);
@@ -1018,6 +1019,7 @@ namespace EFDataAccess.Repositories
 				var trxSumResult = GetTrxSumResult(accountPeriod.SpendOnPeriod, requestParams, false);
 				sumResult.CurrentIncludedTrxSum += trxSumResult.BalanceSum;
 				sumResult.CurrentIncludedBudgetSum += accountPeriod.Budget ?? 0;
+				sumResult.SelectedPeriodSum.SpendViewModels.AddRange(trxSumResult.SpendViewModels);
 			}
 
 			return sumResult;
@@ -1100,7 +1102,28 @@ namespace EFDataAccess.Repositories
 
 		private static bool FilterSpend(Spend spend, TrxFiltersContainer trxFiltersContainer)
 		{
-			throw new NotImplementedException();
+			if(trxFiltersContainer.StartDate != null && spend.SpendDate < trxFiltersContainer.StartDate)
+			{
+				return false;
+			}
+
+			if (trxFiltersContainer.EndDate != null && spend.SpendDate > trxFiltersContainer.EndDate)
+			{
+				return false;
+			}
+
+			if(trxFiltersContainer.PendingTrxFilter != null && trxFiltersContainer.PendingTrxFilter.Value && !spend.IsPending)
+			{
+				return false;
+			}
+
+			if(trxFiltersContainer.DescriptionTrxFilter != null && !string.IsNullOrWhiteSpace(spend.Description) 
+				&& !spend.Description.Contains(trxFiltersContainer.DescriptionTrxFilter.SearchText))
+			{
+				return false;
+			}
+
+			return true;
 		}
 
 		private async Task<IEnumerable<AddSpendAccountDbValues>> GetConvertedAccountIncludedAsync(ISpendCurrencyConvertible spendCurrencyConvertible)

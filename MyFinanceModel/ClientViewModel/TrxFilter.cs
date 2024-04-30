@@ -23,11 +23,13 @@ namespace MyFinanceModel.ClientViewModel
 		public DateTime? StartDate { get; set; }
 		public DateTime? EndDate { get; set; }
         public PendingTrxFilter PendingTrxFilter { get; set; }
+        public DescriptionTrxFilter DescriptionTrxFilter { get; set; }
     }
 
 	public class PendingTrxFilter : ITrxFilter
 	{
 		public TrxFilterType TrxFilterType => TrxFilterType.PendingTrxs;
+        public bool Value { get; set; }
     }
 
 	public class DescriptionTrxFilter : ITrxFilter
