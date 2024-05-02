@@ -1102,12 +1102,12 @@ namespace EFDataAccess.Repositories
 
 		private static bool FilterSpend(Spend spend, TrxFiltersContainer trxFiltersContainer)
 		{
-			if(trxFiltersContainer.StartDate != null && spend.SpendDate < trxFiltersContainer.StartDate)
+			if(trxFiltersContainer.StartDate != null && (spend.SpendDate == null || spend.SpendDate < trxFiltersContainer.StartDate))
 			{
 				return false;
 			}
 
-			if (trxFiltersContainer.EndDate != null && spend.SpendDate > trxFiltersContainer.EndDate)
+			if (trxFiltersContainer.EndDate != null && (spend.SpendDate == null || spend.SpendDate > trxFiltersContainer.EndDate))
 			{
 				return false;
 			}
