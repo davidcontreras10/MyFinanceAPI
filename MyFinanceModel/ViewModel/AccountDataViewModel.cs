@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using MyFinanceModel.ClientViewModel;
 using MyFinanceModel.Utilities;
 
 namespace MyFinanceModel.ViewModel
@@ -50,12 +51,13 @@ namespace MyFinanceModel.ViewModel
         public float GeneralBalanceToday { get; set; }
         public IReadOnlyCollection<SpendViewModel> SpendViewModels { get; set; }
         public string AccountPeriodName => GetAccountPeriodName();
+		public TrxFiltersContainer TrxFilters { get; set; }
 
-        #endregion
+		#endregion
 
-        #region Num Property
+		#region Num Property
 
-        public string NumBudget => GetAmountValue(Budget);
+		public string NumBudget => GetAmountValue(Budget);
 
         public string NumSpent => GetAmountValue(Spent);
 

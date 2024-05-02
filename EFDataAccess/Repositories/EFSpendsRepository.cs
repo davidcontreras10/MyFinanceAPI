@@ -935,7 +935,7 @@ namespace EFDataAccess.Repositories
 				.Select(accp => new { accp.AccountId, accp.AccountPeriodId })
 				.ToListAsync();
 			var accountIds = infoIds.Select(acc => acc.AccountId);
-			IQueryable<Models.Account> query = Context.Account.AsNoTracking()
+			IQueryable<Account> query = Context.Account.AsNoTracking()
 				.Where(acc => accountIds.Contains(acc.AccountId))
 				.Include(acc => acc.Currency)
 				.Include(acc => acc.AccountPeriod)
@@ -983,6 +983,7 @@ namespace EFDataAccess.Repositories
 					GeneralBalance = (float)(periodsSumResult.NotCurrentTotalBudgetSum - periodsSumResult.NotCurrentTotalTrxSum),
 					GeneralBalanceToday = (float)(periodsSumResult.CurrentIncludedBudgetSum - periodsSumResult.CurrentIncludedTrxSum),
 					PeriodBalance = (float)(periodBudget - periodsSumResult.SelectedPeriodSum.BalanceSum),
+					TrxFilters = requestParams.TrxFilters
 				};
 
 				accViewModels.Add(viewModel);
@@ -994,6 +995,37 @@ namespace EFDataAccess.Repositories
 		}
 
 		private static AccountPeriodsSumRes SumPeriods(
+			ICollection<Models.AccountPeriod> accountPeriods
+			, ClientAccountFinanceViewModel requestParams
+			, int? currentPeriodId
+			, int selectedPeriodId
+			)
+		{
+			return requestParams.TrxFilters != null
+				? SumPeriodsByFilters(accountPeriods, requestParams)
+				: SumPeriodsBySelectedPeriod(accountPeriods, requestParams, currentPeriodId, selectedPeriodId);
+		}
+
+		private static AccountPeriodsSumRes SumPeriodsByFilters(ICollection<Models.AccountPeriod> accountPeriods, ClientAccountFinanceViewModel requestParams)
+		{
+			var sumResult = new AccountPeriodsSumRes();
+			if (accountPeriods == null || !accountPeriods.Any())
+			{
+				return sumResult;
+			}
+
+			foreach (var accountPeriod in accountPeriods)
+			{
+				var trxSumResult = GetTrxSumResult(accountPeriod.SpendOnPeriod, requestParams, false);
+				sumResult.CurrentIncludedTrxSum += trxSumResult.BalanceSum;
+				sumResult.CurrentIncludedBudgetSum += accountPeriod.Budget ?? 0;
+				sumResult.SelectedPeriodSum.SpendViewModels.AddRange(trxSumResult.SpendViewModels);
+			}
+
+			return sumResult;
+		}
+
+		private static AccountPeriodsSumRes SumPeriodsBySelectedPeriod(
 			ICollection<Models.AccountPeriod> accountPeriods
 			, ClientAccountFinanceViewModel requestParams
 			, int? currentPeriodId
@@ -1046,19 +1078,52 @@ namespace EFDataAccess.Repositories
 			return sumResult;
 		}
 
-		private static bool FilterSpend(Models.Spend spend, ClientAccountFinanceViewModel request)
+		private static bool FilterSpend(Spend spend, ClientAccountFinanceViewModel request)
 		{
-			if (!request.PendingSpends && spend.IsPending)
+			if(request.TrxFilters != null)
+			{
+				return FilterSpend(spend, request.TrxFilters);
+			}
+			else
+			{
+				if (!request.PendingSpends && spend.IsPending)
+				{
+					return false;
+				}
+
+				if (!request.LoanSpends && spend.LoanRecord != null)
+				{
+					return false;
+				}
+
+				return request.AmountTypeId == 0 || spend.AmountTypeId == request.AmountTypeId;
+			}
+		}
+
+		private static bool FilterSpend(Spend spend, TrxFiltersContainer trxFiltersContainer)
+		{
+			if(trxFiltersContainer.StartDate != null && (spend.SpendDate == null || spend.SpendDate < trxFiltersContainer.StartDate))
 			{
 				return false;
 			}
 
-			if (!request.LoanSpends && spend.LoanRecord != null)
+			if (trxFiltersContainer.EndDate != null && (spend.SpendDate == null || spend.SpendDate > trxFiltersContainer.EndDate))
 			{
 				return false;
 			}
 
-			return request.AmountTypeId == 0 || spend.AmountTypeId == request.AmountTypeId;
+			if(trxFiltersContainer.PendingTrxFilter != null && trxFiltersContainer.PendingTrxFilter.Value && !spend.IsPending)
+			{
+				return false;
+			}
+
+			if(trxFiltersContainer.DescriptionTrxFilter != null && 
+				(string.IsNullOrWhiteSpace(spend.Description) || !spend.Description.Contains(trxFiltersContainer.DescriptionTrxFilter.SearchText) ))
+			{
+				return false;
+			}
+
+			return true;
 		}
 
 		private async Task<IEnumerable<AddSpendAccountDbValues>> GetConvertedAccountIncludedAsync(ISpendCurrencyConvertible spendCurrencyConvertible)
