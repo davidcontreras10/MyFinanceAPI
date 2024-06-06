@@ -27,6 +27,23 @@ namespace EFDataAccess.Repositories
 			_logger = logger;
 		}
 
+		public async Task<IReadOnlyCollection<AccountPeriodIdReqResp>> GetEquivalentAccountPeriodsByDateAsync(IEnumerable<int> accountPeriodIds, DateTime dateTime)
+		{
+			if (accountPeriodIds == null || !accountPeriodIds.Any())
+			{
+				return Array.Empty<AccountPeriodIdReqResp>();
+			}
+
+			var accountIds = await Context.AccountPeriod.AsNoTracking()
+				.Where(accp => accountPeriodIds.Contains(accp.AccountPeriodId) && accp.AccountId != null)
+				.Include(accp => accp.Account)
+					.ThenInclude(acc => acc.AccountPeriod.Where(accp2 => dateTime >= accp2.InitialDate && dateTime < accp2.EndDate))
+				.Select(accp => new AccountPeriodIdReqResp(accp.AccountPeriodId, accp.Account.AccountPeriod.FirstOrDefault().AccountPeriodId))
+				.ToListAsync();
+
+			return accountIds;
+		}
+
 		public void AddAccount(string userId, ClientAddAccount clientAddAccount)
 		{
 			var efAccount = new Account

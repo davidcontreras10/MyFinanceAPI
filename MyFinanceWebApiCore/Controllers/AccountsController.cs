@@ -60,17 +60,16 @@ namespace MyFinanceWebApiCore.Controllers
 
 		[Route("finance")]
 		[HttpPost]
-		//[IncludeRestrictObjectHeader]
-		public async Task<IReadOnlyCollection<AccountFinanceViewModel>> GetAccountFinanceViewModel([FromBody] ClientAccountFinanceViewModel[] accountPeriods)
+		public async Task<IReadOnlyCollection<AccountFinanceViewModel>> GetAccountFinanceViewModel([FromBody] ClientAccountFinanceViewModel[] accountPeriods
+			, [FromQuery]DateTime? expectedDate = null)
 		{
 			var userId = GetUserId();
-			var accountFinanceViewModelList = await _accountFinanceService.GetAccountFinanceViewModelAsync(accountPeriods, userId);
+			var accountFinanceViewModelList = await _accountFinanceService.GetAccountFinanceViewModelAsync(accountPeriods, userId, expectedDate);
 			return accountFinanceViewModelList;
 		}
 
 		[Route("finance/excel")]
 		[HttpPost]
-		//[IncludeRestrictObjectHeader]
 		public async Task<FileContentResult> GetExcelAccountFinanceViewModel([FromBody] ClientAccountFinanceViewModel[] accountPeriods)
 		{
 			var userId = GetUserId();

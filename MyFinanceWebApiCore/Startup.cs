@@ -51,6 +51,7 @@ namespace MyFinanceWebApiCore
 			}).AddNewtonsoftJson();
 			RegisterServices(services);
 			services.AddHttpClient();
+			services.AddSingleton(Log.Logger);
 			services.ConfigureSettings(Configuration);
 			services.Configure<ApiBehaviorOptions>(options =>
 			{
