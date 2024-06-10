@@ -42,7 +42,7 @@ namespace MyFinanceBackend.Services
 
 				requestItems = newItems;
 			}
-			return await _spendsRepository.GetAccountFinanceViewModelAsync(requestItems, userId);
+			return await _spendsRepository.GetAccountFinanceViewModelAsync(requestItems, userId, null);
 		}
 
 		public async Task<IEnumerable<BankAccountSummary>> GetAccountFinanceSummaryViewModelAsync(string userId, DateTime? dateTime = null)
