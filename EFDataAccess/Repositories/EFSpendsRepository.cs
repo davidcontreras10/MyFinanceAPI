@@ -309,9 +309,9 @@ namespace EFDataAccess.Repositories
 			return viewModels.First();
 		}
 
-		public async Task<IReadOnlyCollection<AccountFinanceViewModel>> GetAccountFinanceViewModelAsync(IEnumerable<ClientAccountFinanceViewModel> requestItems, string userId)
+		public async Task<IReadOnlyCollection<AccountFinanceViewModel>> GetAccountFinanceViewModelAsync(IEnumerable<ClientAccountFinanceViewModel> requestItems, string userId, DateTime? dateTime)
 		{
-			var res = await GetAccountFinanceViewModelAsync(requestItems.ToList(), null);
+			var res = await GetAccountFinanceViewModelAsync(requestItems.ToList(), dateTime);
 			return res;
 		}
 
@@ -960,10 +960,10 @@ namespace EFDataAccess.Repositories
 			foreach (var account in accounts)
 			{
 				var accInfo = infoIds.First(x => x.AccountId == account.AccountId);
+				var currentAccountPeriod = AccountHelpers.GetCurrentAccountPeriod(currentDate, account);
 				var selectedAccountPeriod = account.AccountPeriod.First(accp => accp.AccountPeriodId == accInfo.AccountPeriodId);
 				var requestParams = requestItems.First(r => r.AccountPeriodId == selectedAccountPeriod.AccountPeriodId);
 
-				var currentAccountPeriod = AccountHelpers.GetCurrentAccountPeriod(currentDate, account);
 				var periodsSumResult = SumPeriods(account.AccountPeriod, requestParams,
 					currentAccountPeriod?.AccountPeriodId, selectedAccountPeriod.AccountPeriodId);
 				var periodBudget = selectedAccountPeriod.Budget ?? 0;
