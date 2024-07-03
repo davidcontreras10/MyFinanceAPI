@@ -32,11 +32,14 @@ namespace EFDataAccess.Models
         public int? FinancialEntityId { get; set; }
         public Guid? UserId { get; set; }
         public int? AccountGroupId { get; set; }
+        public int? DefaultSelectCurrencyId { get; set; }
+        public bool DefaultSelectIsPending { get; set; }
 
         public virtual AccountGroup AccountGroup { get; set; }
         public virtual AccountType AccountType { get; set; }
         public virtual Currency Currency { get; set; }
-        public virtual SpendType DefaultSpendType { get; set; }
+        public virtual Currency DefaultSelectCurrency { get; set; }
+		public virtual SpendType DefaultSpendType { get; set; }
         public virtual FinancialEntity FinancialEntity { get; set; }
         public virtual PeriodDefinition PeriodDefinition { get; set; }
         public virtual AppUser User { get; set; }

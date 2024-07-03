@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using MyFinanceModel.ClientViewModel;
 using MyFinanceModel.Utilities;
 
 namespace MyFinanceModel.ViewModel
@@ -48,25 +49,23 @@ namespace MyFinanceModel.ViewModel
         public float PeriodBalance { get; set; }
         public float GeneralBalance { get; set; }
         public float GeneralBalanceToday { get; set; }
-        public List<SpendViewModel> SpendViewModels { get; set; }
-        public object SpendTable { get; set; }
+        public IReadOnlyCollection<SpendViewModel> SpendViewModels { get; set; }
         public string AccountPeriodName => GetAccountPeriodName();
+		public TrxFiltersContainer TrxFilters { get; set; }
 
-        #endregion
+		#endregion
 
-        #region Num Property
+		#region Num Property
 
-// ReSharper disable InconsistentNaming
-        public string numBudget => GetAmountValue(Budget);
+		public string NumBudget => GetAmountValue(Budget);
 
-        public string numSpent => GetAmountValue(Spent);
+        public string NumSpent => GetAmountValue(Spent);
 
-        public string numPeriodBalance => GetAmountValue(PeriodBalance);
+        public string NumPeriodBalance => GetAmountValue(PeriodBalance);
 
-        public string numGeneralBalance => GetAmountValue(GeneralBalance);
+        public string NumGeneralBalance => GetAmountValue(GeneralBalance);
 
-        public string numGeneralBalanceToday => GetAmountValue(GeneralBalanceToday);
-        // ReSharper restore InconsistentNaming
+        public string NumGeneralBalanceToday => GetAmountValue(GeneralBalanceToday);
 
         #endregion
 
@@ -163,6 +162,7 @@ namespace MyFinanceModel.ViewModel
     {
         #region Properties
 
+        public bool IsDefaultPending { get; set; }
         public DateTime UserEndDate => GetUserEndDate();
 	    public DateTime SuggestedDate { get; set; } = DateTime.Now;
         public IEnumerable<CurrencyViewModel> SupportedCurrencies { get; set; }

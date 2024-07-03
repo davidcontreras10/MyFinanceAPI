@@ -62,4 +62,6 @@ namespace MyFinanceModel
 		public int? FinancialEntityId { get; set; }
 		public string FinancialEntityName { get; set; }
 	}
+
+    public record AccountPeriodIdReqResp(int AccountPeriodIdReq, int? AccountPeriodResp) { }
 }

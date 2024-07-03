@@ -92,10 +92,17 @@ namespace EFDataAccess.Models
 					.OnDelete(DeleteBehavior.ClientSetNull)
 					.HasConstraintName("Account_FK_AccountTypeId");
 
+
 				entity.HasOne(d => d.Currency)
 					.WithMany(p => p.Account)
 					.HasForeignKey(d => d.CurrencyId)
 					.HasConstraintName("Account_FK_CurrencyId");
+
+				entity.HasOne(d => d.DefaultSelectCurrency)
+					.WithMany(p => p.AccountsSelection)
+					.HasForeignKey(d => d.DefaultSelectCurrencyId)
+					.OnDelete(DeleteBehavior.ClientSetNull)
+					.HasConstraintName("Account_FK_DefaultSelectCurrencyId");
 
 				entity.HasOne(d => d.DefaultSpendType)
 					.WithMany(p => p.Account)

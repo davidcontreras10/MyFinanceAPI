@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using System.Linq;
+using MyFinanceWebApiCore.Services;
 
 namespace MyFinanceWebApiCore.Controllers
 {
@@ -59,12 +60,22 @@ namespace MyFinanceWebApiCore.Controllers
 
 		[Route("finance")]
 		[HttpPost]
-		//[IncludeRestrictObjectHeader]
-		public async Task<IEnumerable<AccountFinanceViewModel>> GetAccountFinanceViewModel([FromBody] ClientAccountFinanceViewModel[] accountPeriods)
+		public async Task<IReadOnlyCollection<AccountFinanceViewModel>> GetAccountFinanceViewModel([FromBody] ClientAccountFinanceViewModel[] accountPeriods
+			, [FromQuery]DateTime? expectedDate = null)
+		{
+			var userId = GetUserId();
+			var accountFinanceViewModelList = await _accountFinanceService.GetAccountFinanceViewModelAsync(accountPeriods, userId, expectedDate);
+			return accountFinanceViewModelList;
+		}
+
+		[Route("finance/excel")]
+		[HttpPost]
+		public async Task<FileContentResult> GetExcelAccountFinanceViewModel([FromBody] ClientAccountFinanceViewModel[] accountPeriods)
 		{
 			var userId = GetUserId();
 			var accountFinanceViewModelList = await _accountFinanceService.GetAccountFinanceViewModelAsync(accountPeriods, userId);
-			return accountFinanceViewModelList;
+			var bytes = ExcelFileHelper.GenerateFile(accountFinanceViewModelList.ToList());
+			return File(bytes, "application/octet-stream", ExcelFileHelper.GetFileName(accountFinanceViewModelList));
 		}
 
 		[Route("finance/summary")]
@@ -129,8 +140,6 @@ namespace MyFinanceWebApiCore.Controllers
 		{
 			var userId = GetUserId();
 			var result = await _accountService.GetAddAccountViewModelAsync(userId);
-			var element = result.SpendTypeViewModels.ElementAt(4);
-			element.IsDefault = true;
 			return result;
 		}
 

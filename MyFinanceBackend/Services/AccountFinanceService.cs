@@ -9,22 +9,40 @@ using MyFinanceModel.ViewModel;
 
 namespace MyFinanceBackend.Services
 {
-	public class AccountFinanceService : IAccountFinanceService
+	public class AccountFinanceService(ISpendsRepository spendsRepository, IAccountRepository accountRepository) : IAccountFinanceService
 	{
-		private readonly ISpendsRepository _spendsRepository;
-		private readonly IAccountRepository _accountRepository;
-
-		public AccountFinanceService(ISpendsRepository spendsRepository, IAccountRepository accountRepository)
-		{
-			_spendsRepository = spendsRepository;
-			_accountRepository = accountRepository;
-		}
+		private readonly ISpendsRepository _spendsRepository = spendsRepository;
+		private readonly IAccountRepository _accountRepository = accountRepository;
 
 		#region Publics
 
-		public async Task<IEnumerable<AccountFinanceViewModel>> GetAccountFinanceViewModelAsync(IEnumerable<ClientAccountFinanceViewModel> requestItems, string userId)
+		public async Task<IReadOnlyCollection<AccountFinanceViewModel>> GetAccountFinanceViewModelAsync(IEnumerable<ClientAccountFinanceViewModel> requestItems
+			, string userId
+			, DateTime? expectedDate = null)
 		{
-			return await _spendsRepository.GetAccountFinanceViewModelAsync(requestItems, userId);
+			if (expectedDate != null)
+			{
+				var newAccountPeriods = await _accountRepository.GetEquivalentAccountPeriodsByDateAsync(requestItems.Select(i => i.AccountPeriodId), expectedDate.Value);
+				var newItems = requestItems.ToList();
+				foreach (var accountPeriod in newAccountPeriods)
+				{
+					var requestItem = requestItems.FirstOrDefault(ri => ri.AccountPeriodId == accountPeriod.AccountPeriodIdReq);
+					if (requestItem != null)
+					{
+						if (accountPeriod.AccountPeriodResp == null)
+						{
+							newItems.Remove(requestItem);
+						}
+						else
+						{
+							requestItem.AccountPeriodId = accountPeriod.AccountPeriodResp.Value;
+						}
+					}
+				}
+
+				requestItems = newItems;
+			}
+			return await _spendsRepository.GetAccountFinanceViewModelAsync(requestItems, userId, null);
 		}
 
 		public async Task<IEnumerable<BankAccountSummary>> GetAccountFinanceSummaryViewModelAsync(string userId, DateTime? dateTime = null)

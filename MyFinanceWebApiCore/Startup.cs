@@ -21,14 +21,9 @@ using Serilog;
 
 namespace MyFinanceWebApiCore
 {
-	public class Startup
+	public class Startup(IConfiguration configuration)
 	{
-		public Startup(IConfiguration configuration)
-		{
-			Configuration = configuration;
-		}
-
-		public IConfiguration Configuration { get; }
+		public IConfiguration Configuration { get; } = configuration;
 
 		// This method gets called by the runtime. Use this method to add services to the container.
 		public void ConfigureServices(IServiceCollection services)
@@ -51,6 +46,7 @@ namespace MyFinanceWebApiCore
 			}).AddNewtonsoftJson();
 			RegisterServices(services);
 			services.AddHttpClient();
+			services.AddSingleton(Log.Logger);
 			services.ConfigureSettings(Configuration);
 			services.Configure<ApiBehaviorOptions>(options =>
 			{

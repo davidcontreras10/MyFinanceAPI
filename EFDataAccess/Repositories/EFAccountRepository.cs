@@ -27,6 +27,24 @@ namespace EFDataAccess.Repositories
 			_logger = logger;
 		}
 
+		public async Task<IReadOnlyCollection<AccountPeriodIdReqResp>> GetEquivalentAccountPeriodsByDateAsync(IEnumerable<int> accountPeriodIds, DateTime dateTime)
+		{
+			if (accountPeriodIds == null || !accountPeriodIds.Any())
+			{
+				return Array.Empty<AccountPeriodIdReqResp>();
+			}
+
+			var accountIds = await Context.AccountPeriod.AsNoTracking()
+				.Where(accp => accountPeriodIds.Contains(accp.AccountPeriodId) && accp.AccountId != null)
+				.Include(accp => accp.Account)
+					.ThenInclude(acc => acc.AccountPeriod)
+				.Select(accp => new AccountPeriodIdReqResp(accp.AccountPeriodId, 
+						accp.Account.AccountPeriod.Where(accp2 => dateTime >= accp2.InitialDate && dateTime < accp2.EndDate).FirstOrDefault().AccountPeriodId))
+				.ToListAsync();
+
+			return accountIds;
+		}
+
 		public void AddAccount(string userId, ClientAddAccount clientAddAccount)
 		{
 			var efAccount = new Account
@@ -40,7 +58,9 @@ namespace EFDataAccess.Repositories
 				AccountTypeId = (int)clientAddAccount.AccountTypeId,
 				DefaultSpendTypeId = clientAddAccount.SpendTypeId,
 				FinancialEntityId = clientAddAccount.FinancialEntityId,
-				UserId = new Guid(userId)
+				UserId = new Guid(userId),
+				DefaultSelectCurrencyId = clientAddAccount.DefaultCurrencyId,
+				DefaultSelectIsPending = clientAddAccount.IsDefaultPending
 			};
 
 			Context.Account.Add(efAccount);
@@ -147,7 +167,9 @@ namespace EFDataAccess.Repositories
 					AccountPosition = acc.Position ?? 0,
 					AccountStyle = CreateFrontStyleData(acc.HeaderColor),
 					BaseBudget = acc.BaseBudget ?? 0,
-					GlobalOrder = acc.Position ?? 0
+					GlobalOrder = acc.Position ?? 0,
+					DefaultCurrencyId = acc.DefaultSelectCurrencyId,
+					IsDefaultPending = acc.DefaultSelectIsPending
 				});
 
 			var accountGroupViewModels = Context.AccountGroup
@@ -203,9 +225,9 @@ namespace EFDataAccess.Repositories
 				AccountPosition = acc.Position ?? 0,
 				AccountGroupId = acc.AccountGroupId ?? 0,
 				AccountId = acc.AccountId,
-				SpendTypeViewModels = Context.UserSpendType.Where(ust => ust.UserId == userGuid)
+				SpendTypeViewModels = Context.UserSpendType.Where(ust => ust.UserId == userGuid || (acc.DefaultSpendTypeId != null && acc.DefaultSpendTypeId == ust.SpendTypeId))
 					.Include(x => x.SpendType)
-					.Select(x => x.SpendType.ToSpendTypeViewModel(acc.DefaultSpendTypeId)),
+					.Select(x => x.SpendType.ToSpendTypeViewModel(acc.DefaultSpendTypeId ?? 1)),
 				AccountTypeViewModels = efAccountTypes.Select(acct => new AccountTypeViewModel
 				{
 					AccountTypeId = acct.AccountTypeId,
@@ -238,7 +260,9 @@ namespace EFDataAccess.Repositories
 				}),
 				BaseBudget = acc.BaseBudget ?? 0,
 				AccountStyle = CreateFrontStyleData(acc.HeaderColor),
-				GlobalOrder = acc.Position ?? 0
+				GlobalOrder = acc.Position ?? 0,
+				DefaultCurrencyId = acc.DefaultSelectCurrencyId,
+				IsDefaultPending = acc.DefaultSelectIsPending
 			}).ToList();
 
 			return acc;
@@ -419,7 +443,7 @@ namespace EFDataAccess.Repositories
 				AccountTypeId = acct.AccountTypeId,
 				AccountTypeName = acct.AccountTypeName
 			}).ToListAsync();
-			var userData = await Context.AppUser
+			var userData = await Context.AppUser.AsNoTracking()
 				.Include(u => u.UserSpendType)
 					.ThenInclude(ust => ust.SpendType)
 				.Where(u => u.UserId == userGuid)
@@ -442,8 +466,8 @@ namespace EFDataAccess.Repositories
 				Symbol = c.Symbol
 			}).ToListAsync();
 
-			var financialEntityViewModels = await Context.FinancialEntity.
-				Select(fe => new FinancialEntityViewModel
+			var financialEntityViewModels = await Context.FinancialEntity.AsNoTracking()
+				.Select(fe => new FinancialEntityViewModel
 				{
 					FinancialEntityId = fe.FinancialEntityId,
 					FinancialEntityName = fe.Name
@@ -631,6 +655,17 @@ namespace EFDataAccess.Repositories
 					});
 				}
 			}
+
+			if (clientEditAccount.Contains(AccountFiedlds.IsDefaultPending))
+			{
+				account.DefaultSelectIsPending = clientEditAccount.IsDefaultPending;
+			}
+
+			if (clientEditAccount.Contains(AccountFiedlds.DefaultCurrencyId))
+			{
+				account.DefaultSelectCurrencyId = clientEditAccount.DefaultCurrencyId;
+			}
+
 			await Context.SaveChangesAsync();
 		}
 

@@ -44,6 +44,12 @@ namespace EFDataAccess.Migrations
                     b.Property<int?>("CurrencyId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("DefaultSelectCurrencyId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("DefaultSelectIsPending")
+                        .HasColumnType("bit");
+
                     b.Property<int?>("DefaultSpendTypeId")
                         .HasColumnType("int");
 
@@ -75,6 +81,8 @@ namespace EFDataAccess.Migrations
                     b.HasIndex("AccountTypeId");
 
                     b.HasIndex("CurrencyId");
+
+                    b.HasIndex("DefaultSelectCurrencyId");
 
                     b.HasIndex("DefaultSpendTypeId");
 
@@ -1135,6 +1143,11 @@ namespace EFDataAccess.Migrations
                         .HasForeignKey("CurrencyId")
                         .HasConstraintName("Account_FK_CurrencyId");
 
+                    b.HasOne("EFDataAccess.Models.Currency", "DefaultSelectCurrency")
+                        .WithMany("AccountsSelection")
+                        .HasForeignKey("DefaultSelectCurrencyId")
+                        .HasConstraintName("Account_FK_DefaultSelectCurrencyId");
+
                     b.HasOne("EFDataAccess.Models.SpendType", "DefaultSpendType")
                         .WithMany("Account")
                         .HasForeignKey("DefaultSpendTypeId")
@@ -1180,6 +1193,8 @@ namespace EFDataAccess.Migrations
                     b.Navigation("AccountType");
 
                     b.Navigation("Currency");
+
+                    b.Navigation("DefaultSelectCurrency");
 
                     b.Navigation("DefaultSpendType");
 
@@ -1708,6 +1723,8 @@ namespace EFDataAccess.Migrations
                     b.Navigation("Account");
 
                     b.Navigation("AccountPeriod");
+
+                    b.Navigation("AccountsSelection");
 
                     b.Navigation("AutomaticTask");
 

@@ -15,8 +15,10 @@ namespace MyFinanceModel.ClientViewModel
         SpendTypeId = 7,
         FinancialEntityId = 8,
         AccountIncludes = 9,
-        AccountGroupId = 10
-    }
+        AccountGroupId = 10,
+		DefaultCurrencyId = 11,
+		IsDefaultPending = 12
+	}
 
     public class ClientAddAccount
     {
@@ -44,7 +46,11 @@ namespace MyFinanceModel.ClientViewModel
         
 		[Required]
 		public int AccountGroupId { get; set; }
-        
+
+		public int? DefaultCurrencyId { get; set; }
+
+		public bool IsDefaultPending { get; set; }
+
 		public IEnumerable<ClientAccountInclude> AccountIncludes { get; set; }
     }
 
@@ -62,5 +68,7 @@ namespace MyFinanceModel.ClientViewModel
         public int AccountGroupId { get; set; }
 		public IEnumerable<ClientAccountInclude> AccountIncludes { get; set; }
 		public IEnumerable<AccountFiedlds> EditAccountFields { get; set; }
+		public int? DefaultCurrencyId { get; set; }
+		public bool IsDefaultPending { get; set; }
 	}
 }
