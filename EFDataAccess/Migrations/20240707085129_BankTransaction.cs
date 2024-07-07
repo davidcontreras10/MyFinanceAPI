@@ -29,8 +29,8 @@ namespace EFDataAccess.Migrations
                 {
                     BankTransactionId = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     FinancialEntityId = table.Column<int>(type: "int", nullable: false),
-                    Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    CurrencyId = table.Column<int>(type: "int", nullable: false),
+                    OriginalAmount = table.Column<decimal>(type: "decimal(18,10)", nullable: true),
+                    CurrencyId = table.Column<int>(type: "int", nullable: true),
                     TransactionDate = table.Column<DateTime>(type: "datetime2", nullable: true),
                     Status = table.Column<int>(type: "int", nullable: false)
                 },
@@ -41,8 +41,7 @@ namespace EFDataAccess.Migrations
                         name: "BankTransaction_FK_CurrencyId",
                         column: x => x.CurrencyId,
                         principalTable: "Currency",
-                        principalColumn: "CurrencyId",
-                        onDelete: ReferentialAction.Cascade);
+                        principalColumn: "CurrencyId");
                     table.ForeignKey(
                         name: "BankTransaction_FK_FinancialEntityId",
                         column: x => x.FinancialEntityId,

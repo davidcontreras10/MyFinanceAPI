@@ -13,8 +13,8 @@ namespace EFDataAccess.Models
 
 		public string BankTransactionId { get; set; }
 		public int FinancialEntityId { get; set; }
-		public decimal Amount { get; set; }
-		public int CurrencyId { get; set; }
+		public decimal? OriginalAmount { get; set; }
+		public int? CurrencyId { get; set; }
 		public DateTime? TransactionDate { get; set; }
 		public BankTransactionStatus Status { get; set; }
 

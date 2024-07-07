@@ -510,11 +510,11 @@ namespace EFDataAccess.Migrations
                     b.Property<int>("FinancialEntityId")
                         .HasColumnType("int");
 
-                    b.Property<decimal>("Amount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("CurrencyId")
+                    b.Property<int?>("CurrencyId")
                         .HasColumnType("int");
+
+                    b.Property<decimal?>("OriginalAmount")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -1402,8 +1402,6 @@ namespace EFDataAccess.Migrations
                     b.HasOne("EFDataAccess.Models.Currency", "Currency")
                         .WithMany()
                         .HasForeignKey("CurrencyId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
                         .HasConstraintName("BankTransaction_FK_CurrencyId");
 
                     b.HasOne("EFDataAccess.Models.FinancialEntity", "FinancialEntity")
