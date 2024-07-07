@@ -62,11 +62,34 @@ namespace EFDataAccess.Models
 		public virtual DbSet<UserAssignedAccess> UserAssignedAccess { get; set; }
 		public virtual DbSet<UserBankSummaryAccount> UserBankSummaryAccount { get; set; }
 		public virtual DbSet<UserSpendType> UserSpendType { get; set; }
+		public virtual DbSet<EFBankTransaction> BankTransactions { get; set; }
 
 		#endregion
 
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{
+			modelBuilder.Entity<EFBankTransaction>(entity =>
+			{
+				const string tableName = "BankTransaction";
+				entity.ToTable(tableName);
+
+				entity.HasKey(e => new { e.BankTransactionId, e.FinancialEntityId });
+
+				entity.HasOne(d => d.Currency)
+					.WithMany()
+					.HasForeignKey(d => d.CurrencyId)
+					.HasConstraintName($"{tableName}_FK_CurrencyId");
+
+				entity.HasOne(d => d.FinancialEntity)
+					.WithMany()
+					.HasForeignKey(d => d.FinancialEntityId)
+					.HasConstraintName($"{tableName}_FK_FinancialEntityId");
+
+				entity.HasMany(d => d.Transactions)
+					.WithOne(t => t.BankTransaction)
+					.HasForeignKey(t => new { t.BankTransactionId, t.BankTrxFinancialEntityId });
+			});
+
 			modelBuilder.Entity<EFAccountIdName>().HasNoKey().ToView(null);
 			modelBuilder.Entity<EFLoginResult>().HasNoKey().ToView(null);
 
@@ -631,6 +654,11 @@ namespace EFDataAccess.Models
 
 				entity.Property(e => e.SpendDate).HasColumnType("datetime");
 
+				entity.HasOne(d => d.BankTransaction)
+					.WithMany(p => p.Transactions)
+					.HasForeignKey(t => new { t.BankTransactionId, t.BankTrxFinancialEntityId})
+					.HasConstraintName("Spend_FK_BankTransaction");
+
 				entity.HasOne(d => d.AmountCurrency)
 					.WithMany(p => p.Spend)
 					.HasForeignKey(d => d.AmountCurrencyId)
@@ -646,6 +674,8 @@ namespace EFDataAccess.Models
 					.WithMany(p => p.Spend)
 					.HasForeignKey(d => d.SpendTypeId)
 					.HasConstraintName("Spend_FK_SpendTypeId");
+
+
 			});
 
 			modelBuilder.Entity<SpendDependencies>(entity =>
