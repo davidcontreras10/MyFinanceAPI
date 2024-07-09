@@ -17,6 +17,7 @@ using MyFinanceWebApiCore.Authentication;
 using MyFinanceWebApiCore.Config;
 using MyFinanceWebApiCore.FilterAttributes;
 using MyFinanceWebApiCore.Services;
+using MyFinanceWebApiCore.Services.FinancialEntityFiles;
 using Serilog;
 
 namespace MyFinanceWebApiCore
@@ -137,6 +138,11 @@ namespace MyFinanceWebApiCore
 
 				});
 			services.AddSingleton<IBackendSettings, BackendSettings>();
+
+			services.AddSingleton<IFormFileExcelReader, EPPlusFormFileExcelReader>();
+			services.AddSingleton<IScotiabankFileReader, ScotiabankFileReader>();
+			services.AddScoped<IExcelFileReaderService, ExcelFileReaderService>();
+
 			services.AddScoped<IAuthenticationService, AuthenticationService>();
 
 			services.AddScoped<ITrxExchangeService, TrxExchangeService>();
@@ -161,7 +167,8 @@ namespace MyFinanceWebApiCore
 			services.AddScoped<IAutomaticTaskRepository, EFAutomaticTaskRepository>();
 			services.AddScoped<ILoanRepository, EFLoanRepository>();
 			services.AddScoped<IResourceAccessRepository, EFResourceAccessRepository>();
-			
+			services.AddScoped<IFinancialEntitiesRepository, EFFinancialEntitiesRepository>();
+
 			services.AddScoped<IScheduledTasksService, ScheduledTasksService>();
 			services.AddScoped<IAccountFinanceService, AccountFinanceService>();
 			services.AddScoped<ILoanService, LoanService>();

@@ -10,33 +10,33 @@ using Newtonsoft.Json.Linq;
 namespace MyFinanceModel
 {
 	[Serializable]
-    public class ServiceException : Exception
-    {
-	    private const string DEFAULT_MESSAGE = "Unknown error";
+	public class ServiceException : Exception
+	{
+		private const string DEFAULT_MESSAGE = "Unknown error";
 		private const int DEFAULT_ERROR_CODE = 1;
 
 		private int _errorCode = DEFAULT_ERROR_CODE;
 
-	    public ServiceException() : base(DEFAULT_MESSAGE)
-        {
-            StatusCode = HttpStatusCode.InternalServerError;
-		    if (ErrorCode == 0)
-			    ErrorCode = DEFAULT_ERROR_CODE;
-        }
-
-        public ServiceException(string message) : base(message)
-        {
+		public ServiceException() : base(DEFAULT_MESSAGE)
+		{
+			StatusCode = HttpStatusCode.InternalServerError;
 			if (ErrorCode == 0)
 				ErrorCode = DEFAULT_ERROR_CODE;
-            StatusCode = HttpStatusCode.InternalServerError;
-        }
+		}
+
+		public ServiceException(string message) : base(message)
+		{
+			if (ErrorCode == 0)
+				ErrorCode = DEFAULT_ERROR_CODE;
+			StatusCode = HttpStatusCode.InternalServerError;
+		}
 
 		public ServiceException(string message, int errorCode = DEFAULT_ERROR_CODE, HttpStatusCode statusCode = HttpStatusCode.InternalServerError)
-            : base(message)
-        {
-            ErrorCode = errorCode;
-            StatusCode = statusCode;
-        }
+			: base(message)
+		{
+			ErrorCode = errorCode;
+			StatusCode = statusCode;
+		}
 
 		public ServiceException(SerializationInfo info, StreamingContext context)
 			: base(info.GetString("Message"), ExtractException(info))
@@ -59,13 +59,13 @@ namespace MyFinanceModel
 				throw new ArgumentNullException("info");
 			}
 
-			StatusCode = (HttpStatusCode) StringUtilities.GetInt(statusCodeEntry.Value.Value);
+			StatusCode = (HttpStatusCode)StringUtilities.GetInt(statusCodeEntry.Value.Value);
 		}
 
 		public int ErrorCode
 		{
 			get => _errorCode;
-		    protected set
+			protected set
 			{
 				if (!IsErrorCodeValid(value))
 				{
@@ -96,44 +96,44 @@ namespace MyFinanceModel
 		{
 			return IsServiceExceptionErrorCodeValid(errorCode);
 		}
-		
+
 		public static bool IsServiceExceptionErrorCodeValid(int errorCode)
 		{
 			return errorCode != 0;
 		}
-    }
+	}
 
 	[Serializable]
-    public class ModelStateException : ServiceException
-    {   
-        public object ModelStateErrorsObject { get; }
+	public class ModelStateException : ServiceException
+	{
+		public object ModelStateErrorsObject { get; }
 
 		public ModelStateException(SerializationInfo info, StreamingContext context)
 			: base(info, context)
 		{
-		    if (!info.ExistsKey("ModelStateErrorsObject") && !info.ExistsKey("ModelState"))
-		    {
-                throw new InvalidCastException("Missing ModelStateException members");
-		    }
+			if (!info.ExistsKey("ModelStateErrorsObject") && !info.ExistsKey("ModelState"))
+			{
+				throw new InvalidCastException("Missing ModelStateException members");
+			}
 
-		    var item = info.GetSerializationEntry("ModelStateErrorsObject");
-		    item = item ?? info.GetSerializationEntry("ModelState");
-		    if (item == null)
-		    {
-                throw new InvalidCastException("Missing ModelStateErrorsObject members");
-		    }
+			var item = info.GetSerializationEntry("ModelStateErrorsObject");
+			item = item ?? info.GetSerializationEntry("ModelState");
+			if (item == null)
+			{
+				throw new InvalidCastException("Missing ModelStateErrorsObject members");
+			}
 
-            var jObject = (JObject)item.Value.Value;
-            var dictionary = JsonConvert.DeserializeObject<Dictionary<string, object>>(jObject.ToString());
-		    ModelStateErrorsObject = dictionary;
+			var jObject = (JObject)item.Value.Value;
+			var dictionary = JsonConvert.DeserializeObject<Dictionary<string, object>>(jObject.ToString());
+			ModelStateErrorsObject = dictionary;
 		}
 
-        public ModelStateException(object modelStateErrorsObject, string message = "Model validation error",
-            int errorCode = 5000, HttpStatusCode statusCode = HttpStatusCode.BadRequest)
-            : base(message, errorCode, statusCode)
-        {
-            ModelStateErrorsObject = modelStateErrorsObject;
-        }
+		public ModelStateException(object modelStateErrorsObject, string message = "Model validation error",
+			int errorCode = 5000, HttpStatusCode statusCode = HttpStatusCode.BadRequest)
+			: base(message, errorCode, statusCode)
+		{
+			ModelStateErrorsObject = modelStateErrorsObject;
+		}
 
 		public override bool IsErrorCodeValid(int errorCode)
 		{
@@ -143,6 +143,24 @@ namespace MyFinanceModel
 		public static bool IsModelStateErrorCodeValid(int errorCode)
 		{
 			return errorCode >= 5000 && errorCode < 10000;
+		}
+	}
+
+	public class FinancialEntityFileUploadException : ServiceException
+	{
+		public FinancialEntityFileUploadException(string error, string financialEntity) : base(GetMessage(error, financialEntity))
+		{
+			StatusCode = HttpStatusCode.BadRequest;
+		}
+
+		private static string GetMessage(string error, string financialEntity)
+		{
+			return $"File of {financialEntity} unexpected error: {error}";
+		}
+
+		public static FinancialEntityFileUploadException Empty(string financialEntity)
+		{
+			return new FinancialEntityFileUploadException("Empty file", financialEntity);	
 		}
 	}
 }

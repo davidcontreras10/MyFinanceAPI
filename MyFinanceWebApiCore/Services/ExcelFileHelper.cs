@@ -27,16 +27,14 @@ namespace MyFinanceWebApiCore.Services
 		public static byte[] GenerateFile(IReadOnlyCollection<AccountFinanceViewModel> accounts)
 		{
 			ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
-			using (var package = new ExcelPackage())
+			using var package = new ExcelPackage();
+			foreach (var accountFinanceViewModel in accounts)
 			{
-				foreach (var accountFinanceViewModel in accounts)
-				{
-					var sheet = package.Workbook.Worksheets.Add(accountFinanceViewModel.AccountName);
-					WriteAccountWorksheet(sheet, accountFinanceViewModel);
-				}
-
-				return package.GetAsByteArray();
+				var sheet = package.Workbook.Worksheets.Add(accountFinanceViewModel.AccountName);
+				WriteAccountWorksheet(sheet, accountFinanceViewModel);
 			}
+
+			return package.GetAsByteArray();
 		}
 
 		private static void WriteAccountWorksheet(
