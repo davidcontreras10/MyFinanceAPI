@@ -139,7 +139,7 @@ namespace MyFinanceWebApiCore
 				});
 			services.AddSingleton<IBackendSettings, BackendSettings>();
 
-			services.AddSingleton<IFormFileExcelReader, EPPlusFormFileExcelReader>();
+			services.AddSingleton<IFormFileExcelReader, EDRFormFileExcelReader>();
 			services.AddSingleton<IScotiabankFileReader, ScotiabankFileReader>();
 			services.AddScoped<IExcelFileReaderService, ExcelFileReaderService>();
 

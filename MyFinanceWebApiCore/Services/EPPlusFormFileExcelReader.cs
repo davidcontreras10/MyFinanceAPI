@@ -16,12 +16,12 @@ namespace MyFinanceWebApiCore.Services
 		public async Task<object[,]> ReadExcelFileAsync(IFormFile file, int worksheetIndex, string fileName)
 		{
 			var excelPackage = await ReadFileAsync(file);
-			if (excelPackage == null || excelPackage.Workbook.Worksheets.Count == 0)
+			if (excelPackage == null || excelPackage.Workbook.Worksheets.Count < worksheetIndex + 1)
 			{
 				throw new FinancialEntityFileUploadException("No worksheets", fileName);
 			}
 
-			var worksheet = excelPackage.Workbook.Worksheets[0];
+			var worksheet = excelPackage.Workbook.Worksheets[worksheetIndex];
 			var rowCount = worksheet.Dimension.Rows;
 			var colCount = worksheet.Dimension.Columns;
 			if(rowCount == 0 || colCount == 0)
@@ -30,7 +30,7 @@ namespace MyFinanceWebApiCore.Services
 			}
 
 			var fileData = new object[rowCount, colCount];
-			for (int row = 1; row <= rowCount; row++)
+			for (var row = 1; row <= rowCount; row++)
 			{
 				for (int col = 1; col <= colCount; col++)
 				{
