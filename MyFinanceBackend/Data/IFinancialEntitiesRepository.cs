@@ -1,11 +1,11 @@
 ﻿using MyFinanceModel.Dto;
-using System.Collections.Generic;
+using MyFinanceModel.Enums;
 using System.Threading.Tasks;
 
 namespace MyFinanceBackend.Data
 {
 	public interface IFinancialEntitiesRepository
 	{
-		Task<FinancialEntityDto> GetByMatchedName(string name);
+		Task<FinancialEntityDto> GetByFinancialEntityFile(FinancialEntityFile financialEntityFile);
 	}
 }

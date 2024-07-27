@@ -1,44 +1,24 @@
 ﻿using Microsoft.AspNetCore.Http;
-using MyFinanceBackend.Data;
+using MyFinanceBackend.Services;
 using MyFinanceModel.ClientViewModel;
-using MyFinanceWebApiCore.Models;
-using MyFinanceWebApiCore.Services.FinancialEntityFiles;
+using MyFinanceModel.Enums;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace MyFinanceWebApiCore.Services
 {
-	public class ExcelFileReaderService(IFinancialEntitiesRepository financialEntitiesRepository, IFormFileExcelReader formFileExcelReader, IScotiabankFileReader scotiabankFileReader) : IExcelFileReaderService
+	public class ExcelFileReaderService(IFormFileExcelReader formFileExcelReader, Func<FinancialEntityFile, IFinancialEntityFileReader> financialEntityFileReaderFactory) : IExcelFileReaderService
 	{
-		private readonly IFinancialEntitiesRepository _financialEntitiesRepository = financialEntitiesRepository;
 		private readonly IFormFileExcelReader _formFileExcelReader = formFileExcelReader;
-		private readonly IScotiabankFileReader _scotiabankFileReader = scotiabankFileReader;
+		private readonly Func<FinancialEntityFile, IFinancialEntityFileReader> _financialEntityFileReaderFactory = financialEntityFileReaderFactory;
 
-		public async Task<IReadOnlyCollection<FileBankTransaction>> ReadTransactionsFromFile(IFormFile file, string financialEntityName)
+		public async Task<IReadOnlyCollection<FileBankTransaction>> ReadTransactionsFromFile(IFormFile file, FinancialEntityFile financialEntity)
 		{
-			var finacialEntity = await _financialEntitiesRepository.GetByMatchedName(financialEntityName);
-			if (finacialEntity == null)
-			{
-				throw new ArgumentException($"Financial entity {financialEntityName} does not exist");
-			}
 
-			switch (financialEntityName)
-			{
-				case FinancialEntityNames.Scotiabank:
-					return await ReadScotiabankFileAsync(file, financialEntityName);
-				default:
-					throw new NotSupportedException($"Financial Entity {financialEntityName} not supported");
-			}
-
+			var fileData = await _formFileExcelReader.ReadExcelFileAsync(file, 0, financialEntity.ToString());
+			var fileReader = _financialEntityFileReaderFactory(financialEntity);
+			return fileReader.ReadValues(fileData);
 		}
-
-		private async Task<IReadOnlyCollection<FileBankTransaction>> ReadScotiabankFileAsync(IFormFile file, string financialEntityName)
-		{
-			var fileData = await _formFileExcelReader.ReadExcelFileAsync(file, 0, financialEntityName);
-			return _scotiabankFileReader.ReadValues(fileData);
-		}
-
-
 	}
 }

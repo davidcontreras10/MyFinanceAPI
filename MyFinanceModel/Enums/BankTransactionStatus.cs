@@ -4,6 +4,7 @@
 	{
 		Unknown = 0,
 		Processed = 1,
-		Ignored = 2
+		Ignored = 2,
+		NotExisting = 3
 	}
 }

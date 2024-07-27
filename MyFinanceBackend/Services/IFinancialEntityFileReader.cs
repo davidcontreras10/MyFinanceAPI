@@ -1,9 +1,9 @@
 ﻿using MyFinanceModel.ClientViewModel;
 using System.Collections.Generic;
 
-namespace MyFinanceWebApiCore.Services.FinancialEntityFiles
+namespace MyFinanceBackend.Services
 {
-	public interface IScotiabankFileReader
+	public interface IFinancialEntityFileReader
 	{
 		IReadOnlyCollection<FileBankTransaction> ReadValues(object[,] values);
 	}

@@ -1,4 +1,6 @@
-﻿using MyFinanceModel;
+﻿using Microsoft.EntityFrameworkCore.Storage;
+using MyFinanceBackend.Services;
+using MyFinanceModel;
 using MyFinanceModel.ClientViewModel;
 using MyFinanceModel.Utilities;
 using System;
@@ -8,7 +10,7 @@ using System.Linq;
 
 namespace MyFinanceWebApiCore.Services.FinancialEntityFiles
 {
-	public class ScotiabankFileReader : IScotiabankFileReader
+	public class ScotiabankFileReader : IFinancialEntityFileReader
 	{
 		private const string BankName = "Scotiabank";
 		private const string DateFormat = "dd/MM/yyyy";
@@ -85,5 +87,7 @@ namespace MyFinanceWebApiCore.Services.FinancialEntityFiles
 				}
 			}
 		}
+
+		private record HeaderColumn(string Name, string Index);
 	}
 }

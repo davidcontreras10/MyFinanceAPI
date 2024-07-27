@@ -44,16 +44,16 @@ namespace MyFinanceWebApiCore.Services
 			return Task.FromResult(fileData);
 		}
 
-		public static DataSet ReadExcelFile(IFormFile file)
+		private static DataSet ReadExcelFile(IFormFile file)
 		{
 			Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 			using var stream = new MemoryStream();
 			file.CopyTo(stream);
 			stream.Position = 0;
 			using var reader = ExcelReaderFactory.CreateReader(stream);
-			var result = reader.AsDataSet(new ExcelDataSetConfiguration()
+			var result = reader.AsDataSet(new ExcelDataSetConfiguration
 			{
-				ConfigureDataTable = _ => new ExcelDataTableConfiguration()
+				ConfigureDataTable = _ => new ExcelDataTableConfiguration
 				{
 					UseHeaderRow = true
 				}
