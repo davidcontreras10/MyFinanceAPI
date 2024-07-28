@@ -22,6 +22,8 @@ namespace MyFinanceBackend.Services
 			}
 
 			var financialEntity = await _unitOfWork.FinancialEntitiesRepository.GetByFinancialEntityFile(financialEntityFile);
+			var currencyCodes = fileBankTransactions.Select(r => r.CurrencyCode).Distinct().ToList();
+			var currencies = await _unitOfWork.CurrenciesRepository.GetCurrenciesByCodesAsync(currencyCodes);
 			var dbBankTrxs = await _unitOfWork.BankTransactionsRepository
 				.GetBasicBankTransactionByIdsAsync(fileBankTransactions.Select(x => x.TransactionId), financialEntity.FinancialEntityId);
 			var results = new List<BankTrxReqResp>();
@@ -29,7 +31,8 @@ namespace MyFinanceBackend.Services
 			{
 				var bankTrxReqResp = new BankTrxReqResp
 				{
-					Transaction = transaction
+					Transaction = transaction,
+					Currency = currencies.First(x => x.IsoCode == transaction.CurrencyCode),
 				};
 
 				var dbTrx = dbBankTrxs.FirstOrDefault(db => db.BankTransactionId == transaction.TransactionId);
@@ -38,8 +41,6 @@ namespace MyFinanceBackend.Services
 			}
 
 			var notExistingRecords = results.Where(r => r.DbStatus == BankTransactionStatus.NotExisting);
-			var currencyCodes = notExistingRecords.Select(r => r.Transaction.CurrencyCode).Distinct().ToList();
-			var currencies = await _unitOfWork.CurrenciesRepository.GetCurrenciesByCodesAsync(currencyCodes);
 			var inserts = notExistingRecords.Select(r => new BasicBankTransaction
 			{
 				BankTransactionId = r.Transaction.TransactionId,

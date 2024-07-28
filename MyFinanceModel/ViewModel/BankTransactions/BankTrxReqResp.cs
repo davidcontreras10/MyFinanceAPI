@@ -8,5 +8,7 @@ namespace MyFinanceModel.ViewModel.BankTransactions
         public FileBankTransaction Transaction { get; set; }
 
         public BankTransactionStatus DbStatus { get; set; }
+
+        public CurrencyViewModel Currency { get; set; }
     }
 }
