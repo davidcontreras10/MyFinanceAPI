@@ -4,6 +4,7 @@ namespace MyFinanceBackend.Data
 {
 	public interface IUnitOfWork
 	{
+		ICurrenciesRepository CurrenciesRepository { get; }
 		IFinancialEntitiesRepository FinancialEntitiesRepository { get; }
 		IBankTransactionsRepository BankTransactionsRepository { get; }
 		Task StartTransactionAsync();

@@ -4,11 +4,18 @@ using System.Threading.Tasks;
 
 namespace EFDataAccess
 {
-	public class EFUnityOfWork(MyFinanceContext context, IBankTransactionsRepository bankTransactionsRepository, IFinancialEntitiesRepository financialEntitiesRepository) : IUnitOfWork
+	public class EFUnityOfWork(
+		MyFinanceContext context, 
+		IBankTransactionsRepository bankTransactionsRepository, 
+		IFinancialEntitiesRepository financialEntitiesRepository, 
+		ICurrenciesRepository currenciesRepository
+		) : IUnitOfWork
 	{
 		public IBankTransactionsRepository BankTransactionsRepository { get; } = bankTransactionsRepository;
 
 		public IFinancialEntitiesRepository FinancialEntitiesRepository { get; } = financialEntitiesRepository;
+
+		public ICurrenciesRepository CurrenciesRepository { get; } = currenciesRepository;
 
 		private readonly MyFinanceContext _context = context;
 

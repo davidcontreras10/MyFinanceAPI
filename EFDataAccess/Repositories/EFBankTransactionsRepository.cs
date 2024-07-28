@@ -33,5 +33,20 @@ namespace EFDataAccess.Repositories
 				})
 				.ToListAsync();
 		}
+
+		public async Task AddBasicBankTransactionAsync(IEnumerable<BasicBankTransaction> basicBankTransactions)
+		{
+			var entities = basicBankTransactions.Select(x => new EFBankTransaction
+			{
+				BankTransactionId = x.BankTransactionId,
+				CurrencyId = x.CurrencyId,
+				FinancialEntityId = x.FinancialEntityId,
+				OriginalAmount = x.OriginalAmount,
+				Status = x.Status,
+				TransactionDate = x.TransactionDate
+			});
+
+			await Context.BankTransactions.AddRangeAsync(entities);
+		}
 	}
 }

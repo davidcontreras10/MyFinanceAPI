@@ -52,7 +52,7 @@ namespace MyFinanceWebApiCore.Controllers
 			}
 
 			var transactions = await _excelFileReaderService.ReadTransactionsFromFile(file, FinancialEntityFile.Scotiabank);
-			var resultTrxs = await _bankTransactionsService.GetFileBankTransactionState(transactions, FinancialEntityFile.Scotiabank);
+			var resultTrxs = await _bankTransactionsService.ProcessAndGetFileBankTransactionState(transactions, FinancialEntityFile.Scotiabank);
 			return Ok(resultTrxs);
 		}
 	}

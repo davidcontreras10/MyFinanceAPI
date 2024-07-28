@@ -211,8 +211,9 @@ namespace MyFinanceModel.ViewModel
         public string Symbol { get; set; }
         public IEnumerable<MethodId> MethodIds { get; set; }
         public bool Isdefault { get; set; }
+        public string IsoCode { get; set; }
 
-		public int Id => CurrencyId;
+        public int Id => CurrencyId;
         public string Name => CurrencyName;
         public bool IsSelected => Isdefault;
 

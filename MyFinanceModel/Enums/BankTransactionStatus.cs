@@ -5,6 +5,7 @@
 		Unknown = 0,
 		Processed = 1,
 		Ignored = 2,
-		NotExisting = 3
+		NotExisting = 3,
+		Inserted = 4
 	}
 }
