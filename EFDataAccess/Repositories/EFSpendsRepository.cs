@@ -47,7 +47,7 @@ namespace EFDataAccess.Repositories
 			var clientAccountIncluded = await GetConvertedAccountIncludedAsync(clientAddSpendModel);
 			var accountIds = clientAccountIncluded.Select(x => x.AccountId);
 			var spendDate = clientAddSpendModel.SpendDate;
-			var spend = new Models.Spend
+			var spend = new Spend
 			{
 				AmountCurrencyId = clientAddSpendModel.CurrencyId,
 				AmountTypeId = (int)clientAddSpendModel.AmountTypeId,

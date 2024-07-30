@@ -5,7 +5,8 @@ namespace MyFinanceModel.ClientViewModel
 {
 	public class ClientBankTransaction
 	{
-		public string TransactionId { get; set; }
+        public int FinancialEntityId { get; set; }
+        public string TransactionId { get; set; }
 		public bool RequestIgnore { get; set; }
         public bool SingleTransaction { get; set; }
         public IReadOnlyCollection<TrxAmount> Amounts { get; set; }

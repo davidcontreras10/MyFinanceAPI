@@ -11,22 +11,13 @@ using MyFinanceModel.ViewModel;
 
 namespace MyFinanceBackend.Services
 {
-	public class SpendsService : ISpendsService
+	public class SpendsService(IUnitOfWork unitOfWork) : ISpendsService
 	{
-		#region Constructor
-
-		public SpendsService(ISpendsRepository spendsRepository, IResourceAccessRepository resourceAccessRepository)
-		{
-			_spendsRepository = spendsRepository;
-			_resourceAccessRepository = resourceAccessRepository;
-		}
-
-		#endregion
-
 		#region Attributes
 
-		private readonly ISpendsRepository _spendsRepository;
-		private readonly IResourceAccessRepository _resourceAccessRepository;
+		private readonly IUnitOfWork _unityOfWork = unitOfWork;
+		private readonly ISpendsRepository _spendsRepository = unitOfWork.SpendsRepository;
+		private readonly IResourceAccessRepository _resourceAccessRepository = unitOfWork.ResourceAccessRepository;
 
 		#endregion
 

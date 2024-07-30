@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using MyFinanceBackend.Services;
+using MyFinanceModel;
 using MyFinanceModel.Enums;
 using MyFinanceModel.ViewModel.BankTransactions;
 using MyFinanceWebApiCore.Services;
