@@ -6,7 +6,7 @@ namespace MyFinanceBackend.Data
 {
 	public interface IBankTransactionsRepository
 	{
-		Task<IReadOnlyCollection<BasicBankTransaction>> GetBasicBankTransactionByIdsAsync(IEnumerable<string> ids, int financialEntityId);
-		Task AddBasicBankTransactionAsync(IEnumerable<BasicBankTransaction> basicBankTransactions);
+		Task<IReadOnlyCollection<BasicBankTransactionDto>> GetBasicBankTransactionByIdsAsync(IEnumerable<string> ids, int financialEntityId);
+		Task AddBasicBankTransactionAsync(IEnumerable<BasicBankTransactionDto> basicBankTransactions);
 	}
 }

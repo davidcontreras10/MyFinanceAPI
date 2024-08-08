@@ -75,6 +75,11 @@ namespace EFDataAccess.Models
 
 				entity.HasKey(e => new { e.BankTransactionId, e.FinancialEntityId });
 
+				entity.HasOne(e => e.OriginalAccount)
+					.WithMany()
+					.HasForeignKey(d =>  d.OriginalAccountId)
+					.HasConstraintName($"{tableName}_FK_OriginalAccountId");
+
 				entity.HasOne(d => d.Currency)
 					.WithMany()
 					.HasForeignKey(d => d.CurrencyId)
@@ -654,11 +659,6 @@ namespace EFDataAccess.Models
 
 				entity.Property(e => e.SpendDate).HasColumnType("datetime");
 
-				entity.HasOne(d => d.BankTransaction)
-					.WithMany(p => p.Transactions)
-					.HasForeignKey(t => new { t.BankTransactionId, t.BankTrxFinancialEntityId})
-					.HasConstraintName("Spend_FK_BankTransaction");
-
 				entity.HasOne(d => d.AmountCurrency)
 					.WithMany(p => p.Spend)
 					.HasForeignKey(d => d.AmountCurrencyId)
@@ -720,6 +720,11 @@ namespace EFDataAccess.Models
 					.HasForeignKey(d => d.SpendId)
 					.OnDelete(DeleteBehavior.ClientSetNull)
 					.HasConstraintName("SpendOnPeriod_FK_SpendId");
+
+				entity.HasOne(d => d.BankTransaction)
+					.WithMany(p => p.Transactions)
+					.HasForeignKey(t => new { t.BankTransactionId, t.BankTrxFinancialEntityId })
+					.HasConstraintName("SpendOnPeriod_FK_BankTransaction");
 			});
 
 			modelBuilder.Entity<SpendType>(entity =>

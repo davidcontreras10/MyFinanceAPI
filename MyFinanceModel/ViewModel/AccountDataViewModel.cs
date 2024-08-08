@@ -13,7 +13,17 @@ namespace MyFinanceModel.ViewModel
 		bool IsSelected { get; }
 	}
 
-    public class SupportedAccountIncludeViewModel
+	public class BasicDropDownSelectable : IDropDownSelectable
+	{
+		public int Id { get; set; }
+
+		public string Name { get; set; }
+
+        public bool IsSelected { get; set; }
+	}
+
+
+	public class SupportedAccountIncludeViewModel
     {
         public int AccountId { get; set; }
         public IEnumerable<AccountIncludeViewModel> AccountIncludeViewModels { get; set; }

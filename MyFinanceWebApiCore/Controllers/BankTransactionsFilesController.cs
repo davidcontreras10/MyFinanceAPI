@@ -1,11 +1,9 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using MyFinanceBackend.Services;
-using MyFinanceModel;
 using MyFinanceModel.Enums;
 using MyFinanceModel.ViewModel.BankTransactions;
 using MyFinanceWebApiCore.Services;
-using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -38,7 +36,7 @@ namespace MyFinanceWebApiCore.Controllers
 		}
 
 		[HttpPost("UploadRequest")]
-		public async Task<ActionResult<IReadOnlyCollection<BankTrxReqResp>>> GetFileBankTransactionState(IFormFile file)
+		public async Task<ActionResult<BankTrxReqResp>> GetFileBankTransactionState(IFormFile file)
 		{
 			if (file == null || file.Length == 0)
 			{
@@ -53,7 +51,8 @@ namespace MyFinanceWebApiCore.Controllers
 			}
 
 			var transactions = await _excelFileReaderService.ReadTransactionsFromFile(file, FinancialEntityFile.Scotiabank);
-			var resultTrxs = await _bankTransactionsService.ProcessAndGetFileBankTransactionState(transactions, FinancialEntityFile.Scotiabank);
+			var userId = GetUserId();
+			var resultTrxs = await _bankTransactionsService.ProcessAndGetFileBankTransactionState(transactions, FinancialEntityFile.Scotiabank, userId);
 			return Ok(resultTrxs);
 		}
 	}

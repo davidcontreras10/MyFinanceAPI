@@ -10,14 +10,15 @@ namespace EFDataAccess
 		IFinancialEntitiesRepository financialEntitiesRepository,
 		ICurrenciesRepository currenciesRepository,
 		ISpendsRepository spendsRepository,
-		IResourceAccessRepository resourceAccessRepository) : IUnitOfWork
+		IResourceAccessRepository resourceAccessRepository,
+		IAccountRepository accountRepository) : IUnitOfWork
 	{
 		public IBankTransactionsRepository BankTransactionsRepository { get; } = bankTransactionsRepository;
 		public IFinancialEntitiesRepository FinancialEntitiesRepository { get; } = financialEntitiesRepository;
 		public ICurrenciesRepository CurrenciesRepository { get; } = currenciesRepository;
 		public ISpendsRepository SpendsRepository { get; } = spendsRepository;
 		public IResourceAccessRepository ResourceAccessRepository { get; } = resourceAccessRepository;
-
+		public IAccountRepository AccountRepository { get; } = accountRepository;
 
 		private readonly MyFinanceContext _context = context;
 

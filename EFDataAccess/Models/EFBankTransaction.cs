@@ -8,7 +8,7 @@ namespace EFDataAccess.Models
 	{
 		public EFBankTransaction()
 		{
-			Transactions = new HashSet<Spend>();
+			Transactions = new HashSet<SpendOnPeriod>();
 		}
 
 		public string BankTransactionId { get; set; }
@@ -17,10 +17,11 @@ namespace EFDataAccess.Models
 		public int? CurrencyId { get; set; }
 		public DateTime? TransactionDate { get; set; }
 		public BankTransactionStatus Status { get; set; }
+        public int? OriginalAccountId { get; set; }
 
-
-		public virtual FinancialEntity FinancialEntity { get; set; }
+		public virtual Account OriginalAccount { get; set; }
+        public virtual FinancialEntity FinancialEntity { get; set; }
 		public virtual Currency Currency { get; set; }
-		public virtual ICollection<Spend> Transactions { get; set; }
+		public virtual ICollection<SpendOnPeriod> Transactions { get; set; }
 	}
 }

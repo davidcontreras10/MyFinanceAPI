@@ -9,6 +9,7 @@ namespace MyFinanceBackend.Data
 		ICurrenciesRepository CurrenciesRepository { get; }
 		IFinancialEntitiesRepository FinancialEntitiesRepository { get; }
 		IBankTransactionsRepository BankTransactionsRepository { get; }
+		IAccountRepository AccountRepository { get; }
 		Task StartTransactionAsync();
 		Task CommitTransactionAsync();
 		Task RollbackAsync();

@@ -8,6 +8,6 @@ namespace MyFinanceBackend.Services
 {
 	public interface IBankTransactionsService
 	{
-		Task<IReadOnlyCollection<BankTrxReqResp>> ProcessAndGetFileBankTransactionState(IReadOnlyCollection<FileBankTransaction> fileBankTransactions, FinancialEntityFile financialEntityFile);
+		Task<BankTrxReqResp> ProcessAndGetFileBankTransactionState(IReadOnlyCollection<FileBankTransaction> fileBankTransactions, FinancialEntityFile financialEntityFile, string userId);
 	}
 }

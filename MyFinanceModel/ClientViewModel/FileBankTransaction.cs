@@ -1,4 +1,6 @@
-﻿using System;
+﻿using MyFinanceModel.ViewModel;
+using System;
+using System.Collections.Generic;
 
 namespace MyFinanceModel.ClientViewModel
 {
@@ -9,5 +11,5 @@ namespace MyFinanceModel.ClientViewModel
 		public DateTime? TransactionDate { get; set; }
 		public string Description { get; set; }
         public string CurrencyCode { get; set; }
-    }
+	}
 }

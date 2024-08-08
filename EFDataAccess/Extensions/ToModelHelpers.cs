@@ -1,11 +1,9 @@
 ﻿using MyFinanceModel.ViewModel;
 using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace EFDataAccess.Extensions
 {
-    internal static class ToModelHelpers
+	internal static class ToModelHelpers
     {
         public static SpendViewModel ToSpendSpendViewModel(this Models.SpendOnPeriod spendOnPeriod) 
         {

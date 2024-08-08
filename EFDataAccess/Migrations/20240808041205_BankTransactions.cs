@@ -6,21 +6,27 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace EFDataAccess.Migrations
 {
     /// <inheritdoc />
-    public partial class BankTransaction : Migration
+    public partial class BankTransactions : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<string>(
                 name: "BankTransactionId",
-                table: "Spend",
+                table: "SpendOnPeriod",
                 type: "nvarchar(450)",
                 nullable: true);
 
             migrationBuilder.AddColumn<int>(
                 name: "BankTrxFinancialEntityId",
-                table: "Spend",
+                table: "SpendOnPeriod",
                 type: "int",
+                nullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "IsoCode",
+                table: "Currency",
+                type: "varchar(3)",
                 nullable: true);
 
             migrationBuilder.CreateTable(
@@ -29,10 +35,11 @@ namespace EFDataAccess.Migrations
                 {
                     BankTransactionId = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     FinancialEntityId = table.Column<int>(type: "int", nullable: false),
-                    OriginalAmount = table.Column<decimal>(type: "decimal(18,10)", nullable: true),
+                    OriginalAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
                     CurrencyId = table.Column<int>(type: "int", nullable: true),
                     TransactionDate = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    Status = table.Column<int>(type: "int", nullable: false)
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    OriginalAccountId = table.Column<int>(type: "int", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -48,11 +55,16 @@ namespace EFDataAccess.Migrations
                         principalTable: "FinancialEntity",
                         principalColumn: "FinancialEntityId",
                         onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "BankTransaction_FK_OriginalAccountId",
+                        column: x => x.OriginalAccountId,
+                        principalTable: "Account",
+                        principalColumn: "AccountId");
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_Spend_BankTransactionId_BankTrxFinancialEntityId",
-                table: "Spend",
+                name: "IX_SpendOnPeriod_BankTransactionId_BankTrxFinancialEntityId",
+                table: "SpendOnPeriod",
                 columns: new[] { "BankTransactionId", "BankTrxFinancialEntityId" });
 
             migrationBuilder.CreateIndex(
@@ -65,9 +77,14 @@ namespace EFDataAccess.Migrations
                 table: "BankTransaction",
                 column: "FinancialEntityId");
 
+            migrationBuilder.CreateIndex(
+                name: "IX_BankTransaction_OriginalAccountId",
+                table: "BankTransaction",
+                column: "OriginalAccountId");
+
             migrationBuilder.AddForeignKey(
-                name: "Spend_FK_BankTransaction",
-                table: "Spend",
+                name: "SpendOnPeriod_FK_BankTransaction",
+                table: "SpendOnPeriod",
                 columns: new[] { "BankTransactionId", "BankTrxFinancialEntityId" },
                 principalTable: "BankTransaction",
                 principalColumns: new[] { "BankTransactionId", "FinancialEntityId" });
@@ -77,23 +94,27 @@ namespace EFDataAccess.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropForeignKey(
-                name: "Spend_FK_BankTransaction",
-                table: "Spend");
+                name: "SpendOnPeriod_FK_BankTransaction",
+                table: "SpendOnPeriod");
 
             migrationBuilder.DropTable(
                 name: "BankTransaction");
 
             migrationBuilder.DropIndex(
-                name: "IX_Spend_BankTransactionId_BankTrxFinancialEntityId",
-                table: "Spend");
+                name: "IX_SpendOnPeriod_BankTransactionId_BankTrxFinancialEntityId",
+                table: "SpendOnPeriod");
 
             migrationBuilder.DropColumn(
                 name: "BankTransactionId",
-                table: "Spend");
+                table: "SpendOnPeriod");
 
             migrationBuilder.DropColumn(
                 name: "BankTrxFinancialEntityId",
-                table: "Spend");
+                table: "SpendOnPeriod");
+
+            migrationBuilder.DropColumn(
+                name: "IsoCode",
+                table: "Currency");
         }
     }
 }

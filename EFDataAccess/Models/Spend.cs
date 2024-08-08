@@ -26,15 +26,11 @@ namespace EFDataAccess.Models
         public bool IsPending { get; set; }
         public DateTime? SetPaymentDate { get; set; }
 
-        public string BankTransactionId { get; set; }
-        public int? BankTrxFinancialEntityId { get; set; }
-
         public virtual Currency AmountCurrency { get; set; }
         public virtual AmountType AmountType { get; set; }
         public virtual SpendType SpendType { get; set; }
         public virtual LoanRecord LoanRecord { get; set; }
         public virtual ICollection<SpendOnPeriod> SpendOnPeriod { get; set; }
-        public virtual EFBankTransaction BankTransaction { get; set; }
 
 		private static readonly Dictionary<int, int> AmountSign = new()
 		{
