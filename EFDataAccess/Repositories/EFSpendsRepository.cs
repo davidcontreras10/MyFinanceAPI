@@ -9,6 +9,7 @@ using MyFinanceBackend.Services;
 using MyFinanceBackend.ServicesExceptions;
 using MyFinanceModel;
 using MyFinanceModel.ClientViewModel;
+using MyFinanceModel.Records;
 using MyFinanceModel.Utilities;
 using MyFinanceModel.ViewModel;
 using System;
@@ -33,6 +34,30 @@ namespace EFDataAccess.Repositories
 		}
 
 		#region Publics
+
+		public async Task<IReadOnlyCollection<int>> AppTransactionsWithBankTrxAsync(IEnumerable<int> trxIds)
+		{
+			if (trxIds == null || !trxIds.Any())
+			{
+				return Array.Empty<int>();
+			}
+
+			var transactionIds = await Context.Spend.AsNoTracking()
+			.Where(trx => trxIds.Contains(trx.SpendId) && trx.SpendOnPeriod.Any(x => x.BankTrxFinancialEntityId > 0))
+			.Select(trx => trx.SpendId)
+			.ToListAsync();
+			return transactionIds;
+		}
+
+		public async Task<SpendOnPeriodId> GetSpendOnPeriodAccountBySpendIdAccountIdAsync(int spendId, int accountId)
+		{
+			var spendOnPeriod = await Context.SpendOnPeriod.AsNoTracking()
+				.Where(sop => sop.SpendId == spendId && sop.AccountPeriod.AccountId == accountId)
+				.Select(sop => new SpendOnPeriodId(sop.SpendId, sop.AccountPeriodId))
+				.FirstOrDefaultAsync();
+
+			return spendOnPeriod;
+		}
 
 		public async Task<IEnumerable<SpendItemModified>> AddSpendAsync(ClientAddSpendModel clientAddSpendModel)
 		{
@@ -143,7 +168,7 @@ namespace EFDataAccess.Repositories
 			return clientAddSpendModel;
 		}
 
-		public async Task<IEnumerable<SpendItemModified>> DeleteSpendAsync(string userId, IReadOnlyCollection<int> transactionIds)
+		public async Task<IEnumerable<SpendItemModified>> DeleteTransactionsAsync(IReadOnlyCollection<int> transactionIds)
 		{
 			try
 			{
@@ -172,7 +197,6 @@ namespace EFDataAccess.Repositories
 				Context.TransferRecord.RemoveWhere(x => spendIds.Contains(x.SpendId));
 				Context.SpendOnPeriod.RemoveWhere(x => spendIds.Contains(x.SpendId));
 				Context.Spend.RemoveWhere(x => spendIds.Contains(x.SpendId));
-				await Context.SaveChangesAsync();
 				return affectedAccounts;
 			}
 			catch (Exception ex)
@@ -1067,9 +1091,8 @@ namespace EFDataAccess.Repositories
 			{
 				if (!ignoreTrxViewModels)
 				{
-					var spendViewModel = spendOnPeriod.ToSpendSpendViewModel();
+					var spendViewModel = spendOnPeriod.ToSpendSpendViewModel<FinanceSpendViewModel>();
 					sumResult.SpendViewModels.Add(spendViewModel);
-
 				}
 
 				sumResult.BalanceSum += spendOnPeriod.GetAmount();
@@ -1080,7 +1103,7 @@ namespace EFDataAccess.Repositories
 
 		private static bool FilterSpend(Spend spend, ClientAccountFinanceViewModel request)
 		{
-			if(request.TrxFilters != null)
+			if (request.TrxFilters != null)
 			{
 				return FilterSpend(spend, request.TrxFilters);
 			}
@@ -1102,7 +1125,7 @@ namespace EFDataAccess.Repositories
 
 		private static bool FilterSpend(Spend spend, TrxFiltersContainer trxFiltersContainer)
 		{
-			if(trxFiltersContainer.StartDate != null && (spend.SpendDate == null || spend.SpendDate < trxFiltersContainer.StartDate))
+			if (trxFiltersContainer.StartDate != null && (spend.SpendDate == null || spend.SpendDate < trxFiltersContainer.StartDate))
 			{
 				return false;
 			}
@@ -1112,13 +1135,13 @@ namespace EFDataAccess.Repositories
 				return false;
 			}
 
-			if(trxFiltersContainer.PendingTrxFilter != null && trxFiltersContainer.PendingTrxFilter.Value && !spend.IsPending)
+			if (trxFiltersContainer.PendingTrxFilter != null && trxFiltersContainer.PendingTrxFilter.Value && !spend.IsPending)
 			{
 				return false;
 			}
 
-			if(trxFiltersContainer.DescriptionTrxFilter != null && 
-				(string.IsNullOrWhiteSpace(spend.Description) || !spend.Description.Contains(trxFiltersContainer.DescriptionTrxFilter.SearchText) ))
+			if (trxFiltersContainer.DescriptionTrxFilter != null &&
+				(string.IsNullOrWhiteSpace(spend.Description) || !spend.Description.Contains(trxFiltersContainer.DescriptionTrxFilter.SearchText)))
 			{
 				return false;
 			}
@@ -1210,7 +1233,7 @@ namespace EFDataAccess.Repositories
 		private class TrxSumResult
 		{
 			public double BalanceSum { get; set; }
-			public List<SpendViewModel> SpendViewModels { get; set; } = new List<SpendViewModel>();
+			public List<FinanceSpendViewModel> SpendViewModels { get; set; } = new List<FinanceSpendViewModel>();
 		}
 	}
 }

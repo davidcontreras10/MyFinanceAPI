@@ -75,11 +75,6 @@ namespace EFDataAccess.Models
 
 				entity.HasKey(e => new { e.BankTransactionId, e.FinancialEntityId });
 
-				entity.HasOne(e => e.OriginalAccount)
-					.WithMany()
-					.HasForeignKey(d =>  d.OriginalAccountId)
-					.HasConstraintName($"{tableName}_FK_OriginalAccountId");
-
 				entity.HasOne(d => d.Currency)
 					.WithMany()
 					.HasForeignKey(d => d.CurrencyId)

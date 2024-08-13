@@ -7,15 +7,16 @@ using MyFinanceBackend.Models;
 using MyFinanceBackend.ServicesExceptions;
 using MyFinanceModel;
 using MyFinanceModel.ClientViewModel;
+using MyFinanceModel.Records;
 using MyFinanceModel.ViewModel;
 
 namespace MyFinanceBackend.Services
 {
 	public class SpendsService(IUnitOfWork unitOfWork) : ISpendsService
 	{
+
 		#region Attributes
 
-		private readonly IUnitOfWork _unityOfWork = unitOfWork;
 		private readonly ISpendsRepository _spendsRepository = unitOfWork.SpendsRepository;
 		private readonly IResourceAccessRepository _resourceAccessRepository = unitOfWork.ResourceAccessRepository;
 
@@ -58,6 +59,26 @@ namespace MyFinanceBackend.Services
 			return await _spendsRepository.GetSavedSpendsAsync(spendId);
 		}
 
+		public async Task<IEnumerable<SpendItemModified>> AddNewAppTransactionByAccountAsync(NewAppTransactionByAccount newAppTransactionByAccount)
+		{
+			var period = await unitOfWork.AccountRepository.GetAccountPeriodInfoByAccountIdDateTimeAsync(newAppTransactionByAccount.AccountId, newAppTransactionByAccount.SpendDate) 
+				?? throw new ArgumentException("Period not found");
+			var clientAddSpendModel = new ClientBasicTrxByPeriod
+			{
+				Amount = newAppTransactionByAccount.Amount,
+				AmountTypeId = newAppTransactionByAccount.TransactionType,
+				CurrencyId = newAppTransactionByAccount.CurrencyId,
+				SpendDate = newAppTransactionByAccount.SpendDate,
+				UserId = newAppTransactionByAccount.UserId,
+				AccountPeriodId = period.AccountPeriodId,
+				Description = newAppTransactionByAccount.Description,
+				IsPending = newAppTransactionByAccount.IsPending,
+				SpendTypeId = newAppTransactionByAccount.SpendTypeId,
+			};
+
+			return await AddBasicTransactionAsync(clientAddSpendModel, newAppTransactionByAccount.TransactionType);
+		}
+
 		public async Task<IEnumerable<SpendItemModified>> AddBasicTransactionAsync(ClientBasicTrxByPeriod clientBasicTrxByPeriod, TransactionTypeIds transactionTypeId)
 		{
 			if (clientBasicTrxByPeriod.Amount <= 0)
@@ -98,7 +119,14 @@ namespace MyFinanceBackend.Services
 
 		public async Task<IEnumerable<SpendItemModified>> DeleteSpendAsync(string userId, IReadOnlyCollection<int> transactionIds)
 		{
-			var result = await _spendsRepository.DeleteSpendAsync(userId, transactionIds);
+			var trxWithBankTrx = await _spendsRepository.AppTransactionsWithBankTrxAsync(transactionIds);
+			if (trxWithBankTrx.Count != 0)
+			{
+				throw new ServiceException(AppErrorCodes.DeleteTrxWithBankTrx);		
+			}
+
+			var result = await _spendsRepository.DeleteTransactionsAsync(transactionIds);
+			await unitOfWork.SaveAsync();
 			return result;
 		}
 

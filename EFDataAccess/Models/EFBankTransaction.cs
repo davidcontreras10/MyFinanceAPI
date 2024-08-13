@@ -17,9 +17,8 @@ namespace EFDataAccess.Models
 		public int? CurrencyId { get; set; }
 		public DateTime? TransactionDate { get; set; }
 		public BankTransactionStatus Status { get; set; }
-        public int? OriginalAccountId { get; set; }
+        public string FileDescription { get; set; }
 
-		public virtual Account OriginalAccount { get; set; }
         public virtual FinancialEntity FinancialEntity { get; set; }
 		public virtual Currency Currency { get; set; }
 		public virtual ICollection<SpendOnPeriod> Transactions { get; set; }

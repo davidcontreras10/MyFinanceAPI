@@ -1,6 +1,4 @@
-﻿using MyFinanceModel.ViewModel;
-using System;
-using System.Collections.Generic;
+﻿using System;
 
 namespace MyFinanceModel.ClientViewModel
 {

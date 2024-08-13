@@ -59,7 +59,7 @@ namespace MyFinanceModel.ViewModel
         public float PeriodBalance { get; set; }
         public float GeneralBalance { get; set; }
         public float GeneralBalanceToday { get; set; }
-        public IReadOnlyCollection<SpendViewModel> SpendViewModels { get; set; }
+        public IReadOnlyCollection<FinanceSpendViewModel> SpendViewModels { get; set; }
         public string AccountPeriodName => GetAccountPeriodName();
 		public TrxFiltersContainer TrxFilters { get; set; }
 
@@ -168,7 +168,13 @@ namespace MyFinanceModel.ViewModel
         #endregion
     }
 
-    public class AddSpendViewModel : AccountDataViewModel
+    public class FinanceSpendViewModel : SpendViewModel
+	{
+		public bool? HasBankTrx { get; set; }
+	}
+
+
+	public class AddSpendViewModel : AccountDataViewModel
     {
         #region Properties
 

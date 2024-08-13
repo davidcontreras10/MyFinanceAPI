@@ -6,6 +6,7 @@ namespace MyFinanceModel.ViewModel.BankTransactions
 {
 	public class BankTrxItemReqResp
 	{
+        public int FinancialEntityId { get; set; }
         public FileBankTransaction FileTransaction { get; set; }
 
         public BankTransactionStatus DbStatus { get; set; }

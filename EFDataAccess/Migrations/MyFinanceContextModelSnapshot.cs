@@ -516,8 +516,8 @@ namespace EFDataAccess.Migrations
                     b.Property<int?>("CurrencyId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("OriginalAccountId")
-                        .HasColumnType("int");
+                    b.Property<string>("FileDescription")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal?>("OriginalAmount")
                         .HasColumnType("decimal(18,2)");
@@ -533,8 +533,6 @@ namespace EFDataAccess.Migrations
                     b.HasIndex("CurrencyId");
 
                     b.HasIndex("FinancialEntityId");
-
-                    b.HasIndex("OriginalAccountId");
 
                     b.ToTable("BankTransaction", (string)null);
                 });
@@ -1419,16 +1417,9 @@ namespace EFDataAccess.Migrations
                         .IsRequired()
                         .HasConstraintName("BankTransaction_FK_FinancialEntityId");
 
-                    b.HasOne("EFDataAccess.Models.Account", "OriginalAccount")
-                        .WithMany()
-                        .HasForeignKey("OriginalAccountId")
-                        .HasConstraintName("BankTransaction_FK_OriginalAccountId");
-
                     b.Navigation("Currency");
 
                     b.Navigation("FinancialEntity");
-
-                    b.Navigation("OriginalAccount");
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.ExecutedTask", b =>

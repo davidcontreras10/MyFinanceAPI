@@ -38,6 +38,11 @@ namespace MyFinanceModel
 			StatusCode = statusCode;
 		}
 
+		public ServiceException(AppErrorCode appErrorCode)
+			: this(appErrorCode.Message, appErrorCode.Code, appErrorCode.StatusCode)
+		{
+		}
+
 		public ServiceException(SerializationInfo info, StreamingContext context)
 			: base(info.GetString("Message"), ExtractException(info))
 		{

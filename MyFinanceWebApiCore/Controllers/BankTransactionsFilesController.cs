@@ -1,10 +1,14 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using MyFinanceBackend.Services;
+using MyFinanceModel.ClientViewModel;
 using MyFinanceModel.Enums;
+using MyFinanceModel.Records;
 using MyFinanceModel.ViewModel.BankTransactions;
 using MyFinanceWebApiCore.Services;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace MyFinanceWebApiCore.Controllers
@@ -52,7 +56,33 @@ namespace MyFinanceWebApiCore.Controllers
 
 			var transactions = await _excelFileReaderService.ReadTransactionsFromFile(file, FinancialEntityFile.Scotiabank);
 			var userId = GetUserId();
-			var resultTrxs = await _bankTransactionsService.ProcessAndGetFileBankTransactionState(transactions, FinancialEntityFile.Scotiabank, userId);
+			var resultTrxs = await _bankTransactionsService.InsertAndGetFileBankTransactionState(transactions, FinancialEntityFile.Scotiabank, userId);
+			return Ok(resultTrxs);
+		}
+
+		[HttpDelete("{transactionId}/{financialEntityId}")]
+		public async Task<ActionResult<UserProcessingResponse>> ResetBankTransaction([FromRoute] string transactionId, [FromRoute] int financialEntityId)
+		{
+			var result = await _bankTransactionsService.ResetBankTransactionAsync(new BankTrxId(financialEntityId, transactionId));
+			return Ok(result);
+		}
+
+		[HttpPost("ProcessRequest")]
+		public async Task<ActionResult<IReadOnlyCollection<BankTrxItemReqResp>>> ProcessUserRequests(IReadOnlyCollection<ClientBankItemRequest> clientBankItemRequests)
+		{
+			var userId = GetUserId();
+			var bankTransactions = clientBankItemRequests.Select(item => new BankItemRequest(
+				new BankTrxId(item.FinancialEntityId,item.TransactionId),
+				item.RequestIgnore,
+				item.Description,
+				item.IsMultipleTrx,
+				item.AccountId,
+				item.SpendTypeId,
+				item.IsPending,
+				item.Transactions
+			)).ToList();
+
+			var resultTrxs = await _bankTransactionsService.ProcessUserBankTrxAsync(userId, bankTransactions);
 			return Ok(resultTrxs);
 		}
 	}

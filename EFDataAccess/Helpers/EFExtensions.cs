@@ -5,6 +5,17 @@ namespace EFDataAccess.Helpers
 {
 	internal static class EFExtensions
 	{
+		public static CurrencyViewModel ToCurrencyViewModel(this Currency currency)
+		{
+			return new CurrencyViewModel
+			{
+				CurrencyId = currency.CurrencyId,
+				CurrencyName = currency.Name,
+				IsoCode = currency.IsoCode,
+				Symbol = currency.Symbol
+			};
+		}
+
 		public static MethodId ToMethodId(this CurrencyConverterMethod currencyConverterMethod, bool isSelected = false, bool isDefault = false)
 		{
 			return new MethodId

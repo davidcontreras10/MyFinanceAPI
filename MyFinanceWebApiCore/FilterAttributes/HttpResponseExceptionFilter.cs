@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using MyFinanceModel;
-using MyFinanceWebApiCore.Models;
 using System;
 using System.Net;
 
@@ -20,6 +19,33 @@ namespace MyFinanceWebApiCore.FilterAttributes
 				context.Result = new ObjectResult(error)
 				{
 					StatusCode = (int)HttpStatusCode.Unauthorized
+				};
+
+				context.ExceptionHandled = true;
+			}
+			else if (context.Exception is ServiceException serviceException)
+			{
+				var error = new
+				{
+					serviceException.Message,
+					serviceException.ErrorCode
+				};
+				context.Result = new ObjectResult(error)
+				{
+					StatusCode = (int)serviceException.StatusCode
+				};
+
+				context.ExceptionHandled = true;
+			}
+			else if (context.Exception is Exception exception)
+			{
+				var error = new
+				{
+					exception.Message
+				};
+				context.Result = new ObjectResult(error)
+				{
+					StatusCode = (int)HttpStatusCode.InternalServerError
 				};
 
 				context.ExceptionHandled = true;
