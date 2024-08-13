@@ -32,4 +32,6 @@ namespace MyFinanceModel.Records
 		DateTime? TransactionDate,
 		IReadOnlyCollection<SpendViewModel> Transactions
 	);
+
+	public record class BankTrxAppTrx(BankTrxId BankTrxId, int appTrxId);
 }

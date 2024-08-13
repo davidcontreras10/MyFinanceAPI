@@ -30,6 +30,20 @@ namespace MyFinanceBackend.Services
 			};
 		}
 
+		public async Task<BankTrxReqResp> GetBankTransactionByAppTrxIdAsync(IReadOnlyCollection<int> appTrxIds, string userId)
+		{
+			if(appTrxIds == null || appTrxIds.Count == 0) return new BankTrxReqResp();
+			var bankTrxs = await unitOfWork.BankTransactionsRepository.GetBankTransactionsByAppIdsAsync(appTrxIds);
+			var bankTransactions = await unitOfWork.BankTransactionsRepository.GetBankTransactionDtoByIdsAsync(bankTrxs.Select(x => x.BankTrxId));
+			var currencies = await unitOfWork.CurrenciesRepository.GetCurrenciesByCodesAsync(bankTransactions.Select(x => x.Currency.IsoCode));
+			var accountsPerCurrencies = await unitOfWork.AccountRepository.GetAccountsByCurrenciesAsync(currencies.Select(c => c.Id), userId);
+			return new BankTrxReqResp
+			{
+				BankTransactions = bankTransactions.Select(ToBankTrxItemReqResp).ToList(),
+				AccountsPerCurrencies = accountsPerCurrencies
+			};
+		}
+
 		public async Task<UserProcessingResponse> ProcessUserBankTrxAsync(string userId, IReadOnlyCollection<BankItemRequest> bankItemRequests)
 		{
 			await unitOfWork.StartTransactionAsync();

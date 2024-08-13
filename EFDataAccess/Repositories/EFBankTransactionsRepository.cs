@@ -16,6 +16,27 @@ namespace EFDataAccess.Repositories
 	public class EFBankTransactionsRepository(MyFinanceContext context)
 		: BaseEFRepository(context), IBankTransactionsRepository
 	{
+
+		public async Task<IReadOnlyCollection<BankTrxAppTrx>> GetBankTransactionsByAppIdsAsync(IEnumerable<int> appIds)
+		{
+			if (appIds == null || !appIds.Any())
+			{
+				return Array.Empty<BankTrxAppTrx>();
+			}
+
+			var bankTrxs = await Context.SpendOnPeriod.AsNoTracking()
+				.Include(x => x.BankTransaction)
+				.Where(x => appIds.Contains(x.SpendId) && x.BankTransaction != null)
+				.Select(x => new BankTrxAppTrx
+					(
+						new BankTrxId(x.BankTransaction.FinancialEntityId, x.BankTransaction.BankTransactionId),
+						x.SpendId
+					))
+				.ToListAsync();
+
+			return bankTrxs;
+		}
+
 		public async Task NewSingleTrxBankTransactionsAsync(IEnumerable<NewSingleTrxBankTransaction> newSingleTrxBankTransactions)
 		{
 			if (newSingleTrxBankTransactions == null || !newSingleTrxBankTransactions.Any()) return;

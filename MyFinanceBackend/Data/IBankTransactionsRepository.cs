@@ -8,6 +8,7 @@ namespace MyFinanceBackend.Data
 {
 	public interface IBankTransactionsRepository
 	{
+		Task<IReadOnlyCollection<BankTrxAppTrx>> GetBankTransactionsByAppIdsAsync(IEnumerable<int> appIds);
 		Task<IReadOnlyCollection<BankTransactionDto>> GetBankTransactionDtoByIdsAsync(IEnumerable<BankTrxId> bankTrxIds);
 		Task NewSingleTrxBankTransactionsAsync(IEnumerable<NewSingleTrxBankTransaction> newSingleTrxBankTransactions);
 		Task UpdateBankTransactionsDescriptionsAsync(IEnumerable<BankTrxDescription> bankTrxDescriptions);
