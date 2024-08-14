@@ -10,9 +10,6 @@ namespace MyFinanceBackend.Data
 {
 	public static class SpendsDataHelper
 	{
-		const string SavingAmountTypeName = "Saving";
-		const string SpendAmountTypeName = "Spend";
-
 		public static IReadOnlyCollection<int> GetInvolvedAccountIds(ISpendCurrencyConvertible currencyConvertible)
 		{
 			var accountIds = new List<int>() { currencyConvertible.OriginalAccountData.AccountId };
@@ -48,7 +45,7 @@ namespace MyFinanceBackend.Data
 			};
 		}
 
-		public static void SetAmountType(ClientBasicAddSpend clientAddSpendModel, bool acceptDefault)
+		public static void ValidateAmountType(ClientBasicAddSpend clientAddSpendModel, bool acceptDefault)
 		{
 			if (clientAddSpendModel.AmountTypeId == TransactionTypeIds.Invalid)
 			{
@@ -57,20 +54,6 @@ namespace MyFinanceBackend.Data
 					return;
 				}
 				throw new InvalidSpendAmountType();
-			}
-
-			if (clientAddSpendModel.AmountTypeId == TransactionTypeIds.Ignore)
-				return;
-
-			if (clientAddSpendModel.AmountTypeId == TransactionTypeIds.Spend)
-			{
-				clientAddSpendModel.AmountType = SpendAmountTypeName;
-				return;
-			}
-
-			if (clientAddSpendModel.AmountTypeId == TransactionTypeIds.Saving)
-			{
-				clientAddSpendModel.AmountType = SavingAmountTypeName;
 			}
 		}
 	}

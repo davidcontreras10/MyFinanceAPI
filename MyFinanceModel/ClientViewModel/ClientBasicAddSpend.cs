@@ -31,9 +31,6 @@ namespace MyFinanceModel.ClientViewModel
         [Required]
         public int CurrencyId { get; set; }
 
-        [JsonIgnore]
-        public string AmountType { get; set; }
-
         public string Description
         {
             get => _description?.Trim() ?? "";

@@ -66,7 +66,7 @@ namespace EFDataAccess.Repositories
 			if (clientAddSpendModel.OriginalAccountData == null)
 				throw new ArgumentException(@"OriginalAccountData is null", nameof(clientAddSpendModel));
 			await ValidateSpendCurrencyConvertibleValuesAsync(clientAddSpendModel);
-			SpendsDataHelper.SetAmountType(clientAddSpendModel, false);
+			SpendsDataHelper.ValidateAmountType(clientAddSpendModel, false);
 
 			var setPaymentDate = clientAddSpendModel.IsPending ? null : (DateTime?)clientAddSpendModel.PaymentDate;
 			var clientAccountIncluded = await GetConvertedAccountIncludedAsync(clientAddSpendModel);
@@ -161,8 +161,7 @@ namespace EFDataAccess.Repositories
 				OriginalAccountData = originalAccountData,
 				IncludedAccounts = includeAccountData,
 				IsPending = clientBasicAddSpend.IsPending,
-				AmountTypeId = clientBasicAddSpend.AmountTypeId,
-				AmountType = clientBasicAddSpend.AmountType
+				AmountTypeId = clientBasicAddSpend.AmountTypeId
 			};
 
 			return clientAddSpendModel;
@@ -212,7 +211,7 @@ namespace EFDataAccess.Repositories
 			if (model == null || model.SpendId == 0 || string.IsNullOrEmpty(model.UserId) || !model.ModifyList.Any() ||
 				model.ModifyList.Any(i => i == 0) || model.ModifyList.Any(i => !((int)i).TryParseEnum<ClientEditSpendModel.Field>(out _)))
 				throw new Exception("Invalid parameters");
-			SpendsDataHelper.SetAmountType(model, !model.ModifyList.Any(i => i == ClientEditSpendModel.Field.AmountType));
+			SpendsDataHelper.ValidateAmountType(model, !model.ModifyList.Any(i => i == ClientEditSpendModel.Field.AmountType));
 			var spendIds = new List<int>
 			{
 				model.SpendId
