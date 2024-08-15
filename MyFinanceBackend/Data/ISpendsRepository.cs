@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using MyFinanceBackend.Models;
 using MyFinanceModel;
 using MyFinanceModel.ClientViewModel;
 using MyFinanceModel.Records;
@@ -9,9 +8,10 @@ using MyFinanceModel.ViewModel;
 
 namespace MyFinanceBackend.Data
 {
-    public interface ISpendsRepository : ITransactional
+	public interface ISpendsRepository : ITransactional
     {
-        Task<IReadOnlyCollection<int>> AppTransactionsWithBankTrxAsync(IEnumerable<int> trxIds);
+        Task<IEnumerable<TrxItemModifiedRecord>> AddMultipleTransactionsAsync(IReadOnlyCollection<ClientConvertedTrxModel> transactions);
+		Task<IReadOnlyCollection<int>> AppTransactionsWithBankTrxAsync(IEnumerable<int> trxIds);
 		Task<IEnumerable<AddSpendViewModel>> GetAddSpendViewModelAsync(IEnumerable<int> accountPeriodIds, string userId);
 		Task<SpendOnPeriodId> GetSpendOnPeriodAccountBySpendIdAccountIdAsync(int spendId, int accountId);
 	    Task<IEnumerable<EditSpendViewModel>> GetEditSpendViewModelAsync(int accountPeriodId, int spendId, string userId);
@@ -20,6 +20,8 @@ namespace MyFinanceBackend.Data
 		Task<IEnumerable<SpendItemModified>> DeleteTransactionsAsync(IReadOnlyCollection<int> transactionIds);
         Task<IEnumerable<SpendItemModified>> EditSpendAsync(ClientEditSpendModel model);
         Task<IEnumerable<AccountCurrencyPair>> GetAccountsCurrencyAsync(IEnumerable<int> accountIdsArray);
+
+        [Obsolete("Use AddMultipleTransactionsAsync(IReadOnlyCollection<ClientConvertedTrxModel> transactions) instead")]
         Task<IEnumerable<SpendItemModified>> AddSpendAsync(ClientAddSpendModel clientAddSpendModel);
         Task<IEnumerable<SpendItemModified>> AddSpendAsync(ClientBasicAddSpend clientBasicAddSpend, int accountPeriodId);
 		Task<IEnumerable<SavedSpend>> GetSavedSpendsAsync(int spendId);

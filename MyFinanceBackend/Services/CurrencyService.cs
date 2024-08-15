@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using MyFinanceBackend.Models;
 using MyFinanceModel;
+using MyFinanceModel.Records;
 using MyFinanceModel.WebMethodsModel;
 using WebApiBaseConsumer;
 
@@ -14,7 +15,8 @@ namespace MyFinanceBackend.Services
 	public interface ICurrencyService
 	{
 		Task<ExchangeRateResult> GetExchangeRateResultAsync(int methodId, DateTime dateTime, bool isPurchase);
-		Task<IEnumerable<ExchangeRateResult>> GetExchangeRateResultAsync(IEnumerable<ExchangeRateResultModel.MethodParam> methodIds, DateTime dateTime);
+		Task<IEnumerable<ExchangeRateResult>> GetExchangeRateResultAsync(IEnumerable<ExchangeRateResultModel.MethodParam> methodIds);
+		Task<IEnumerable<ExchangeRateResult>> GetExchangeRateResultAsync(IEnumerable<MethodParam> methodParams);
 	}
 
 	public class CurrencyService : WebApiBaseService, ICurrencyService
@@ -46,11 +48,24 @@ namespace MyFinanceBackend.Services
 			return await GetExchangeRateResultServiceAsync(methodId, dateTime, isPurchase);
 		}
 
-		public async Task<IEnumerable<ExchangeRateResult>> GetExchangeRateResultAsync(IEnumerable<ExchangeRateResultModel.MethodParam> methodIds, DateTime dateTime)
+		public async Task<IEnumerable<ExchangeRateResult>> GetExchangeRateResultAsync(IEnumerable<MethodParam> methodParams)
+		{
+			var methodIds = methodParams.Select(x => new ExchangeRateResultModel.MethodParam
+			{
+				Id = x.Id,
+				IsPurchase = x.IsPurchase,
+				DateTime = x.DateTime
+			});
+			return methodIds == null || !methodIds.Any()
+				? Array.Empty<ExchangeRateResult>()
+				: await GetExchangeRateResultServiceAsync(methodIds);
+		}
+
+		public async Task<IEnumerable<ExchangeRateResult>> GetExchangeRateResultAsync(IEnumerable<ExchangeRateResultModel.MethodParam> methodIds)
 		{
 			return methodIds == null || !methodIds.Any()
-				? new List<ExchangeRateResult>()
-				: await GetExchangeRateResultServiceAsync(methodIds, dateTime);
+				? Array.Empty<ExchangeRateResult>()
+				: await GetExchangeRateResultServiceAsync(methodIds);
 		}
 
 		#endregion
@@ -71,12 +86,11 @@ namespace MyFinanceBackend.Services
 			return await GetResponseAsAsync<ExchangeRateResult>(request);
 		}
 
-		private async Task<IEnumerable<ExchangeRateResult>> GetExchangeRateResultServiceAsync(IEnumerable<ExchangeRateResultModel.MethodParam> methodIds, DateTime dateTime)
+		private async Task<IEnumerable<ExchangeRateResult>> GetExchangeRateResultServiceAsync(IEnumerable<ExchangeRateResultModel.MethodParam> methodIds)
 		{
 			var methodUrl = CreateMethodUrl(CONVERT_METHOD_BY_LIST_NAME);
 			var exchangeRateResultModel = new ExchangeRateResultModel
 			{
-				DateTime = dateTime,
 				MethodIds = methodIds
 			};
 			var request = new WebApiRequest(methodUrl, HttpMethod.Post)

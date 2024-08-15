@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using MyFinanceBackend.Data;
-using MyFinanceBackend.Models;
 using MyFinanceBackend.ServicesExceptions;
 using MyFinanceModel;
 using MyFinanceModel.ClientViewModel;
@@ -12,7 +11,7 @@ using MyFinanceModel.ViewModel;
 
 namespace MyFinanceBackend.Services
 {
-	public class SpendsService(IUnitOfWork unitOfWork) : ISpendsService
+	public class SpendsService(IUnitOfWork unitOfWork, IAppTransactionsSubService appTransactionsSubService) : ISpendsService
 	{
 
 		#region Attributes
@@ -102,8 +101,8 @@ namespace MyFinanceBackend.Services
 			if (clientAddSpendModel.Amount <= 0)
 				throw new InvalidAmountException();
 			clientAddSpendModel.AmountTypeId = TransactionTypeIds.Saving;
-			var result = await _spendsRepository.AddSpendAsync(clientAddSpendModel);
-			return result;
+			var result = await appTransactionsSubService.AddMultipleTransactionsAsync(new[] { clientAddSpendModel });
+			return result.Select(ToSpendItemModified);
 		}
 
 		public async Task<IEnumerable<SpendItemModified>> AddSpendAsync(ClientAddSpendModel clientAddSpendModel)
@@ -113,8 +112,8 @@ namespace MyFinanceBackend.Services
 			if (clientAddSpendModel.Amount <= 0)
 				throw new ArgumentException("Amount must be greater than zero");
 			clientAddSpendModel.AmountTypeId = TransactionTypeIds.Spend;
-			var result = await _spendsRepository.AddSpendAsync(clientAddSpendModel);
-			return result;
+			var result = await appTransactionsSubService.AddMultipleTransactionsAsync(new[] { clientAddSpendModel });
+			return result.Select(ToSpendItemModified);
 		}
 
 		public async Task<IEnumerable<SpendItemModified>> DeleteSpendAsync(string userId, IReadOnlyCollection<int> transactionIds)
@@ -279,6 +278,16 @@ namespace MyFinanceBackend.Services
 
 			response.Result = SpendActionAttributes.ActionResult.Unknown;
 			return response;
+		}
+
+		private static SpendItemModified ToSpendItemModified(TrxItemModifiedRecord trxItemModifiedRecord)
+		{
+			return new SpendItemModified
+			{
+				AccountId = trxItemModifiedRecord.AccountId,
+				IsModified = trxItemModifiedRecord.IsModified,
+				SpendId = trxItemModifiedRecord.SpendId
+			};
 		}
 
 		#endregion

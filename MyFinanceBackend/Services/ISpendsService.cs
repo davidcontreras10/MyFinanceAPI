@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using MyFinanceBackend.Models;
 using MyFinanceModel;
 using MyFinanceModel.ClientViewModel;
 using MyFinanceModel.Records;
@@ -9,7 +8,7 @@ using MyFinanceModel.ViewModel;
 
 namespace MyFinanceBackend.Services
 {
-    public interface ISpendsService
+	public interface ISpendsService
     {
         Task<IEnumerable<SpendItemModified>> AddNewAppTransactionByAccountAsync(NewAppTransactionByAccount newAppTransactionByAccount);
 		Task<IEnumerable<SpendItemModified>> ConfirmPendingTransactionsAsync(IReadOnlyCollection<int> transactionIds, DateTime newPaymentDate);
