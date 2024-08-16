@@ -19,25 +19,16 @@ namespace MyFinanceBackend.Services
 		Task<IEnumerable<ExchangeRateResult>> GetExchangeRateResultAsync(IEnumerable<MethodParam> methodParams);
 	}
 
-	public class CurrencyService : WebApiBaseService, ICurrencyService
+	public class CurrencyService(IHttpClientFactory httpClientFactory, IBackendSettings backendSettings) : WebApiBaseService(httpClientFactory), ICurrencyService
 	{
 		#region Attributes
 
-		private readonly string _serviceUrl;
+		private readonly string _serviceUrl = backendSettings.CurrencyServiceUrl;
 		private const string CURRENCY_SERVICE_NAME = "Convert";
 		private const string CONVERT_METHOD_BY_LIST_NAME = "ExchangeRateResultByMethodIds";
 		private const string CONVERT_METHOD_NAME = "ExchangeRateResultByMethodId";
 
 		protected override string ControllerName => CURRENCY_SERVICE_NAME;
-
-		#endregion
-
-		#region Constructors
-
-		public CurrencyService(IHttpClientFactory httpClientFactory, IBackendSettings backendSettings) : base(httpClientFactory)
-		{
-			_serviceUrl = backendSettings.CurrencyServiceUrl;
-		}
 
 		#endregion
 
