@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using MyFinanceBackend.Data;
 using MyFinanceModel;
 using MyFinanceModel.ClientViewModel;
+using MyFinanceModel.Records;
 using MyFinanceModel.Utilities;
 using MyFinanceModel.ViewModel;
 using Newtonsoft.Json;
@@ -41,7 +42,7 @@ namespace EFDataAccess.Repositories
 			{
 				var currencyItem = new AccountsByCurrencyViewModel { CurrencyId = sourceCurrencyId };
 				accountsByCurrency.Add(currencyItem);
-				var matchedAccount = new List<AccountBasicInfo>();
+				var matchedAccount = new List<Account>();
 				foreach (var account in accounts)
 				{
 					if (currencyConverterMethods.Any(ccm =>
@@ -49,13 +50,13 @@ namespace EFDataAccess.Repositories
 						&& ccm.CurrencyConverter.CurrencyIdTwo == account.CurrencyId
 						&& (ccm.FinancialEntityId == account.FinancialEntityId || ccm.IsDefault == true)))
 					{
-						matchedAccount.Add(CreateAccountViewModel(account));
+						matchedAccount.Add(account);
 					}
 				}
-				currencyItem.Accounts = matchedAccount.Select(m => new BasicDropDownSelectable
+				currencyItem.Accounts = matchedAccount.Select(m => new AccountWithTrxTypeId(m.DefaultSpendTypeId)
 				{
 					Id = m.AccountId,
-					Name = m.AccountName
+					Name = m.Name
 				}).ToList();
 			}
 

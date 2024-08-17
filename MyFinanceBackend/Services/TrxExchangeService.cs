@@ -83,13 +83,12 @@ namespace MyFinanceBackend.Services
 			ISpendCurrencyConvertible spendCurrencyConvertible,
 			IReadOnlyCollection<AccountCurrencyPair> accountCurrencyPairList)
 		{
-			if (spendCurrencyConvertible == null)
-				throw new ArgumentNullException(nameof(spendCurrencyConvertible));
+			ArgumentNullException.ThrowIfNull(spendCurrencyConvertible);
 			var accountModelCurrencyList = CreateAccountModelCurrency(spendCurrencyConvertible, accountCurrencyPairList);
-			var addSpendAccountDbValues = await ConvertTrxCurrencyAsync2(spendCurrencyConvertible.PaymentDate,
+			var addSpendAccountDbValues = await ConvertTrxCurrencyAsync(spendCurrencyConvertible.PaymentDate,
 																			spendCurrencyConvertible.CurrencyId,
 																			accountModelCurrencyList,
-																			spendCurrencyConvertible.AmountTypeId == MyFinanceModel.ClientViewModel.TransactionTypeIds.Saving
+																			spendCurrencyConvertible.AmountTypeId == TransactionTypeIds.Saving
 																			);
 			foreach (var value in addSpendAccountDbValues)
 			{
@@ -109,8 +108,7 @@ namespace MyFinanceBackend.Services
 		private static IEnumerable<AccountModelCurrency> CreateAccountModelCurrency(ISpendCurrencyConvertible spendCurrencyConvertible,
 																	 IEnumerable<AccountCurrencyPair> pairs)
 		{
-			if (spendCurrencyConvertible == null)
-				throw new ArgumentNullException(nameof(spendCurrencyConvertible));
+			ArgumentNullException.ThrowIfNull(spendCurrencyConvertible);
 			if (pairs == null || !pairs.Any())
 				throw new ArgumentException(@"Value cannot be null or empty", nameof(pairs));
 			var accountModelCurrencyList = new List<AccountModelCurrency>
@@ -159,47 +157,6 @@ namespace MyFinanceBackend.Services
 		}
 
 		private async Task<IEnumerable<AddSpendAccountDbValues>> ConvertTrxCurrencyAsync(
-			DateTime dateTime,
-			int amountCurrency,
-			IEnumerable<AccountModelCurrency> accountModelCurrencies,
-			bool isIncome
-			)
-		{
-			var dbValues = new List<AddSpendAccountDbValues>();
-			dbValues.AddRange(
-				accountModelCurrencies.Where(item => item.AccountOriginalCurrencyId == amountCurrency)
-									  .Select(
-										  item2 =>
-										  CreateAddSpendAccountDbValues(item2,
-																		ExchangeRateResult
-																			.CreateDefaultExchangeRateResult())));
-			var methodIds =
-				accountModelCurrencies.Where(
-					item => dbValues.All(item2 => item2.AccountId != item.AccountInfo.AccountId))
-									  .Select(item3 => new ExchangeRateResultModel.MethodParam
-									  {
-										  Id = item3.AccountInfo.ConvertionMethodId,
-										  IsPurchase = IsPurchase(isIncome, item3.AccountOriginalCurrencyId, amountCurrency),
-										  DateTime = dateTime
-									  });//TODO validate methodId not to be repeated
-			if (!methodIds.Any())
-				return dbValues;
-			var exchangeRateResultList = await currencyService.GetExchangeRateResultAsync(methodIds);
-			dbValues.AddRange(
-				accountModelCurrencies.Where(
-					item => dbValues.All(item2 => item2.AccountId != item.AccountInfo.AccountId))
-					.Select(
-						item3 =>
-							CreateAddSpendAccountDbValues(item3,
-								exchangeRateResultList.First(
-									item4 =>
-										item4.MethodId ==
-										item3.AccountInfo.ConvertionMethodId)))
-				);
-			return dbValues;
-		}
-
-		private async Task<IEnumerable<AddSpendAccountDbValues>> ConvertTrxCurrencyAsync2(
 			DateTime dateTime,
 			int amountCurrency,
 			IEnumerable<AccountModelCurrency> accountModelCurrencies,
@@ -298,8 +255,7 @@ namespace MyFinanceBackend.Services
 		private static AddSpendAccountDbValues CreateAddSpendAccountDbValues(AccountModelCurrency accountModelCurrency,
 																	 ExchangeRateResult exchangeRateResult)
 		{
-			if (accountModelCurrency == null)
-				throw new ArgumentNullException(nameof(accountModelCurrency));
+			ArgumentNullException.ThrowIfNull(accountModelCurrency);
 			if (exchangeRateResult == null || !exchangeRateResult.Success)
 				throw new InvalidExchangeRateCreationException("Cannot create value with invalid exchangeRateResult");
 			return new AddSpendAccountDbValues

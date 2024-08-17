@@ -202,7 +202,7 @@ namespace MyFinanceModel.ViewModel
     public class EditSpendViewModel : AddSpendViewModel
     {
         public DateRange PossibleDateRange { get; set; }
-        public SpendViewModel SpendInfo { get; set; }
+        public FinanceSpendViewModel SpendInfo { get; set; }
     }
 
 	public class SpendTypeViewModel : IDropDownSelectable

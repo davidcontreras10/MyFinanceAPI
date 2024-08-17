@@ -285,6 +285,15 @@ namespace EFDataAccess.Repositories
 			{
 				model.SpendId
 			};
+			
+			var hasBankTrx = await Context.SpendOnPeriod.AsNoTracking()
+				.Include(sp => sp.BankTransaction)
+				.Where(sp => sp.SpendId == model.SpendId)
+				.AnyAsync(x => x.BankTransaction != null);
+			if (hasBankTrx && model.ModifyList.Any(i => i == ClientEditSpendModel.Field.AmountType))
+			{
+				throw new Exception("Cannot modify amount type for bank transactions");
+			}
 
 			var transferRecordId = await Context.TransferRecord
 				.Where(tr => tr.SpendId == model.SpendId)
@@ -615,7 +624,7 @@ namespace EFDataAccess.Repositories
 			var otherSops = spend.SpendOnPeriod.Where(sop => !sop.IsOriginal.Value);
 			var originalSop = spend.SpendOnPeriod.First(sop => sop.IsOriginal.Value);
 			var original = spend.SpendOnPeriod.First(sop => sop.IsOriginal != null && sop.IsOriginal.Value);
-			var spendViewModel = original.ToSpendSpendViewModel();
+			var spendViewModel = original.ToSpendSpendViewModel<FinanceSpendViewModel>();
 			var accountPeriods = spend.SpendOnPeriod.Select(sp => sp.AccountPeriod);
 			var dateRange = GetDateRange(accountPeriods, spend.SpendDate);
 			var method = new MethodId
@@ -667,7 +676,7 @@ namespace EFDataAccess.Repositories
 					SuggestedDate = DateTime.UtcNow,
 					SpendTypeViewModels = spendTypes.Select(sp => sp.ToSpendTypeViewModel(spend.SpendTypeId)),
 					SupportedAccountInclude = accountIncludeViewModels,
-					SupportedCurrencies = new [] {currency}
+					SupportedCurrencies = [currency]
 				}
 			};
 		}

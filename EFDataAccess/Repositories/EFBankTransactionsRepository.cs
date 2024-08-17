@@ -185,9 +185,9 @@ namespace EFDataAccess.Repositories
 		{
 			var entities = basicBankTransactions.Select(x => new EFBankTransaction
 			{
-				BankTransactionId = x.BankTransactionId,
+				BankTransactionId = !string.IsNullOrWhiteSpace(x.BankTransactionId) ? x.BankTransactionId : throw new Exception("Bank trx id cannot be empty"),
 				CurrencyId = x.CurrencyId,
-				FinancialEntityId = x.FinancialEntityId,
+				FinancialEntityId = x.FinancialEntityId > 0 ? x.FinancialEntityId : throw new Exception("Bank trx id cannot be empty"),
 				OriginalAmount = x.OriginalAmount,
 				Status = x.Status,
 				TransactionDate = x.TransactionDate
@@ -236,6 +236,12 @@ namespace EFDataAccess.Repositories
 			{
 				bankTrx.Status = newStatus;
 			}
+		}
+
+		public async Task DeleteAsync(BankTrxId bankTrxId)
+		{
+			if (bankTrxId == null) return;
+			await Context.BankTransactions.RemoveWhereAsync(x => x.BankTransactionId == bankTrxId.TransactionId && x.FinancialEntityId == bankTrxId.FinancialEntityId);
 		}
 	}
 }

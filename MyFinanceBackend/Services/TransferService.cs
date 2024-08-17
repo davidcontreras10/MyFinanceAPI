@@ -14,7 +14,7 @@ namespace MyFinanceBackend.Services
 	{
 		#region Attributes
 
-	    private readonly ISpendsRepository _spendsRepository;
+		private readonly ISpendsRepository _spendsRepository;
 		private readonly ISpendsService _spendsService;
 		private readonly ISpendTypeRepository _spendTypeRepository;
 		private readonly IAccountRepository _accountRepository;
@@ -34,7 +34,7 @@ namespace MyFinanceBackend.Services
 			_spendTypeRepository = spendTypeRepository;
 			_accountRepository = accountRepository;
 			_transferRepository = transferRepository;
-		    _spendsRepository = spendsRepository;
+			_spendsRepository = spendsRepository;
 		}
 
 		#endregion
@@ -93,10 +93,7 @@ namespace MyFinanceBackend.Services
 
 		public async Task<IEnumerable<ItemModified>> SubmitTransferAsync(TransferClientViewModel transferClientViewModel)
 		{
-			if (transferClientViewModel == null)
-			{
-				throw new ArgumentNullException(nameof(transferClientViewModel));
-			}
+			ArgumentNullException.ThrowIfNull(transferClientViewModel);
 
 			if (transferClientViewModel.BalanceType == BalanceTypes.Invalid)
 			{
@@ -164,13 +161,10 @@ namespace MyFinanceBackend.Services
 
 		private async Task<TransferSpendsResponse> CreateTransferSpendsResponseAsync(TransferClientViewModel transferClientViewModel)
 		{
-			if (transferClientViewModel == null)
-			{
-				throw new ArgumentNullException(nameof(transferClientViewModel));
-			}
+			ArgumentNullException.ThrowIfNull(transferClientViewModel);
 
 			var spend = await CreateTransferSpendClientAddSpendModelAsync(transferClientViewModel);
-			var accounts = _accountRepository.GetAccountPeriodBasicInfo(new[] { transferClientViewModel.AccountPeriodId });
+			var accounts = _accountRepository.GetAccountPeriodBasicInfo([transferClientViewModel.AccountPeriodId]);
 			if(accounts == null || !accounts.Any())
 			{
 				throw new Exception($"Not account found for account period {transferClientViewModel.AccountPeriodId}");
@@ -187,8 +181,7 @@ namespace MyFinanceBackend.Services
 		private async Task<ClientAddSpendModel> CreateTransferIncomeClientAddSpendModelAsync(
 			TransferClientViewModel transferClientViewModel, int originalAccountId)
 		{
-			if (transferClientViewModel == null)
-				throw new ArgumentNullException(nameof(transferClientViewModel));
+			ArgumentNullException.ThrowIfNull(transferClientViewModel);
 
 			var destinationAccountInfo =(await _spendsService.GetAccountsCurrencyAsync(new[] { transferClientViewModel.DestinationAccount }))
 					.First(a => a.AccountId == transferClientViewModel.DestinationAccount);
@@ -216,14 +209,14 @@ namespace MyFinanceBackend.Services
 				IncludedAccounts = includeAccountData,
 				OriginalAccountData = originalAccountData,
 				SpendDate = transferClientViewModel.SpendDate,
-                IsPending = transferClientViewModel.IsPending
+				IsPending = transferClientViewModel.IsPending
 			};
 		}
 
 		private async Task<ClientAddSpendModel> CreateTransferSpendClientAddSpendModelAsync(TransferClientViewModel transferClientViewModel)
 		{
-		    var clientAddSpendModel = await
-		        _spendsRepository.CreateClientAddSpendModelAsync(transferClientViewModel, transferClientViewModel.AccountPeriodId);
+			var clientAddSpendModel = await
+				_spendsRepository.CreateClientAddSpendModelAsync(transferClientViewModel, transferClientViewModel.AccountPeriodId);
 			return clientAddSpendModel;
 		}
 
@@ -231,10 +224,7 @@ namespace MyFinanceBackend.Services
 			AccountFinanceViewModel accountFinanceViewModel, IEnumerable<CurrencyViewModel> currencyViewModels,
 			IEnumerable<AccountViewModel> accountViewModels, IEnumerable<SpendTypeViewModel> spendTypeViewModels)
 		{
-			if (accountFinanceViewModel == null)
-			{
-				throw new ArgumentNullException(nameof(accountFinanceViewModel));
-			}
+			ArgumentNullException.ThrowIfNull(accountFinanceViewModel);
 
 			var transferViewModel = new TransferAccountDataViewModel
 			{
@@ -261,10 +251,7 @@ namespace MyFinanceBackend.Services
 
 		private async Task SetTransferClientViewModelAmountAsync(TransferClientViewModel transferClientViewModel)
 		{
-			if (transferClientViewModel == null)
-			{
-				throw new ArgumentNullException(nameof(transferClientViewModel));
-			}
+			ArgumentNullException.ThrowIfNull(transferClientViewModel);
 
 			if (transferClientViewModel.BalanceType == BalanceTypes.Custom)
 			{

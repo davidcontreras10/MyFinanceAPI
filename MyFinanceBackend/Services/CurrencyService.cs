@@ -48,7 +48,7 @@ namespace MyFinanceBackend.Services
 				DateTime = x.DateTime
 			});
 			return methodIds == null || !methodIds.Any()
-				? Array.Empty<ExchangeRateResult>()
+				? []
 				: await GetExchangeRateResultServiceAsync(methodIds);
 		}
 

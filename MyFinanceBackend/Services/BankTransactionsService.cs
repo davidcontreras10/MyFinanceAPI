@@ -14,6 +14,16 @@ namespace MyFinanceBackend.Services
 {
 	public class BankTransactionsService(IUnitOfWork unitOfWork, ISpendsService spendsService) : IBankTransactionsService
 	{
+		public async Task DeleteBankTransactionAsync(BankTrxId bankTrxId)
+		{
+			var ids = new[] { bankTrxId };
+			var deletedTrxIds = await unitOfWork.BankTransactionsRepository.ClearTrxsFromBankTrxsAsync(ids);
+			var trxIds = deletedTrxIds.Select(x => x.SpendId).ToList();
+			var modifieds = (trxIds.Count > 0) ? await unitOfWork.SpendsRepository.DeleteTransactionsAsync(trxIds) : Array.Empty<SpendItemModified>();
+			await unitOfWork.BankTransactionsRepository.UpdateBankTrxStatusAsync(ids, BankTransactionStatus.Inserted);
+			await unitOfWork.SaveAsync();
+		}
+
 		public async Task<UserProcessingResponse> ResetBankTransactionAsync(BankTrxId bankTrxId)
 		{
 			var ids = new[] { bankTrxId };
@@ -63,7 +73,7 @@ namespace MyFinanceBackend.Services
 				var singleTrxs = bankItemRequestsList.Where(x => x.IsMultipleTrx == false).ToList();
 				var singleTrxModifieds = (await ProcessSingleBankTransactionsAsync(singleTrxs, userId)).ToList();
 				modifieds.AddRange(singleTrxModifieds);
-				var dbTrxs = await unitOfWork.BankTransactionsRepository.GetBankTransactionDtoByIdsAsync(singleTrxs.Select(x => x.BankTrxId));
+				var dbTrxs = await unitOfWork.BankTransactionsRepository.GetBankTransactionDtoByIdsAsync(bankItemRequests.Select(x => x.BankTrxId));
 				await unitOfWork.CommitTransactionAsync();
 				return new UserProcessingResponse
 				{
@@ -96,7 +106,7 @@ namespace MyFinanceBackend.Services
 			var dbBankTrxs = await unitOfWork.BankTransactionsRepository
 				.GetBasicBankTransactionByIdsAsync(fileBankTransactions.Select(x => x.TransactionId), financialEntity.FinancialEntityId);
 			var results = new List<BankTrxItemReqResp>();
-			foreach (var transaction in fileBankTransactions)
+			foreach (var transaction in fileBankTransactions.Where(trx => !string.IsNullOrWhiteSpace(trx.TransactionId)))
 			{
 				var bankTrxReqResp = new BankTrxItemReqResp
 				{

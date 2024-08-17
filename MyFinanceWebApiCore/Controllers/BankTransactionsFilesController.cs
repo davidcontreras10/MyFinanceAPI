@@ -90,6 +90,13 @@ namespace MyFinanceWebApiCore.Controllers
 		}
 
 		[HttpDelete("{transactionId}/{financialEntityId}")]
+		public async Task<ActionResult> DeleteBankTransaction([FromRoute] string transactionId, [FromRoute] int financialEntityId)
+		{
+			await _bankTransactionsService.DeleteBankTransactionAsync(new BankTrxId(financialEntityId, transactionId));
+			return Ok();
+		}
+
+		[HttpPut("{transactionId}/{financialEntityId}")]
 		public async Task<ActionResult<UserProcessingResponse>> ResetBankTransaction([FromRoute] string transactionId, [FromRoute] int financialEntityId)
 		{
 			var result = await _bankTransactionsService.ResetBankTransactionAsync(new BankTrxId(financialEntityId, transactionId));

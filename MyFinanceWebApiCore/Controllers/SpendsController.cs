@@ -63,10 +63,7 @@ namespace MyFinanceWebApiCore.Controllers
 				throw new ArgumentException("Value cannot be zero", nameof(spendId));
 			}
 
-			if (newDateTime == null)
-			{
-				throw new ArgumentNullException(nameof(newDateTime));
-			}
+			ArgumentNullException.ThrowIfNull(newDateTime);
 
 			var modifiedItems = await _spendsService.ConfirmPendingSpendAsync(spendId, newDateTime.NewDateTime);
 			return modifiedItems;
@@ -80,10 +77,7 @@ namespace MyFinanceWebApiCore.Controllers
 				throw new ArgumentException("Value should be greater than 0", nameof(spendId));
 			}
 
-			if(model == null)
-			{
-				throw new ArgumentNullException(nameof(model));
-			}
+			ArgumentNullException.ThrowIfNull(model);
 
 			model.SpendId = spendId;
 			model.UserId = GetUserId();
