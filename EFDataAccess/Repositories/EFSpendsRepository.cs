@@ -130,8 +130,7 @@ namespace EFDataAccess.Repositories
 
 		public async Task<IEnumerable<SpendItemModified>> AddSpendAsync(ClientAddSpendModel clientAddSpendModel)
 		{
-			if (clientAddSpendModel == null)
-				throw new ArgumentNullException(nameof(clientAddSpendModel));
+			ArgumentNullException.ThrowIfNull(clientAddSpendModel);
 			if (clientAddSpendModel.OriginalAccountData == null)
 				throw new ArgumentException(@"OriginalAccountData is null", nameof(clientAddSpendModel));
 			await ValidateSpendCurrencyConvertibleValuesAsync(clientAddSpendModel);
