@@ -91,10 +91,11 @@ namespace EFDataAccess.Repositories
 			bankTrxs = bankTrxs.Where(x => bankTrxDescriptions.Any(b => b.BankTrxId.TransactionId == x.BankTransactionId && b.BankTrxId.FinancialEntityId == x.FinancialEntityId)).ToList();
 			foreach (var bankTrx in bankTrxs.Where(b => b.Transactions != null))
 			{
+				bankTrx.FileDescription = bankTrxDescriptions
+					.First(b => b.BankTrxId == bankTrx.GetId()).Description;
 				foreach (var trx in bankTrx.Transactions.Where(sop => sop.Spend != null))
 				{
-					trx.Spend.Description = bankTrxDescriptions
-						.First(b => b.BankTrxId.TransactionId == bankTrx.BankTransactionId && b.BankTrxId.FinancialEntityId == bankTrx.FinancialEntityId).Description;
+					trx.Spend.Description = bankTrx.FileDescription;
 				}
 			}
 		}
@@ -147,7 +148,8 @@ namespace EFDataAccess.Repositories
 					Transactions = x.Transactions
 						.Select(c => c.ToSpendSpendViewModel())
 						.ToList(),
-					OriginalAmount = x.OriginalAmount
+					OriginalAmount = x.OriginalAmount,
+					Description = x.FileDescription
 				})
 				.ToListAsync();
 			return res.Where(t => bankTrxIds.Any(bId => bId.FinancialEntityId == t.FinancialEntityId)).ToList();
@@ -176,7 +178,8 @@ namespace EFDataAccess.Repositories
 					Transactions = x.Transactions
 						.Select(c => c.ToSpendSpendViewModel())
 						.ToList(),
-					OriginalAmount = x.OriginalAmount
+					OriginalAmount = x.OriginalAmount,
+					Description = x.FileDescription
 				})
 				.ToListAsync();
 		}

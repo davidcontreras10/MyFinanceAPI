@@ -16,5 +16,6 @@ namespace MyFinanceModel.Dto
 		public DateTime? TransactionDate { get; set; }
 		public BankTransactionStatus Status { get; set; }
         public IReadOnlyCollection<SpendViewModel> Transactions { get; set; }
+        public string Description { get; set; }
     }
 }
