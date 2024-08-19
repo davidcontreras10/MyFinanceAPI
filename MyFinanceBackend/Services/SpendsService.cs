@@ -73,6 +73,7 @@ namespace MyFinanceBackend.Services
 				Description = newAppTransactionByAccount.Description,
 				IsPending = newAppTransactionByAccount.IsPending,
 				SpendTypeId = newAppTransactionByAccount.SpendTypeId,
+
 			};
 
 			return await AddBasicTransactionAsync(clientAddSpendModel, newAppTransactionByAccount.TransactionType);
@@ -107,8 +108,7 @@ namespace MyFinanceBackend.Services
 
 		public async Task<IEnumerable<SpendItemModified>> AddSpendAsync(ClientAddSpendModel clientAddSpendModel)
 		{
-			if (clientAddSpendModel == null)
-				throw new ArgumentNullException(nameof(clientAddSpendModel));
+			ArgumentNullException.ThrowIfNull(clientAddSpendModel);
 			if (clientAddSpendModel.Amount <= 0)
 				throw new ArgumentException("Amount must be greater than zero");
 			clientAddSpendModel.AmountTypeId = TransactionTypeIds.Spend;
@@ -203,7 +203,7 @@ namespace MyFinanceBackend.Services
 			var spends = await _spendsRepository.GetSavedSpendsAsync(spendId);
 			if (spends == null || !spends.Any())
 			{
-				return Array.Empty<SpendItemModified>();
+				return [];
 			}
 			var modifiedList = new List<SpendItemModified>();
 			foreach (var savedSpend in spends)
@@ -223,11 +223,7 @@ namespace MyFinanceBackend.Services
 
 		private static FinanceSpend CreateFinanceSpend(SavedSpend savedSpend, DateTime newDateTime)
 		{
-			if (savedSpend == null)
-			{
-				throw new ArgumentNullException(nameof(savedSpend));
-			}
-
+			ArgumentNullException.ThrowIfNull(savedSpend);
 			var result = new FinanceSpend
 			{
 				SpendId = savedSpend.SpendId,
@@ -250,15 +246,8 @@ namespace MyFinanceBackend.Services
 		private static SpendActionResult CreateSpendActionResult(SpendActionAttributes spendActionAttributes,
 			IEnumerable<ResourceAccessReportRow> resourceAccessReportRows, ResourceActionNames resourceActionNames)
 		{
-			if (spendActionAttributes == null)
-			{
-				throw new ArgumentNullException(nameof(spendActionAttributes));
-			}
-
-			if (resourceAccessReportRows == null)
-			{
-				throw new ArgumentNullException(nameof(resourceAccessReportRows));
-			}
+			ArgumentNullException.ThrowIfNull(spendActionAttributes);
+			ArgumentNullException.ThrowIfNull(resourceAccessReportRows);
 
 			var response = new SpendActionResult
 			{

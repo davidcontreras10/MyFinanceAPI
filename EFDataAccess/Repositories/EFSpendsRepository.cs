@@ -204,7 +204,7 @@ namespace EFDataAccess.Repositories
 
 		public async Task<ClientAddSpendModel> CreateClientAddSpendModelAsync(ClientBasicAddSpend clientBasicAddSpend, int accountPeriodId)
 		{
-			var accountIds = await Context.AccountPeriod
+			var accountIds = await Context.AccountPeriod.AsNoTracking()
 				.Where(accp => accp.AccountPeriodId == accountPeriodId)
 				.Select(accp => accp.AccountId)
 				.ToListAsync();
@@ -430,7 +430,7 @@ namespace EFDataAccess.Repositories
 			ValidateEitherOrAccountIdValues(accountId, accountPeriodId);
 			if (accountId == null || accountId == 0)
 			{
-				accountId = await Context.AccountPeriod
+				accountId = await Context.AccountPeriod.AsNoTracking()
 					.Where(accp => accp.AccountPeriodId == accountPeriodId)
 					.Select(accp => accp.AccountId)
 					.FirstAsync();

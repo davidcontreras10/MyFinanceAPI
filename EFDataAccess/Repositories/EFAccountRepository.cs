@@ -367,13 +367,49 @@ namespace EFDataAccess.Repositories
 			};
 		}
 
+		public async Task<IDictionary<int, AccountPeriodBasicInfo>> GetAccountPeriodInfoByAccountIdDateTimeAsync(IReadOnlyCollection<IdDateTime> accountsDates)
+		{
+			var accountIds = accountsDates.Select(x => x.Id);
+			var dates = accountsDates.Select(accountsDates => accountsDates.DateTime);
+			var accounts = await Context.Account.AsNoTracking()
+				.Where(acc => accountIds.Contains(acc.AccountId))
+				.Include(acc => acc.AccountPeriod)
+				.ToListAsync();
+			var results = new Dictionary<int, AccountPeriodBasicInfo>();
+			foreach (var accountDate in accountsDates)
+			{
+				var account = accounts.FirstOrDefault(acc => acc.AccountId == accountDate.Id);
+				if (account == null)
+				{
+					continue;
+				}
+				FilterAccountPeriodByDate([account], accountDate.DateTime);
+				var accountPeriod = account?.AccountPeriod?.FirstOrDefault();
+				var accPeriodBasicInfo = accountPeriod != null
+					? new AccountPeriodBasicInfo
+					{
+						AccountId = account.AccountId,
+						AccountName = account.Name,
+						AccountPeriodId = accountPeriod.AccountPeriodId,
+						InitialDate = accountPeriod.InitialDate ?? new DateTime(),
+						EndDate = accountPeriod.EndDate ?? new DateTime(),
+						Budget = accountPeriod.Budget ?? 0,
+						UserId = account.UserId.ToString()
+					}
+					: null;
+				results.Add(account.AccountId, accPeriodBasicInfo);
+			}
+
+			return results;
+		}
+
 		public async Task<AccountPeriodBasicInfo> GetAccountPeriodInfoByAccountIdDateTimeAsync(int accountId, DateTime dateTime)
 		{
 			var account = await Context.Account.AsNoTracking()
 				.Where(acc => acc.AccountId == accountId)
 				.Include(acc => acc.AccountPeriod)
 				.FirstOrDefaultAsync();
-			FilterAccountPeriodByDate(new[] { account }, dateTime);
+			FilterAccountPeriodByDate([account], dateTime);
 			var accountPeriod = account?.AccountPeriod?.FirstOrDefault();
 			if (accountPeriod == null)
 			{

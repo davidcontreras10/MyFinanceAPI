@@ -23,6 +23,8 @@ namespace MyFinanceModel.Records
 
 	public record class NewSingleTrxBankTransaction(BankTrxId BankTrxId, string Description, SpendOnPeriodId SpendOnPeriodId);
 
+	public record class NewMultipleTrxBankTransaction(BankTrxId BankTrxId, string Description, IEnumerable<SpendOnPeriodId> SpendOnPeriodIds);
+
 	public record class BankTransactionDto(
 		BankTrxId BankTrxId,
 		string Description,

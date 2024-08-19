@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace MyFinanceBackend.Services
 {
-	public class BankTransactionsService(IUnitOfWork unitOfWork, ISpendsService spendsService) : IBankTransactionsService
+	public class BankTransactionsService(IUnitOfWork unitOfWork, IAppTransactionsSubService appTransactionsSubService) : IBankTransactionsService
 	{
 		public async Task DeleteBankTransactionAsync(BankTrxId bankTrxId)
 		{
@@ -42,7 +42,7 @@ namespace MyFinanceBackend.Services
 
 		public async Task<BankTrxReqResp> GetBankTransactionByAppTrxIdAsync(IReadOnlyCollection<int> appTrxIds, string userId)
 		{
-			if(appTrxIds == null || appTrxIds.Count == 0) return new BankTrxReqResp();
+			if (appTrxIds == null || appTrxIds.Count == 0) return new BankTrxReqResp();
 			var bankTrxs = await unitOfWork.BankTransactionsRepository.GetBankTransactionsByAppIdsAsync(appTrxIds);
 			var bankTransactions = await unitOfWork.BankTransactionsRepository.GetBankTransactionDtoByIdsAsync(bankTrxs.Select(x => x.BankTrxId));
 			var currencies = await unitOfWork.CurrenciesRepository.GetCurrenciesByCodesAsync(bankTransactions.Select(x => x.Currency.IsoCode));
@@ -152,9 +152,32 @@ namespace MyFinanceBackend.Services
 			return response;
 		}
 
+		private async Task<IEnumerable<SpendItemModified>> ProcessMultipleTransactionsAsync(IReadOnlyCollection<BankItemRequest> bankItemRequests, string userId)
+		{
+			if (bankItemRequests == null || bankItemRequests.Count == 0) return [];
+			var multipleTrxs = bankItemRequests.Where(x => x.IsMultipleTrx == true).ToList();
+			if (multipleTrxs.Count == 0) return [];
+			var dbBankTrxs = await unitOfWork.BankTransactionsRepository.GetBasicBankTransactionByIdsAsync(bankItemRequests.Select(x => x.BankTrxId));
+			var allowedStatus = new[] { BankTransactionStatus.Ignored, BankTransactionStatus.Inserted };
+			if (dbBankTrxs.Any(x => !allowedStatus.Contains(x.Status)))
+			{
+				throw new InvalidOperationException("The transactions are not in the correct status");
+			}
+
+			var newBankTrxs = new List<NewMultipleTrxBankTransaction>();
+			var modifiedtems = new List<SpendItemModified>();
+			foreach (var bankTrx in bankItemRequests)
+			{
+				var dbTrx = dbBankTrxs.FirstOrDefault(x => x.Id == bankTrx.BankTrxId)
+					?? throw new InvalidOperationException("The transaction is not in the database");
+			}
+
+			throw new NotImplementedException();
+		}
+
 		private async Task<IEnumerable<SpendItemModified>> ProcessSingleBankTransactionsAsync(IReadOnlyCollection<BankItemRequest> bankItemRequests, string userId)
 		{
-			if (bankItemRequests == null || bankItemRequests.Count == 0) return Array.Empty<SpendItemModified>();
+			if (bankItemRequests == null || bankItemRequests.Count == 0) return [];
 			var dbBankTrxs = await unitOfWork.BankTransactionsRepository.GetBasicBankTransactionByIdsAsync(bankItemRequests.Select(x => x.BankTrxId));
 			var allowedStatus = new[] { BankTransactionStatus.Ignored, BankTransactionStatus.Inserted };
 			if (dbBankTrxs.Any(x => !allowedStatus.Contains(x.Status)))
@@ -175,12 +198,12 @@ namespace MyFinanceBackend.Services
 				var accountId = bankTrx.AccountId ?? throw new InvalidOperationException("The account id is not set");
 				NewAppTransactionByAccount newAppTransactionByAccount =
 					new(userId, (float)dbTrx.OriginalAmount, date, spendTypeId, currency, bankTrx.Description, isPending, accountId, TransactionTypeIds.Spend);
-				var spendItems = await spendsService.AddNewAppTransactionByAccountAsync(newAppTransactionByAccount);
+				var spendItems = await appTransactionsSubService.AddMultipleTrxsByAccountAsync([newAppTransactionByAccount]);
 				var spendItem = spendItems.FirstOrDefault(sp => sp.AccountId == accountId) ?? throw new InvalidOperationException($"The trx was not created for account {accountId}");
 				var spendOnPeriod = await unitOfWork.SpendsRepository.GetSpendOnPeriodAccountBySpendIdAccountIdAsync(spendItem.SpendId, accountId)
 					?? throw new InvalidOperationException("The spend on period was not created");
 				newBankTrxs.Add(new NewSingleTrxBankTransaction(bankTrx.BankTrxId, bankTrx.Description, new SpendOnPeriodId(spendOnPeriod.SpendId, spendOnPeriod.AccountPeriodId)));
-				modifiedtems.AddRange(spendItems);
+				modifiedtems.AddRange(spendItems.Select(SpendItemModified.To));
 			}
 
 			await unitOfWork.BankTransactionsRepository.NewSingleTrxBankTransactionsAsync(newBankTrxs);

@@ -11,12 +11,33 @@ namespace MyFinanceBackend.Services
 {
 	public interface IAppTransactionsSubService
 	{
+		Task<IEnumerable<TrxItemModifiedRecord>> AddMultipleTrxsByAccountAsync(IReadOnlyCollection<NewAppTransactionByAccount> newAppTransactionsByAccount);
 		Task<IEnumerable<TrxItemModifiedRecord>> AddMultipleTransactionsAsync(IReadOnlyCollection<ClientAddSpendModel> clientAddSpendModels);
 		Task<IEnumerable<TrxItemModifiedRecord>> AddMultipleTransactionsAsync(IReadOnlyCollection<ClientConvertedTrxModel> transactions);
 	}
 
 	public class AppTransactionsSubService(IUnitOfWork unitOfWork, ITrxExchangeService trxExchangeService) : IAppTransactionsSubService
 	{
+		public async Task<IEnumerable<TrxItemModifiedRecord>> AddMultipleTrxsByAccountAsync(IReadOnlyCollection<NewAppTransactionByAccount> newAppTransactionsByAccount)
+		{
+			if(newAppTransactionsByAccount == null || newAppTransactionsByAccount.Count == 0) return [];
+			var idDates = newAppTransactionsByAccount.Select(x => new IdDateTime(x.AccountId, x.SpendDate)).ToList();
+			var accountPeriodsInfo = await unitOfWork.AccountRepository.GetAccountPeriodInfoByAccountIdDateTimeAsync(idDates);
+			var trxItems = new List<ClientAddSpendModel>();
+			foreach (var newAppTransactionByAccount in newAppTransactionsByAccount)
+			{
+				var accountPeriodInfo = (accountPeriodsInfo.TryGetValue(newAppTransactionByAccount.AccountId, out var res) ? res : null) 
+					?? throw new Exception("Account period info not found");
+				var clientBasicTrxByPeriod = ToClientBasicTrxByPeriod(newAppTransactionByAccount, accountPeriodInfo.AccountPeriodId);
+				var clientAddSpendModel = await unitOfWork.SpendsRepository.CreateClientAddSpendModelAsync(clientBasicTrxByPeriod,
+						clientBasicTrxByPeriod.AccountPeriodId);
+				trxItems.Add(clientAddSpendModel);
+			}
+
+			return await AddMultipleTransactionsAsync(trxItems);
+
+		}
+
 		public async Task<IEnumerable<TrxItemModifiedRecord>> AddMultipleTransactionsAsync(IReadOnlyCollection<ClientConvertedTrxModel> transactions)
 		{
 			return await unitOfWork.SpendsRepository.AddMultipleTransactionsAsync(transactions);
@@ -43,6 +64,24 @@ namespace MyFinanceBackend.Services
 		{
 			var accountIds = SpendsDataHelper.GetInvolvedAccountIds(spendCurrencyConvertibles);
 			return await unitOfWork.SpendsRepository.GetAccountsCurrencyAsync(accountIds);
+		}
+
+		private static ClientBasicTrxByPeriod ToClientBasicTrxByPeriod(NewAppTransactionByAccount newAppTransactionByAccount, int accountPeriodId)
+		{
+			var clientAddSpendModel = new ClientBasicTrxByPeriod
+			{
+				Amount = newAppTransactionByAccount.Amount,
+				AmountTypeId = newAppTransactionByAccount.TransactionType,
+				CurrencyId = newAppTransactionByAccount.CurrencyId,
+				SpendDate = newAppTransactionByAccount.SpendDate,
+				UserId = newAppTransactionByAccount.UserId,
+				AccountPeriodId = accountPeriodId,
+				Description = newAppTransactionByAccount.Description,
+				IsPending = newAppTransactionByAccount.IsPending,
+				SpendTypeId = newAppTransactionByAccount.SpendTypeId
+			};
+
+			return clientAddSpendModel;
 		}
 
 		private static ClientConvertedTrxModel CreateClientConvertedTrxModel(ClientAddSpendModel clientAddSpendModel, IReadOnlyCollection<AddSpendAccountDbValues> dbValues)
