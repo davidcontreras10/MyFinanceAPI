@@ -367,18 +367,18 @@ namespace EFDataAccess.Repositories
 			};
 		}
 
-		public async Task<IDictionary<int, AccountPeriodBasicInfo>> GetAccountPeriodInfoByAccountIdDateTimeAsync(IReadOnlyCollection<IdDateTime> accountsDates)
+		public async Task<IReadOnlyCollection<Tuple<IdDateTime, AccountPeriodBasicInfo>>> GetAccountPeriodInfoByAccountIdDateTimeAsync(IReadOnlyCollection<IdDateTime> accountsDates)
 		{
-			var accountIds = accountsDates.Select(x => x.Id);
+			var accountIds = accountsDates.Select(x => x.AccountId);
 			var dates = accountsDates.Select(accountsDates => accountsDates.DateTime);
 			var accounts = await Context.Account.AsNoTracking()
 				.Where(acc => accountIds.Contains(acc.AccountId))
 				.Include(acc => acc.AccountPeriod)
 				.ToListAsync();
-			var results = new Dictionary<int, AccountPeriodBasicInfo>();
+			var results = new List<Tuple<IdDateTime, AccountPeriodBasicInfo>>();
 			foreach (var accountDate in accountsDates)
 			{
-				var account = accounts.FirstOrDefault(acc => acc.AccountId == accountDate.Id);
+				var account = accounts.FirstOrDefault(acc => acc.AccountId == accountDate.AccountId);
 				if (account == null)
 				{
 					continue;
@@ -397,7 +397,7 @@ namespace EFDataAccess.Repositories
 						UserId = account.UserId.ToString()
 					}
 					: null;
-				results.Add(account.AccountId, accPeriodBasicInfo);
+				results.Add(new Tuple<IdDateTime, AccountPeriodBasicInfo>(accountDate, accPeriodBasicInfo));
 			}
 
 			return results;

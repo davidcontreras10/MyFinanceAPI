@@ -21,12 +21,13 @@ namespace MyFinanceBackend.Services
 		public async Task<IEnumerable<TrxItemModifiedRecord>> AddMultipleTrxsByAccountAsync(IReadOnlyCollection<NewAppTransactionByAccount> newAppTransactionsByAccount)
 		{
 			if(newAppTransactionsByAccount == null || newAppTransactionsByAccount.Count == 0) return [];
-			var idDates = newAppTransactionsByAccount.Select(x => new IdDateTime(x.AccountId, x.SpendDate)).ToList();
+			var idDates = newAppTransactionsByAccount.Select(x => new IdDateTime(x.AccountId, x.SpendDate)).Distinct().ToList();
 			var accountPeriodsInfo = await unitOfWork.AccountRepository.GetAccountPeriodInfoByAccountIdDateTimeAsync(idDates);
 			var trxItems = new List<ClientAddSpendModel>();
 			foreach (var newAppTransactionByAccount in newAppTransactionsByAccount)
 			{
-				var accountPeriodInfo = (accountPeriodsInfo.TryGetValue(newAppTransactionByAccount.AccountId, out var res) ? res : null) 
+				var idDate = new IdDateTime(newAppTransactionByAccount.AccountId, newAppTransactionByAccount.SpendDate);
+				var accountPeriodInfo = accountPeriodsInfo.FirstOrDefault(x => x.Item1 == idDate)?.Item2
 					?? throw new Exception("Account period info not found");
 				var clientBasicTrxByPeriod = ToClientBasicTrxByPeriod(newAppTransactionByAccount, accountPeriodInfo.AccountPeriodId);
 				var clientAddSpendModel = await unitOfWork.SpendsRepository.CreateClientAddSpendModelAsync(clientBasicTrxByPeriod,
@@ -52,8 +53,7 @@ namespace MyFinanceBackend.Services
 			var convertedTrxModels = new List<ClientConvertedTrxModel>();
 			foreach (var convertibleItem in convertibleItems)
 			{
-				var conversionResult = conversionResults.FirstOrDefault(x => x.Guid == convertibleItem.Guid);
-				if (conversionResult == null) throw new Exception("Conversion result not found");
+				var conversionResult = conversionResults.FirstOrDefault(x => x.Guid == convertibleItem.Guid) ?? throw new Exception("Conversion result not found");
 				convertedTrxModels.Add(CreateClientConvertedTrxModel(convertibleItem.SpendCurrencyConvertible as ClientAddSpendModel, conversionResult.DbValues));
 			}
 
@@ -78,7 +78,8 @@ namespace MyFinanceBackend.Services
 				AccountPeriodId = accountPeriodId,
 				Description = newAppTransactionByAccount.Description,
 				IsPending = newAppTransactionByAccount.IsPending,
-				SpendTypeId = newAppTransactionByAccount.SpendTypeId
+				SpendTypeId = newAppTransactionByAccount.SpendTypeId,
+				RequestId = newAppTransactionByAccount.RequestId
 			};
 
 			return clientAddSpendModel;
@@ -97,7 +98,8 @@ namespace MyFinanceBackend.Services
 				OriginalAmount = clientAddSpendModel.Amount,
 				PeriodTransactions = dbValues,
 				TrxDate = clientAddSpendModel.SpendDate,
-				TrxTypeId = clientAddSpendModel.SpendTypeId
+				TrxTypeId = clientAddSpendModel.SpendTypeId,
+				RequestId = clientAddSpendModel.RequestId
 			};
 		}
 	}

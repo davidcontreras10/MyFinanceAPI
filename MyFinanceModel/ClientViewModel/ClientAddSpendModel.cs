@@ -55,5 +55,6 @@ namespace MyFinanceModel.ClientViewModel
         public bool IsPending { get; set; }
         public DateTime TrxDate { get; set; }
         public int TrxTypeId { get; set; }
+        public Guid? RequestId { get; set; }
     }
 }

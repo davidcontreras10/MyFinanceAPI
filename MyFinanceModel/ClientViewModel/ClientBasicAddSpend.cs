@@ -42,7 +42,9 @@ namespace MyFinanceModel.ClientViewModel
         public DateTime PaymentDate => SpendDate;
 
         public TransactionTypeIds AmountTypeId { get; set; } = TransactionTypeIds.Invalid;
-    }
+
+		public Guid? RequestId { get; set; }
+	}
 
     public enum TransactionTypeIds
     {

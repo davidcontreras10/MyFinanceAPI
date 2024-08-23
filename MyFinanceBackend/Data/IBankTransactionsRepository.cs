@@ -1,6 +1,7 @@
 ﻿using MyFinanceModel.Dto;
 using MyFinanceModel.Enums;
 using MyFinanceModel.Records;
+using MyFinanceModel.ViewModel.BankTransactions;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -8,9 +9,9 @@ namespace MyFinanceBackend.Data
 {
 	public interface IBankTransactionsRepository
 	{
-		Task<IReadOnlyCollection<BankTrxAppTrx>> GetBankTransactionsByAppIdsAsync(IEnumerable<int> appIds);
+		Task<IReadOnlyCollection<BankTrxAppTrx>> GetBankTransactionsBySearchCriteriaAsync(IUserSearchCriteria userSearchCriteria);
 		Task<IReadOnlyCollection<BankTransactionDto>> GetBankTransactionDtoByIdsAsync(IEnumerable<BankTrxId> bankTrxIds);
-		Task NewSingleTrxBankTransactionsAsync(IEnumerable<NewSingleTrxBankTransaction> newSingleTrxBankTransactions);
+		Task NewSingleTrxBankTransactionsAsync(IEnumerable<NewTrxBankTransaction> newTrxBankTransactions);
 		Task UpdateBankTransactionsDescriptionsAsync(IEnumerable<BankTrxDescription> bankTrxDescriptions);
 		Task<IReadOnlyCollection<BasicBankTransactionDto>> GetBasicBankTransactionByIdsAsync(IEnumerable<BankTrxId> bankTrxIds);
 		Task<IReadOnlyCollection<SpendOnPeriodId>> ClearTrxsFromBankTrxsAsync(IReadOnlyCollection<BankTrxId> bankTrxIds);

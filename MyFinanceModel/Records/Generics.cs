@@ -18,7 +18,9 @@ namespace MyFinanceModel.Records
 
 	public record class ItemModifiedRecord(int AccountId, bool IsModified);
 
-	public record class TrxItemModifiedRecord(int AccountId, bool IsModified, int SpendId) : ItemModifiedRecord(AccountId, IsModified);
+	public record class TrxItemModifiedRecord(int AccountId, bool IsModified, int SpendId, int AccountPeriodId, Guid? RequestId = null) : ItemModifiedRecord(AccountId, IsModified);
 
-	public record class IdDateTime(int Id, DateTime DateTime);
+	public record class IdentifiableRequest<T>(T Request, Guid RequestId);
+
+	public record class IdDateTime(int AccountId, DateTime DateTime);
 }

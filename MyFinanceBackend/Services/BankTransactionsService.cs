@@ -40,13 +40,13 @@ namespace MyFinanceBackend.Services
 			};
 		}
 
-		public async Task<BankTrxReqResp> GetBankTransactionByAppTrxIdAsync(IReadOnlyCollection<int> appTrxIds, string userId)
+		public async Task<BankTrxReqResp> GetBankTransactionBySearchCriteriaAsync(IUserSearchCriteria userSearchCriteria)
 		{
-			if (appTrxIds == null || appTrxIds.Count == 0) return new BankTrxReqResp();
-			var bankTrxs = await unitOfWork.BankTransactionsRepository.GetBankTransactionsByAppIdsAsync(appTrxIds);
+			if(userSearchCriteria == null) return new BankTrxReqResp();
+			var bankTrxs = await unitOfWork.BankTransactionsRepository.GetBankTransactionsBySearchCriteriaAsync(userSearchCriteria);
 			var bankTransactions = await unitOfWork.BankTransactionsRepository.GetBankTransactionDtoByIdsAsync(bankTrxs.Select(x => x.BankTrxId));
 			var currencies = await unitOfWork.CurrenciesRepository.GetCurrenciesByCodesAsync(bankTransactions.Select(x => x.Currency.IsoCode));
-			var accountsPerCurrencies = await unitOfWork.AccountRepository.GetAccountsByCurrenciesAsync(currencies.Select(c => c.Id), userId);
+			var accountsPerCurrencies = await unitOfWork.AccountRepository.GetAccountsByCurrenciesAsync(currencies.Select(c => c.Id), userSearchCriteria.RequesterUserId);
 			return new BankTrxReqResp
 			{
 				BankTransactions = bankTransactions.Select(ToBankTrxItemReqResp).ToList(),
@@ -70,8 +70,7 @@ namespace MyFinanceBackend.Services
 				var processedDbTrxs = dbBankTrxs.Where(x => x.Status == BankTransactionStatus.Processed);
 				bankItemRequestsList = bankItemRequestsList
 					.Where(x => !processedDbTrxs.Any(db => db.BankTransactionId == x.BankTrxId.TransactionId && db.FinancialEntityId == x.BankTrxId.FinancialEntityId)).ToList();
-				var singleTrxs = bankItemRequestsList.Where(x => x.IsMultipleTrx == false).ToList();
-				var singleTrxModifieds = (await ProcessSingleBankTransactionsAsync(singleTrxs, userId)).ToList();
+				var singleTrxModifieds = (await ProcessBankTransactionsWithAppTrxsAsync(bankItemRequestsList, userId)).ToList();
 				modifieds.AddRange(singleTrxModifieds);
 				var dbTrxs = await unitOfWork.BankTransactionsRepository.GetBankTransactionDtoByIdsAsync(bankItemRequests.Select(x => x.BankTrxId));
 				await unitOfWork.CommitTransactionAsync();
@@ -175,7 +174,7 @@ namespace MyFinanceBackend.Services
 			throw new NotImplementedException();
 		}
 
-		private async Task<IEnumerable<SpendItemModified>> ProcessSingleBankTransactionsAsync(IReadOnlyCollection<BankItemRequest> bankItemRequests, string userId)
+		private async Task<IEnumerable<SpendItemModified>> ProcessBankTransactionsWithAppTrxsAsync(IReadOnlyCollection<BankItemRequest> bankItemRequests, string userId)
 		{
 			if (bankItemRequests == null || bankItemRequests.Count == 0) return [];
 			var dbBankTrxs = await unitOfWork.BankTransactionsRepository.GetBasicBankTransactionByIdsAsync(bankItemRequests.Select(x => x.BankTrxId));
@@ -185,30 +184,82 @@ namespace MyFinanceBackend.Services
 				throw new InvalidOperationException("The transactions are not in the correct status");
 			}
 
-			var newBankTrxs = new List<NewSingleTrxBankTransaction>();
-			var modifiedtems = new List<SpendItemModified>();
-			foreach (var bankTrx in bankItemRequests)
+			var requestableTrxs = bankItemRequests.Select(br => new IdentifiableRequest<BankItemRequest>(br, Guid.NewGuid())).ToList();
+			var appTrxRequests = new List<NewAppTransactionByAccount>();
+			foreach (var requestableTrx in requestableTrxs)
 			{
+				var bankTrx = requestableTrx.Request;
 				var dbTrx = dbBankTrxs.FirstOrDefault(x => x.Id == bankTrx.BankTrxId)
 					?? throw new InvalidOperationException("The transaction is not in the database");
-				var date = dbTrx.TransactionDate ?? throw new InvalidOperationException("The transaction date is not set");
-				var spendTypeId = bankTrx.SpendTypeId ?? throw new InvalidOperationException("The spend type is not set");
-				var currency = dbTrx.CurrencyId ?? throw new InvalidOperationException("The currency is not set");
-				var isPending = bankTrx.IsPending ?? throw new InvalidOperationException("Is pending is not set");
-				var accountId = bankTrx.AccountId ?? throw new InvalidOperationException("The account id is not set");
-				NewAppTransactionByAccount newAppTransactionByAccount =
-					new(userId, (float)dbTrx.OriginalAmount, date, spendTypeId, currency, bankTrx.Description, isPending, accountId, TransactionTypeIds.Spend);
-				var spendItems = await appTransactionsSubService.AddMultipleTrxsByAccountAsync([newAppTransactionByAccount]);
-				var spendItem = spendItems.FirstOrDefault(sp => sp.AccountId == accountId) ?? throw new InvalidOperationException($"The trx was not created for account {accountId}");
-				var spendOnPeriod = await unitOfWork.SpendsRepository.GetSpendOnPeriodAccountBySpendIdAccountIdAsync(spendItem.SpendId, accountId)
-					?? throw new InvalidOperationException("The spend on period was not created");
-				newBankTrxs.Add(new NewSingleTrxBankTransaction(bankTrx.BankTrxId, bankTrx.Description, new SpendOnPeriodId(spendOnPeriod.SpendId, spendOnPeriod.AccountPeriodId)));
-				modifiedtems.AddRange(spendItems.Select(SpendItemModified.To));
+				if (bankTrx.IsMultipleTrx == true)
+				{
+					var newAppTransactionsByAccount = CreateMultipleNewAppTransactionByAccount(bankTrx, dbTrx, userId, requestableTrx.RequestId);
+					var originalAmount = dbTrx.OriginalAmount ?? throw new InvalidOperationException("The original amount is not set");
+					if (newAppTransactionsByAccount.Sum(x => x.Amount) != (float)originalAmount) throw new InvalidOperationException("The sum of the transactions is not equal to the original amount");
+					appTrxRequests.AddRange(newAppTransactionsByAccount);
+				}
+				else
+				{
+					var newAppTransactionByAccount = CreateSingleNewAppTransactionByAccount(bankTrx, dbTrx, userId, requestableTrx.RequestId);
+					appTrxRequests.Add(newAppTransactionByAccount);
+				}
+			}
+
+			var modifiedtems = await appTransactionsSubService.AddMultipleTrxsByAccountAsync(appTrxRequests);
+			var newBankTrxs = new List<NewTrxBankTransaction>();
+			foreach (var requestableTrx in requestableTrxs)
+			{
+				var trxModifieds = GetTrxItemModifiedRecords(requestableTrx, modifiedtems);
+				if (!trxModifieds.Any()) throw new InvalidOperationException("The transaction was not created");
+				var spendOnPeriods = trxModifieds.Select(x => new SpendOnPeriodId(x.SpendId, x.AccountPeriodId));
+				NewTrxBankTransaction newTrxBankTransaction = new(requestableTrx.Request.BankTrxId, requestableTrx.Request.Description, spendOnPeriods);
+				newBankTrxs.Add(newTrxBankTransaction);
 			}
 
 			await unitOfWork.BankTransactionsRepository.NewSingleTrxBankTransactionsAsync(newBankTrxs);
 			await unitOfWork.SaveAsync();
-			return modifiedtems;
+			return modifiedtems.Select(SpendItemModified.To);
+		}
+
+		private static IEnumerable<TrxItemModifiedRecord> GetTrxItemModifiedRecords(IdentifiableRequest<BankItemRequest> request, IEnumerable<TrxItemModifiedRecord> trxItemModifiedRecords)
+		{
+			if (request.Request.IsMultipleTrx == true)
+			{
+				var accountIds = request.Request.Transactions.Select(x => x.AccountId).ToList();
+				return trxItemModifiedRecords.Where(x => x.RequestId == request.RequestId && accountIds.Contains(x.AccountId));
+			}
+
+			return trxItemModifiedRecords.Where(x => x.RequestId == request.RequestId && x.AccountId == request.Request.AccountId);
+		}
+
+		private static IReadOnlyCollection<NewAppTransactionByAccount> CreateMultipleNewAppTransactionByAccount(BankItemRequest bankTrx, BasicBankTransactionDto dbTrx, string userId, Guid requestId)
+		{
+			if (bankTrx.RequestIgnore) throw new InvalidOperationException("The transaction is ignored");
+			if (bankTrx.Transactions == null || bankTrx.Transactions.Count == 0) throw new InvalidOperationException("The transactions are not set");
+			var date = dbTrx.TransactionDate ?? throw new InvalidOperationException("The transaction date is not set");
+			var appTransactions = new List<NewAppTransactionByAccount>();
+			var currency = dbTrx.CurrencyId ?? throw new InvalidOperationException("The currency is not set");
+			foreach (var transaction in bankTrx.Transactions)
+			{
+				var spendTypeId = transaction.SpendTypeId > 0 ? transaction.SpendTypeId : throw new InvalidOperationException("The spend type is not set");
+				NewAppTransactionByAccount newAppTransactionByAccount =
+					new(userId, (float)transaction.Amount, date, spendTypeId, currency, transaction.Description, transaction.IsPending, transaction.AccountId, TransactionTypeIds.Spend, requestId);
+				appTransactions.Add(newAppTransactionByAccount);
+
+			}
+			return appTransactions;
+		}
+
+		private static NewAppTransactionByAccount CreateSingleNewAppTransactionByAccount(BankItemRequest bankTrx, BasicBankTransactionDto dbTrx, string userId, Guid requestId)
+		{
+			var date = dbTrx.TransactionDate ?? throw new InvalidOperationException("The transaction date is not set");
+			var spendTypeId = bankTrx.SpendTypeId ?? throw new InvalidOperationException("The spend type is not set");
+			var currency = dbTrx.CurrencyId ?? throw new InvalidOperationException("The currency is not set");
+			var isPending = bankTrx.IsPending ?? throw new InvalidOperationException("Is pending is not set");
+			var accountId = bankTrx.AccountId ?? throw new InvalidOperationException("The account id is not set");
+			NewAppTransactionByAccount newAppTransactionByAccount =
+				new(userId, (float)dbTrx.OriginalAmount, date, spendTypeId, currency, bankTrx.Description, isPending, accountId, TransactionTypeIds.Spend, requestId);
+			return newAppTransactionByAccount;
 		}
 
 		private static BankTrxItemReqResp ToBankTrxItemReqResp(BankTransactionDto basicBankTransaction)

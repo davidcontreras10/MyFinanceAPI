@@ -82,11 +82,64 @@ namespace MyFinanceWebApiCore.Controllers
 			return Ok(resultTrxs);
 		}
 
+		[HttpGet]
+		public async Task<ActionResult<BankTrxReqResp>> GetBankTransactionBySearchCriteria([FromQuery] DateOnly? date, [FromQuery] string refNumber, [FromQuery] string description)
+		{
+			var userId = GetUserId();
+			if(date == null && string.IsNullOrWhiteSpace(description) && string.IsNullOrWhiteSpace(refNumber))
+			{
+				return BadRequest("No search criteria provided.");
+			}
+
+			var inputValues = new List<string> { date?.ToString(), refNumber, description };
+			if(inputValues.Count(input => !string.IsNullOrWhiteSpace(input)) > 1)
+			{
+				return BadRequest("Only one search criteria is allowed.");
+			}
+
+
+			IUserSearchCriteria userSearchCriteria;
+			if(date != null)
+			{
+				userSearchCriteria = new BankTrxSearchCriteria.DateSearchCriteria
+				{
+					Date = date.Value,
+					RequesterUserId = userId
+				};
+			}
+			else if(!string.IsNullOrWhiteSpace(description))
+			{
+				userSearchCriteria = new BankTrxSearchCriteria.DescriptionSearchCriteria
+				{
+					Description = description,
+					RequesterUserId = userId
+				};
+			}
+			else if (!string.IsNullOrWhiteSpace(refNumber))
+			{
+				userSearchCriteria = new BankTrxSearchCriteria.RefNumberSearchCriteria
+				{
+					RefNumber = refNumber,
+					RequesterUserId = userId
+				};
+			}
+			else
+			{
+				return BadRequest("No search criteria provided.");
+			}
+			return await _bankTransactionsService.GetBankTransactionBySearchCriteriaAsync(userSearchCriteria);
+		}
+
 		[HttpGet("app-transactions")]
 		public async Task<ActionResult<BankTrxReqResp>> GetBankTransactionByAppTrxId([FromQuery] int[] transactionId)
 		{
 			var userId = GetUserId();
-			return await _bankTransactionsService.GetBankTransactionByAppTrxIdAsync(transactionId, userId);
+			var userSearchCriteria = new BankTrxSearchCriteria.AppTransactionIds
+			{
+				RequesterUserId = userId,
+				TransactionIds = transactionId
+			};
+			return await _bankTransactionsService.GetBankTransactionBySearchCriteriaAsync(userSearchCriteria);
 		}
 
 		[HttpDelete("{transactionId}/{financialEntityId}")]

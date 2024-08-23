@@ -61,24 +61,25 @@ namespace EFDataAccess.Repositories
 
 		public async Task<IEnumerable<TrxItemModifiedRecord>> AddMultipleTransactionsAsync(IReadOnlyCollection<ClientConvertedTrxModel> transactions)
 		{
-			if(transactions == null || transactions.Count == 0) return [];
+			if (transactions == null || transactions.Count == 0) return [];
 
-			var modifiedAccs = new List<SpendOnPeriod>();
+			var modifiedAccs = new List<IdentifiableRequest<SpendOnPeriod>>();
 			foreach (var transaction in transactions)
 			{
 				modifiedAccs.AddRange(await AddSpendAsync(transaction));
 			}
 
-			if(modifiedAccs.Count == 0) return [];
+			if (modifiedAccs.Count == 0) return [];
 			await Context.SaveChangesAsync();
-			var modifiedRecords = modifiedAccs.Select(sop => new TrxItemModifiedRecord(sop.AccountPeriod.AccountId ?? 0, true, sop.SpendId));
+			var modifiedRecords = modifiedAccs.Select(sop =>
+			new TrxItemModifiedRecord(sop.Request.AccountPeriod.AccountId ?? 0, true, sop.Request.SpendId, sop.Request.AccountPeriodId, sop.RequestId));
 			return modifiedRecords;
 		}
 
-		private async Task<IEnumerable<SpendOnPeriod>> AddSpendAsync(ClientConvertedTrxModel clientConvertedTrxModel)
+		private async Task<IEnumerable<IdentifiableRequest<SpendOnPeriod>>> AddSpendAsync(ClientConvertedTrxModel clientConvertedTrxModel)
 		{
 			ArgumentNullException.ThrowIfNull(clientConvertedTrxModel);
-			if(clientConvertedTrxModel.PeriodTransactions == null || !clientConvertedTrxModel.PeriodTransactions.Any())
+			if (clientConvertedTrxModel.PeriodTransactions == null || !clientConvertedTrxModel.PeriodTransactions.Any())
 			{
 				throw new ArgumentException(@"PeriodTransactions is null", nameof(clientConvertedTrxModel));
 			}
@@ -106,7 +107,7 @@ namespace EFDataAccess.Repositories
 					accountIds.Contains(accp.AccountId ?? 0)
 					&& spendDate >= accp.InitialDate && spendDate < accp.EndDate)
 				.ToListAsync();
-			var modifiedAccs = new List<SpendOnPeriod>();
+			var modifiedAccs = new List<IdentifiableRequest<SpendOnPeriod>>();
 			foreach (var accountPeriod in accountPeriods)
 			{
 				var accountIncluded = clientAccountIncluded.First(acc => acc.AccountId == accountPeriod.AccountId);
@@ -120,7 +121,7 @@ namespace EFDataAccess.Repositories
 					IsOriginal = accountIncluded.IsOriginal
 				};
 
-				modifiedAccs.Add(spendOnPeriod);
+				modifiedAccs.Add(new IdentifiableRequest<SpendOnPeriod>(spendOnPeriod, clientConvertedTrxModel.RequestId ?? Guid.NewGuid()));
 				accountPeriod.SpendOnPeriod.Add(spendOnPeriod);
 			}
 
@@ -229,7 +230,8 @@ namespace EFDataAccess.Repositories
 				OriginalAccountData = originalAccountData,
 				IncludedAccounts = includeAccountData,
 				IsPending = clientBasicAddSpend.IsPending,
-				AmountTypeId = clientBasicAddSpend.AmountTypeId
+				AmountTypeId = clientBasicAddSpend.AmountTypeId,
+				RequestId = clientBasicAddSpend.RequestId
 			};
 
 			return clientAddSpendModel;
@@ -284,7 +286,7 @@ namespace EFDataAccess.Repositories
 			{
 				model.SpendId
 			};
-			
+
 			var hasBankTrx = await Context.SpendOnPeriod.AsNoTracking()
 				.Include(sp => sp.BankTransaction)
 				.Where(sp => sp.SpendId == model.SpendId)
@@ -363,11 +365,17 @@ namespace EFDataAccess.Repositories
 			spend.SetPaymentDate = financeSpend.SetPaymentDate;
 			spend.SpendDate = financeSpend.SpendDate;
 			spend.IsPending = financeSpend.IsPending;
-			Context.SpendOnPeriod.RemoveWhere(sop => sop.SpendId == financeSpend.SpendId);
+			var toRemoveSpendOnPeriods = await Context.SpendOnPeriod
+				.Where(sop => sop.SpendId == financeSpend.SpendId)
+				.Include(sop => sop.AccountPeriod)
+				.Include(sop => sop.BankTransaction)
+				.ToListAsync();
+			Context.SpendOnPeriod.RemoveRange(toRemoveSpendOnPeriods);
 			var spendOnPeriods = new List<SpendOnPeriod>();
 			var affected = new List<SpendItemModified>();
 			foreach (var accountInclude in accountIncludes)
 			{
+				var removedSop = toRemoveSpendOnPeriods.FirstOrDefault(sop => sop.AccountPeriod.AccountId == accountInclude.AccountId);
 				var accountPeriod = accountPeriods.Single(accp => accp.Account.AccountId == accountInclude.AccountId);
 				spendOnPeriods.Add(new SpendOnPeriod
 				{
@@ -377,7 +385,8 @@ namespace EFDataAccess.Repositories
 					Numerator = accountInclude.Numerator,
 					IsOriginal = accountInclude.IsOriginal,
 					SpendId = spend.SpendId,
-					PendingUpdate = accountInclude.PendingUpdate
+					PendingUpdate = accountInclude.PendingUpdate,
+					BankTransaction = removedSop?.BankTransaction
 				});
 
 				affected.Add(new SpendItemModified

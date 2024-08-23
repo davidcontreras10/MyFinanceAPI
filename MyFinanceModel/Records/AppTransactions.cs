@@ -13,7 +13,8 @@ namespace MyFinanceModel.Records
 		string Description, 
 		bool IsPending, 
 		int AccountId, 
-		TransactionTypeIds TransactionType
+		TransactionTypeIds TransactionType,
+		Guid? RequestId = null
 	);
 	
 	public record class SpendCurrencyConvertibleItem(Guid Guid, ISpendCurrencyConvertible SpendCurrencyConvertible);

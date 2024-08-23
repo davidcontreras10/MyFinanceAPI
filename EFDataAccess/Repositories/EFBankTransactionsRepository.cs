@@ -6,6 +6,7 @@ using MyFinanceBackend.Data;
 using MyFinanceModel.Dto;
 using MyFinanceModel.Enums;
 using MyFinanceModel.Records;
+using MyFinanceModel.ViewModel.BankTransactions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,16 +18,96 @@ namespace EFDataAccess.Repositories
 		: BaseEFRepository(context), IBankTransactionsRepository
 	{
 
-		public async Task<IReadOnlyCollection<BankTrxAppTrx>> GetBankTransactionsByAppIdsAsync(IEnumerable<int> appIds)
+		public async Task<IReadOnlyCollection<BankTrxAppTrx>> GetBankTransactionsBySearchCriteriaAsync(IUserSearchCriteria userSearchCriteria)
+		{
+			if(userSearchCriteria == null)
+			{
+				return [];
+			}
+
+			if (userSearchCriteria is BankTrxSearchCriteria.AppTransactionIds appTransactionIds)
+			{
+				return await GetBankTransactionsByAppIdsAsync(appTransactionIds.TransactionIds);
+			}
+
+			if (userSearchCriteria is BankTrxSearchCriteria.RefNumberSearchCriteria refNumberSearchCriteria)
+			{
+				return await GetBankTransactionsByRefNumberAsync(refNumberSearchCriteria.RefNumber);
+			}
+
+			if(userSearchCriteria is BankTrxSearchCriteria.DateSearchCriteria dateSearchCriteria)
+			{
+				return await GetBankTransactionsByDateAsync(dateSearchCriteria.Date);
+			}
+
+			if(userSearchCriteria is BankTrxSearchCriteria.DescriptionSearchCriteria descriptionSearchCriteria)
+			{
+				return await GetBankTransactionsByDescriptionAsync(descriptionSearchCriteria.Description);
+			}
+			throw new InvalidOperationException("Invalid search criteria");
+		}
+
+		private async Task<IReadOnlyCollection<BankTrxAppTrx>> GetBankTransactionsByDescriptionAsync(string description)
+		{
+			var bankTrxs = await Context.BankTransactions.AsNoTracking()
+				.Where(x => x.FileDescription.Contains(description))
+				.Include(x => x.Transactions)
+				.Select(x => new BankTrxAppTrx
+					(
+						new BankTrxId(x.FinancialEntityId, x.BankTransactionId),
+						x.Transactions.Select(t => t.SpendId).FirstOrDefault()
+					))
+				.ToListAsync();
+
+			return bankTrxs;
+		}
+
+		private async Task<IReadOnlyCollection<BankTrxAppTrx>> GetBankTransactionsByDateAsync(DateOnly dateOnly)
+		{
+			var dateTime = dateOnly.ToDateTime(TimeOnly.MinValue).Date;
+			var bankTrxs = await Context.BankTransactions.AsNoTracking()
+				.Where(x => x.TransactionDate != null && x.TransactionDate.HasValue && x.TransactionDate.Value.Date == dateTime)
+				.Include(x => x.Transactions)
+				.Select(x => new BankTrxAppTrx
+					(
+						new BankTrxId(x.FinancialEntityId, x.BankTransactionId),
+						x.Transactions.Select(t => t.SpendId).FirstOrDefault()
+					))
+				.ToListAsync();
+
+			return bankTrxs;
+		}
+
+		private async Task<IReadOnlyCollection<BankTrxAppTrx>> GetBankTransactionsByRefNumberAsync(string refNumber)
+		{
+			if (string.IsNullOrWhiteSpace(refNumber))
+			{
+				return [];
+			}
+
+			var bankTrxs = await Context.BankTransactions.AsNoTracking()
+				.Where(x => x.BankTransactionId == refNumber)
+				.Include(x => x.Transactions)
+				.Select(x => new BankTrxAppTrx
+					(
+						new BankTrxId(x.FinancialEntityId, x.BankTransactionId),
+						x.Transactions.Select(t => t.SpendId).FirstOrDefault()
+					))
+				.ToListAsync();
+
+			return bankTrxs;
+		}
+
+		private async Task<IReadOnlyCollection<BankTrxAppTrx>> GetBankTransactionsByAppIdsAsync(IEnumerable<int> appIds)
 		{
 			if (appIds == null || !appIds.Any())
 			{
-				return Array.Empty<BankTrxAppTrx>();
+				return [];
 			}
 
 			var bankTrxs = await Context.SpendOnPeriod.AsNoTracking()
-				.Include(x => x.BankTransaction)
 				.Where(x => appIds.Contains(x.SpendId) && x.BankTransaction != null)
+				.Include(x => x.BankTransaction)
 				.Select(x => new BankTrxAppTrx
 					(
 						new BankTrxId(x.BankTransaction.FinancialEntityId, x.BankTransaction.BankTransactionId),
@@ -37,43 +118,36 @@ namespace EFDataAccess.Repositories
 			return bankTrxs;
 		}
 
-		public async Task NewSingleTrxBankTransactionsAsync(IEnumerable<NewSingleTrxBankTransaction> newSingleTrxBankTransactions)
+		public async Task NewSingleTrxBankTransactionsAsync(IEnumerable<NewTrxBankTransaction> newTrxBankTransactions)
 		{
-			if (newSingleTrxBankTransactions == null || !newSingleTrxBankTransactions.Any()) return;
-			var bankTrxIds = newSingleTrxBankTransactions.Select(x => x.BankTrxId);
+			if (newTrxBankTransactions == null || !newTrxBankTransactions.Any()) return;
+			var bankTrxIds = newTrxBankTransactions.Select(x => x.BankTrxId);
 			var ids = bankTrxIds.Select(x => x.TransactionId);
 			var bankTrxs = await Context.BankTransactions
 				.Include(x => x.Transactions)
 				.Where(x => ids.Contains(x.BankTransactionId))
 				.ToListAsync();
 			bankTrxIds = bankTrxIds.Where(x => bankTrxs.Any(b => b.BankTransactionId == x.TransactionId && b.FinancialEntityId == x.FinancialEntityId)).ToList();
-			var spendIds = newSingleTrxBankTransactions.Select(x => x.SpendOnPeriodId.SpendId);
+			var spendIds = newTrxBankTransactions.SelectMany(x => x.SpendOnPeriodIds.Select(y => y.SpendId)).Distinct();
 			var spendOnPeriods = await Context.SpendOnPeriod
 				.Where(x => spendIds.Contains(x.SpendId))
 				.ToListAsync();
-			foreach (var newSingleTrx in newSingleTrxBankTransactions)
+			foreach (var newSingleTrx in newTrxBankTransactions)
 			{
-				var dbBankTrx = bankTrxs.FirstOrDefault(x => x.BankTransactionId == newSingleTrx.BankTrxId.TransactionId && x.FinancialEntityId == newSingleTrx.BankTrxId.FinancialEntityId);
-				if (dbBankTrx == null)
-				{
-					throw new InvalidOperationException($"Bank Transaction {newSingleTrx.BankTrxId.TransactionId} not found");
-				}
-
+				var dbBankTrx = bankTrxs.FirstOrDefault(x => x.BankTransactionId == newSingleTrx.BankTrxId.TransactionId && x.FinancialEntityId == newSingleTrx.BankTrxId.FinancialEntityId) 
+					?? throw new InvalidOperationException($"Bank Transaction {newSingleTrx.BankTrxId.TransactionId} not found");
 				if (dbBankTrx.Transactions != null && dbBankTrx.Transactions.Count > 0)
 				{
 					throw new InvalidOperationException($"Bank Transaction {newSingleTrx.BankTrxId.TransactionId} already has transactions");
 				}
 
-				var spendOnPeriod = spendOnPeriods.FirstOrDefault(x => x.SpendId == newSingleTrx.SpendOnPeriodId.SpendId && x.AccountPeriodId == newSingleTrx.SpendOnPeriodId.AccountPeriodId);
-				if (spendOnPeriod == null)
+				var trxSpendOnPeriods = GetSpendOnPeriods(newSingleTrx.SpendOnPeriodIds, spendOnPeriods);
+				if(!trxSpendOnPeriods.Any())
 				{
-					throw new InvalidOperationException($"SpendOnPeriod {newSingleTrx.SpendOnPeriodId.SpendId} not found");
+					throw new InvalidOperationException($"Bank Transaction {newSingleTrx.BankTrxId.TransactionId} has no spend on periods");
 				}
-				dbBankTrx.Transactions = new List<SpendOnPeriod>
-				{
-					spendOnPeriod
-				};
 
+				dbBankTrx.Transactions = trxSpendOnPeriods.ToList();
 				dbBankTrx.FileDescription = newSingleTrx.Description;
 				dbBankTrx.Status = BankTransactionStatus.Processed;
 			}
@@ -245,6 +319,11 @@ namespace EFDataAccess.Repositories
 		{
 			if (bankTrxId == null) return;
 			await Context.BankTransactions.RemoveWhereAsync(x => x.BankTransactionId == bankTrxId.TransactionId && x.FinancialEntityId == bankTrxId.FinancialEntityId);
+		}
+
+		private static IEnumerable<SpendOnPeriod> GetSpendOnPeriods(IEnumerable<SpendOnPeriodId> spendOnPeriodIds, IEnumerable<SpendOnPeriod> spendOnPeriods)
+		{
+			return spendOnPeriods.Where(x => spendOnPeriodIds.Any(y => y.SpendId == x.SpendId && y.AccountPeriodId == x.AccountPeriodId));
 		}
 	}
 }
