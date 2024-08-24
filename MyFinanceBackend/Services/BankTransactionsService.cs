@@ -19,8 +19,8 @@ namespace MyFinanceBackend.Services
 			var ids = new[] { bankTrxId };
 			var deletedTrxIds = await unitOfWork.BankTransactionsRepository.ClearTrxsFromBankTrxsAsync(ids);
 			var trxIds = deletedTrxIds.Select(x => x.SpendId).ToList();
-			var modifieds = (trxIds.Count > 0) ? await unitOfWork.SpendsRepository.DeleteTransactionsAsync(trxIds) : Array.Empty<SpendItemModified>();
-			await unitOfWork.BankTransactionsRepository.UpdateBankTrxStatusAsync(ids, BankTransactionStatus.Inserted);
+			var modifieds = (trxIds.Count > 0) ? await unitOfWork.SpendsRepository.DeleteTransactionsAsync(trxIds) : [];
+			await unitOfWork.BankTransactionsRepository.DeleteAsync(bankTrxId);
 			await unitOfWork.SaveAsync();
 		}
 
@@ -29,7 +29,7 @@ namespace MyFinanceBackend.Services
 			var ids = new[] { bankTrxId };
 			var deletedTrxIds = await unitOfWork.BankTransactionsRepository.ClearTrxsFromBankTrxsAsync(ids);
 			var trxIds = deletedTrxIds.Select(x => x.SpendId).ToList();
-			var modifieds = (trxIds.Count > 0) ? await unitOfWork.SpendsRepository.DeleteTransactionsAsync(trxIds) : Array.Empty<SpendItemModified>();
+			var modifieds = (trxIds.Count > 0) ? await unitOfWork.SpendsRepository.DeleteTransactionsAsync(trxIds) : [];
 			await unitOfWork.BankTransactionsRepository.UpdateBankTrxStatusAsync(ids, BankTransactionStatus.Inserted);
 			await unitOfWork.SaveAsync();
 			var dbTrxs = await unitOfWork.BankTransactionsRepository.GetBankTransactionDtoByIdsAsync(ids);
@@ -63,6 +63,7 @@ namespace MyFinanceBackend.Services
 				if (bankItemRequests == null || bankItemRequests.Count == 0) throw new ArgumentNullException(nameof(bankItemRequests), "Bank Item Requests are required");
 				var bankItemRequestsList = bankItemRequests.ToList();
 				await UpdateBankTransactionsDescriptionsAsync(bankItemRequestsList);
+				await UpdateBankTransactionsDatesAsync(bankItemRequestsList);
 				var ignoreTrxs = bankItemRequests.Where(trx => trx.RequestIgnore).ToList();
 				var modifieds = (await IgnoreTransactionsAsync(ignoreTrxs.Select(trx => trx.BankTrxId).ToList())).ToList();
 				bankItemRequestsList = bankItemRequestsList.Where(trx => !ignoreTrxs.Contains(trx)).ToList();
@@ -119,6 +120,7 @@ namespace MyFinanceBackend.Services
 				{
 					bankTrxReqResp.DbStatus = dbTrx.Status;
 					bankTrxReqResp.FileTransaction.Description = dbTrx.Description;
+					bankTrxReqResp.FileTransaction.TransactionDate = dbTrx.TransactionDate;
 					if (dbTrx.Transactions is not null)
 					{
 						bankTrxReqResp.ProcessData = new BankTrxItemReqResp.DbData
@@ -142,7 +144,8 @@ namespace MyFinanceBackend.Services
 				FinancialEntityId = financialEntity.FinancialEntityId,
 				OriginalAmount = r.FileTransaction.OriginalAmount,
 				Status = BankTransactionStatus.Inserted,
-				TransactionDate = r.FileTransaction.TransactionDate
+				TransactionDate = r.FileTransaction.TransactionDate,
+				Description = r.FileTransaction.Description
 			});
 			await unitOfWork.BankTransactionsRepository.AddBasicBankTransactionAsync(inserts);
 			await unitOfWork.SaveAsync();
@@ -286,6 +289,14 @@ namespace MyFinanceBackend.Services
 			};
 		}
 
+		private async Task UpdateBankTransactionsDatesAsync(IReadOnlyCollection<BankItemRequest> bankItemRequests)
+		{
+			if (bankItemRequests == null || bankItemRequests.Count == 0) return;
+			var trxDates = bankItemRequests.Where(x => x.TransactionDate != null).Select(x => new BankTrxDate(x.TransactionDate.Value, x.BankTrxId));
+			if (!trxDates.Any()) return;
+			await unitOfWork.BankTransactionsRepository.UpdateBankTransactionsDatesAsync(trxDates);
+		}
+
 		private async Task UpdateBankTransactionsDescriptionsAsync(IReadOnlyCollection<BankItemRequest> bankItemRequests)
 		{
 			if (bankItemRequests == null || bankItemRequests.Count == 0) return;
@@ -305,11 +316,11 @@ namespace MyFinanceBackend.Services
 
 		private async Task<IReadOnlyCollection<SpendItemModified>> IgnoreTransactionsAsync(IReadOnlyCollection<BankTrxId> bankTrxIds)
 		{
-			if (bankTrxIds == null || bankTrxIds.Count == 0) return Array.Empty<SpendItemModified>();
+			if (bankTrxIds == null || bankTrxIds.Count == 0) return [];
 			var deletedTrxIds = await unitOfWork.BankTransactionsRepository.ClearTrxsFromBankTrxsAsync(bankTrxIds);
 			await unitOfWork.BankTransactionsRepository.UpdateBankTrxStatusAsync(bankTrxIds, BankTransactionStatus.Ignored);
 			var trxIds = deletedTrxIds.Select(x => x.SpendId).ToList();
-			var result = (trxIds.Count > 0) ? await unitOfWork.SpendsRepository.DeleteTransactionsAsync(trxIds) : Array.Empty<SpendItemModified>(); ;
+			var result = (trxIds.Count > 0) ? await unitOfWork.SpendsRepository.DeleteTransactionsAsync(trxIds) : []; ;
 			await unitOfWork.SaveAsync();
 			return result.ToList();
 		}

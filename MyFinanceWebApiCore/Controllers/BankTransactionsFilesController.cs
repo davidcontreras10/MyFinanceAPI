@@ -168,6 +168,7 @@ namespace MyFinanceWebApiCore.Controllers
 				item.AccountId,
 				item.SpendTypeId,
 				item.IsPending,
+				item.TransactionDate,
 				item.Transactions
 			)).ToList();
 

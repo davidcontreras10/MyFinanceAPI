@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 namespace MyFinanceModel.ClientViewModel
@@ -22,6 +23,7 @@ namespace MyFinanceModel.ClientViewModel
         public int? SpendTypeId { get; set; }
 
         public bool? IsPending { get; set; }
+        public DateTime? TransactionDate { get; set; }
 
         public IReadOnlyCollection<ClientBankTrxRequest> Transactions { get; set; }
     }

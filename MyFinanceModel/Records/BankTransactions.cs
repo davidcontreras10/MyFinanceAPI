@@ -16,8 +16,11 @@ namespace MyFinanceModel.Records
 		int? AccountId,
 		int? SpendTypeId,
 		bool? IsPending,
+		DateTime? TransactionDate,
 		IReadOnlyCollection<ClientBankTrxRequest> Transactions);
 
+
+	public record class BankTrxDate(DateTime Date, BankTrxId BankTrxId);
 
 	public record class BankTrxDescription(string Description, BankTrxId BankTrxId);
 
