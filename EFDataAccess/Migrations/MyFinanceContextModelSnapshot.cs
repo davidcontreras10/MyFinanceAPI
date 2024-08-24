@@ -979,6 +979,9 @@ namespace EFDataAccess.Migrations
                     b.Property<int?>("SpendTypeId")
                         .HasColumnType("int");
 
+                    b.Property<DateTime?>("UtcRecordDate")
+                        .HasColumnType("datetime2");
+
                     b.HasKey("SpendId");
 
                     b.HasIndex("AmountCurrencyId");

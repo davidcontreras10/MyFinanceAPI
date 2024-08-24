@@ -39,7 +39,7 @@ namespace EFDataAccess.Repositories
 		{
 			if (trxIds == null || !trxIds.Any())
 			{
-				return Array.Empty<int>();
+				return [];
 			}
 
 			var transactionIds = await Context.Spend.AsNoTracking()
@@ -98,7 +98,8 @@ namespace EFDataAccess.Repositories
 				OriginalAmount = clientConvertedTrxModel.OriginalAmount,
 				SpendDate = spendDate,
 				SetPaymentDate = setPaymentDate,
-				SpendTypeId = clientConvertedTrxModel.TrxTypeId
+				SpendTypeId = clientConvertedTrxModel.TrxTypeId,
+				UtcRecordDate = DateTime.UtcNow
 			};
 
 			await Context.Spend.AddAsync(spend);
@@ -406,8 +407,7 @@ namespace EFDataAccess.Repositories
 		{
 			var requestItems = new List<ClientAccountFinanceViewModel>
 			{
-				new ClientAccountFinanceViewModel
-				{
+				new() {
 					AccountPeriodId = accountPeriodId,
 					LoanSpends = false,
 					PendingSpends = true
@@ -426,7 +426,7 @@ namespace EFDataAccess.Repositories
 
 		public async Task<IEnumerable<ClientAddSpendAccount>> GetAccountMethodConversionInfoAsync(int? accountId, int? accountPeriodId, string userId, int currencyId)
 		{
-			if (string.IsNullOrEmpty(userId))
+			if (string.IsNullOrWhiteSpace(userId))
 			{
 				throw new ArgumentNullException(nameof(userId));
 			}
@@ -1243,8 +1243,7 @@ namespace EFDataAccess.Repositories
 
 		private async Task ValidateSpendCurrencyConvertibleValuesAsync(ISpendCurrencyConvertible spendCurrencyConvertible)
 		{
-			if (spendCurrencyConvertible == null)
-				throw new ArgumentNullException(nameof(spendCurrencyConvertible));
+			ArgumentNullException.ThrowIfNull(spendCurrencyConvertible);
 			var accountData =
 				spendCurrencyConvertible.IncludedAccounts.Select(
 					item => SpendsDataHelper.CreateClientAddSpendCurrencyData(item, spendCurrencyConvertible.CurrencyId));
