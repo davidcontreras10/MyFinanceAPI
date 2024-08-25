@@ -17,7 +17,7 @@ namespace EFDataAccess.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "7.0.14")
+                .HasAnnotation("ProductVersion", "8.0.4")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -399,6 +399,9 @@ namespace EFDataAccess.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CurrencyId"));
 
+                    b.Property<string>("IsoCode")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -500,6 +503,38 @@ namespace EFDataAccess.Migrations
                     b.ToTable((string)null);
 
                     b.ToView(null, (string)null);
+                });
+
+            modelBuilder.Entity("EFDataAccess.Models.EFBankTransaction", b =>
+                {
+                    b.Property<string>("BankTransactionId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("FinancialEntityId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("CurrencyId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("FileDescription")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal?>("OriginalAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("TransactionDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("BankTransactionId", "FinancialEntityId");
+
+                    b.HasIndex("CurrencyId");
+
+                    b.HasIndex("FinancialEntityId");
+
+                    b.ToTable("BankTransaction", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.EFLoginResult", b =>
@@ -944,6 +979,9 @@ namespace EFDataAccess.Migrations
                     b.Property<int?>("SpendTypeId")
                         .HasColumnType("int");
 
+                    b.Property<DateTime?>("UtcRecordDate")
+                        .HasColumnType("datetime2");
+
                     b.HasKey("SpendId");
 
                     b.HasIndex("AmountCurrencyId");
@@ -982,6 +1020,12 @@ namespace EFDataAccess.Migrations
                     b.Property<int>("AccountPeriodId")
                         .HasColumnType("int");
 
+                    b.Property<string>("BankTransactionId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int?>("BankTrxFinancialEntityId")
+                        .HasColumnType("int");
+
                     b.Property<int?>("CurrencyConverterMethodId")
                         .HasColumnType("int");
 
@@ -1002,6 +1046,8 @@ namespace EFDataAccess.Migrations
                     b.HasIndex("AccountPeriodId");
 
                     b.HasIndex("CurrencyConverterMethodId");
+
+                    b.HasIndex("BankTransactionId", "BankTrxFinancialEntityId");
 
                     b.ToTable("SpendOnPeriod");
                 });
@@ -1360,6 +1406,25 @@ namespace EFDataAccess.Migrations
                     b.Navigation("FinancialEntity");
                 });
 
+            modelBuilder.Entity("EFDataAccess.Models.EFBankTransaction", b =>
+                {
+                    b.HasOne("EFDataAccess.Models.Currency", "Currency")
+                        .WithMany()
+                        .HasForeignKey("CurrencyId")
+                        .HasConstraintName("BankTransaction_FK_CurrencyId");
+
+                    b.HasOne("EFDataAccess.Models.FinancialEntity", "FinancialEntity")
+                        .WithMany()
+                        .HasForeignKey("FinancialEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("BankTransaction_FK_FinancialEntityId");
+
+                    b.Navigation("Currency");
+
+                    b.Navigation("FinancialEntity");
+                });
+
             modelBuilder.Entity("EFDataAccess.Models.ExecutedTask", b =>
                 {
                     b.HasOne("EFDataAccess.Models.AutomaticTask", "AutomaticTask")
@@ -1547,7 +1612,14 @@ namespace EFDataAccess.Migrations
                         .IsRequired()
                         .HasConstraintName("SpendOnPeriod_FK_SpendId");
 
+                    b.HasOne("EFDataAccess.Models.EFBankTransaction", "BankTransaction")
+                        .WithMany("Transactions")
+                        .HasForeignKey("BankTransactionId", "BankTrxFinancialEntityId")
+                        .HasConstraintName("SpendOnPeriod_FK_BankTransaction");
+
                     b.Navigation("AccountPeriod");
+
+                    b.Navigation("BankTransaction");
 
                     b.Navigation("CurrencyConverterMethod");
 
@@ -1741,6 +1813,11 @@ namespace EFDataAccess.Migrations
                     b.Navigation("AccountInclude");
 
                     b.Navigation("SpendOnPeriod");
+                });
+
+            modelBuilder.Entity("EFDataAccess.Models.EFBankTransaction", b =>
+                {
+                    b.Navigation("Transactions");
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.FinancialEntity", b =>

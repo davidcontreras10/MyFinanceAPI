@@ -21,6 +21,7 @@ namespace EFDataAccess.Models
         public int CurrencyId { get; set; }
         public string Name { get; set; }
         public string Symbol { get; set; }
+        public string IsoCode { get; set; }
 
         public virtual ICollection<Account> Account { get; set; }
 		public virtual ICollection<Account> AccountsSelection { get; set; }

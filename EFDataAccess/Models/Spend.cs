@@ -25,15 +25,16 @@ namespace EFDataAccess.Models
         public double? Denominator { get; set; }
         public bool IsPending { get; set; }
         public DateTime? SetPaymentDate { get; set; }
+		public DateTime? UtcRecordDate { get; set; }
 
-        public virtual Currency AmountCurrency { get; set; }
+		public virtual Currency AmountCurrency { get; set; }
         public virtual AmountType AmountType { get; set; }
         public virtual SpendType SpendType { get; set; }
         public virtual LoanRecord LoanRecord { get; set; }
         public virtual ICollection<SpendOnPeriod> SpendOnPeriod { get; set; }
 
-        private static Dictionary<int, int> AmountSign = new Dictionary<int, int>
-        {
+		private static readonly Dictionary<int, int> AmountSign = new()
+		{
             {1, 1 },
             {2, -1 }
         };

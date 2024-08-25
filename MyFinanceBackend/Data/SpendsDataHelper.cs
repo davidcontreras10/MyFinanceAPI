@@ -10,8 +10,29 @@ namespace MyFinanceBackend.Data
 {
 	public static class SpendsDataHelper
 	{
-		const string SavingAmountTypeName = "Saving";
-		const string SpendAmountTypeName = "Spend";
+		public static IReadOnlyCollection<int> GetInvolvedAccountIds(IReadOnlyCollection<ISpendCurrencyConvertible> currencyConvertibles)
+		{
+			if(currencyConvertibles == null || currencyConvertibles.Count == 0)
+			{
+				return [];
+			}
+
+			var accountIds = new List<int>();
+			foreach (var currencyConvertible in currencyConvertibles)
+			{
+				if (!accountIds.Contains(currencyConvertible.OriginalAccountData.AccountId))
+				{
+					accountIds.Add(currencyConvertible.OriginalAccountData.AccountId);
+				}
+
+				if (currencyConvertible.IncludedAccounts != null)
+				{
+					accountIds.AddRange(currencyConvertible.IncludedAccounts.Select(acci => acci.AccountId).Where(acci => !accountIds.Contains(acci)));
+				}
+			}
+
+			return accountIds;
+		}
 
 		public static IReadOnlyCollection<int> GetInvolvedAccountIds(ISpendCurrencyConvertible currencyConvertible)
 		{
@@ -48,7 +69,7 @@ namespace MyFinanceBackend.Data
 			};
 		}
 
-		public static void SetAmountType(ClientBasicAddSpend clientAddSpendModel, bool acceptDefault)
+		public static void ValidateAmountType(ClientBasicAddSpend clientAddSpendModel, bool acceptDefault)
 		{
 			if (clientAddSpendModel.AmountTypeId == TransactionTypeIds.Invalid)
 			{
@@ -57,20 +78,6 @@ namespace MyFinanceBackend.Data
 					return;
 				}
 				throw new InvalidSpendAmountType();
-			}
-
-			if (clientAddSpendModel.AmountTypeId == TransactionTypeIds.Ignore)
-				return;
-
-			if (clientAddSpendModel.AmountTypeId == TransactionTypeIds.Spend)
-			{
-				clientAddSpendModel.AmountType = SpendAmountTypeName;
-				return;
-			}
-
-			if (clientAddSpendModel.AmountTypeId == TransactionTypeIds.Saving)
-			{
-				clientAddSpendModel.AmountType = SavingAmountTypeName;
 			}
 		}
 	}

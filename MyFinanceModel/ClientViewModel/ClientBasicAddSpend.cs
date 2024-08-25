@@ -31,9 +31,6 @@ namespace MyFinanceModel.ClientViewModel
         [Required]
         public int CurrencyId { get; set; }
 
-        [JsonIgnore]
-        public string AmountType { get; set; }
-
         public string Description
         {
             get => _description?.Trim() ?? "";
@@ -45,7 +42,9 @@ namespace MyFinanceModel.ClientViewModel
         public DateTime PaymentDate => SpendDate;
 
         public TransactionTypeIds AmountTypeId { get; set; } = TransactionTypeIds.Invalid;
-    }
+
+		public Guid? RequestId { get; set; }
+	}
 
     public enum TransactionTypeIds
     {

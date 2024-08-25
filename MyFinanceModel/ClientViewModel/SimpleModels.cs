@@ -16,7 +16,6 @@ namespace MyFinanceModel.ClientViewModel
 				Amount = Amount,
 				AmountDenominator = AmountDenominator,
 				AmountNumerator = AmountNumerator,
-				AmountType = AmountType,
 				AmountTypeId = AmountTypeId,
 				CurrencyId = CurrencyId,
 				Description = Description,

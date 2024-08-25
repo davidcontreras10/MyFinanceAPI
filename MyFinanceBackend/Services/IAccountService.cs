@@ -9,7 +9,8 @@ namespace MyFinanceBackend.Services
 {
     public interface IAccountService
     {
-	    Task<IReadOnlyCollection<AccountDetailsPeriodViewModel>> GetAccountDetailsPeriodViewModelAsync(
+		Task<IReadOnlyCollection<AccountsByCurrencyViewModel>> GetAccountsByCurrenciesAsync(IEnumerable<int> sourceCurrencyIds, string userId);
+		Task<IReadOnlyCollection<AccountDetailsPeriodViewModel>> GetAccountDetailsPeriodViewModelAsync(
 		    string userId,
 		    DateTime dateTime
 	    );

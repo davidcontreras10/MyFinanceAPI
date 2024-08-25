@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace MyFinanceModel.ClientViewModel
 {
@@ -40,5 +41,20 @@ namespace MyFinanceModel.ClientViewModel
         public int ConvertionMethodId { get; set; }
 
         #endregion
+    }
+
+    public class ClientConvertedTrxModel
+    {
+        public IEnumerable<AddSpendAccountDbValues> PeriodTransactions { get; set; }
+        public int CurrencyId { get; set; }
+        public TransactionTypeIds AmountTypeId { get; set; }
+        public double? AmountDenominator { get; set; }
+        public double? AmountNumerator { get; set; }
+        public string Description { get; set; }
+        public double OriginalAmount { get; set; }
+        public bool IsPending { get; set; }
+        public DateTime TrxDate { get; set; }
+        public int TrxTypeId { get; set; }
+        public Guid? RequestId { get; set; }
     }
 }

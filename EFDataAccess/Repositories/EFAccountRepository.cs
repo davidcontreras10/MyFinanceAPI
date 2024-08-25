@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using MyFinanceBackend.Data;
 using MyFinanceModel;
 using MyFinanceModel.ClientViewModel;
+using MyFinanceModel.Records;
 using MyFinanceModel.Utilities;
 using MyFinanceModel.ViewModel;
 using Newtonsoft.Json;
@@ -18,13 +19,48 @@ using AccountPeriod = EFDataAccess.Models.AccountPeriod;
 
 namespace EFDataAccess.Repositories
 {
-	public class EFAccountRepository : BaseEFRepository, IAccountRepository
+	public class EFAccountRepository(MyFinanceContext context, ILogger<EFAccountRepository> logger) : BaseEFRepository(context), IAccountRepository
 	{
-		private readonly ILogger<EFAccountRepository> _logger;
-
-		public EFAccountRepository(MyFinanceContext context, ILogger<EFAccountRepository> logger) : base(context)
+		public async Task<IReadOnlyCollection<AccountsByCurrencyViewModel>> GetAccountsByCurrenciesAsync(IEnumerable<int> sourceCurrencyIds, string userId)
 		{
-			_logger = logger;
+			var userGuid = new Guid(userId);
+			if (sourceCurrencyIds == null || !sourceCurrencyIds.Any())
+			{
+				return Array.Empty<AccountsByCurrencyViewModel>();
+			}
+
+			var accounts = await Context.Account.AsNoTracking()
+				.Where(x => x.UserId == userGuid && x.FinancialEntityId > 0 && x.CurrencyId > 0)
+				.OrderBy(x => x.AccountGroup.AccountGroupPosition)
+				.ThenBy(x => x.Position)
+				.ToListAsync();
+			var currencyConverterMethods = await Context.CurrencyConverterMethod.AsNoTracking()
+				.Include(x => x.CurrencyConverter)
+				.ToListAsync();
+			var accountsByCurrency = new List<AccountsByCurrencyViewModel>();
+			foreach (var sourceCurrencyId in sourceCurrencyIds)
+			{
+				var currencyItem = new AccountsByCurrencyViewModel { CurrencyId = sourceCurrencyId };
+				accountsByCurrency.Add(currencyItem);
+				var matchedAccount = new List<Account>();
+				foreach (var account in accounts)
+				{
+					if (currencyConverterMethods.Any(ccm =>
+						ccm.CurrencyConverter.CurrencyIdOne == sourceCurrencyId
+						&& ccm.CurrencyConverter.CurrencyIdTwo == account.CurrencyId
+						&& (ccm.FinancialEntityId == account.FinancialEntityId || ccm.IsDefault == true)))
+					{
+						matchedAccount.Add(account);
+					}
+				}
+				currencyItem.Accounts = matchedAccount.Select(m => new AccountWithTrxTypeId(m.DefaultSpendTypeId)
+				{
+					Id = m.AccountId,
+					Name = m.Name
+				}).ToList();
+			}
+
+			return accountsByCurrency;
 		}
 
 		public async Task<IReadOnlyCollection<AccountPeriodIdReqResp>> GetEquivalentAccountPeriodsByDateAsync(IEnumerable<int> accountPeriodIds, DateTime dateTime)
@@ -38,7 +74,7 @@ namespace EFDataAccess.Repositories
 				.Where(accp => accountPeriodIds.Contains(accp.AccountPeriodId) && accp.AccountId != null)
 				.Include(accp => accp.Account)
 					.ThenInclude(acc => acc.AccountPeriod)
-				.Select(accp => new AccountPeriodIdReqResp(accp.AccountPeriodId, 
+				.Select(accp => new AccountPeriodIdReqResp(accp.AccountPeriodId,
 						accp.Account.AccountPeriod.Where(accp2 => dateTime >= accp2.InitialDate && dateTime < accp2.EndDate).FirstOrDefault().AccountPeriodId))
 				.ToListAsync();
 
@@ -115,35 +151,27 @@ namespace EFDataAccess.Repositories
 
 		public async Task<IReadOnlyCollection<AccountDetailsPeriodViewModel>> GetAccountDetailsPeriodViewModelAsync(string userId, DateTime dateTime)
 		{
-			try
+			var accounts = await Context.Account.AsNoTracking()
+				.Where(acc => new Guid(userId) == acc.UserId)
+				.Include(x => x.AccountPeriod)
+				.ToListAsync();
+			FilterAccountPeriodByDate(accounts, dateTime);
+			var viewModels = new List<AccountDetailsPeriodViewModel>();
+			foreach (var acc in accounts)
 			{
-				var accounts = await Context.Account.AsNoTracking()
-					.Where(acc => new Guid(userId) == acc.UserId)
-					.Include(x => x.AccountPeriod)
-					.ToListAsync();
-				FilterAccountPeriodByDate(accounts, dateTime);
-				var viewModels = new List<AccountDetailsPeriodViewModel>();
-				foreach (var acc in accounts)
+				var currentPeriod = acc.AccountPeriod.FirstOrDefault();
+				viewModels.Add(new AccountDetailsPeriodViewModel
 				{
-					var currentPeriod = acc.AccountPeriod.FirstOrDefault();
-					viewModels.Add(new AccountDetailsPeriodViewModel
-					{
-						AccountGroupId = acc.AccountGroupId ?? 0,
-						AccountId = acc.AccountId,
-						AccountName = acc.Name,
-						AccountPeriodId = currentPeriod != null ? currentPeriod.AccountPeriodId : 0,
-						AccountPosition = acc.Position ?? 0,
-						GlobalOrder = acc.Position ?? 0
-					});
-				}
+					AccountGroupId = acc.AccountGroupId ?? 0,
+					AccountId = acc.AccountId,
+					AccountName = acc.Name,
+					AccountPeriodId = currentPeriod != null ? currentPeriod.AccountPeriodId : 0,
+					AccountPosition = acc.Position ?? 0,
+					GlobalOrder = acc.Position ?? 0
+				});
+			}
 
-				return viewModels;
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "GetAccountDetailsPeriodViewModelAsync");
-				throw;
-			}
+			return viewModels;
 		}
 
 		public async Task<AccountMainViewModel> GetAccountDetailsViewModelAsync(string userId, int? accountGroupId)
@@ -339,13 +367,49 @@ namespace EFDataAccess.Repositories
 			};
 		}
 
+		public async Task<IReadOnlyCollection<Tuple<IdDateTime, AccountPeriodBasicInfo>>> GetAccountPeriodInfoByAccountIdDateTimeAsync(IReadOnlyCollection<IdDateTime> accountsDates)
+		{
+			var accountIds = accountsDates.Select(x => x.AccountId);
+			var dates = accountsDates.Select(accountsDates => accountsDates.DateTime);
+			var accounts = await Context.Account.AsNoTracking()
+				.Where(acc => accountIds.Contains(acc.AccountId))
+				.Include(acc => acc.AccountPeriod)
+				.ToListAsync();
+			var results = new List<Tuple<IdDateTime, AccountPeriodBasicInfo>>();
+			foreach (var accountDate in accountsDates)
+			{
+				var account = accounts.FirstOrDefault(acc => acc.AccountId == accountDate.AccountId);
+				if (account == null)
+				{
+					continue;
+				}
+				FilterAccountPeriodByDate([account], accountDate.DateTime);
+				var accountPeriod = account?.AccountPeriod?.FirstOrDefault();
+				var accPeriodBasicInfo = accountPeriod != null
+					? new AccountPeriodBasicInfo
+					{
+						AccountId = account.AccountId,
+						AccountName = account.Name,
+						AccountPeriodId = accountPeriod.AccountPeriodId,
+						InitialDate = accountPeriod.InitialDate ?? new DateTime(),
+						EndDate = accountPeriod.EndDate ?? new DateTime(),
+						Budget = accountPeriod.Budget ?? 0,
+						UserId = account.UserId.ToString()
+					}
+					: null;
+				results.Add(new Tuple<IdDateTime, AccountPeriodBasicInfo>(accountDate, accPeriodBasicInfo));
+			}
+
+			return results;
+		}
+
 		public async Task<AccountPeriodBasicInfo> GetAccountPeriodInfoByAccountIdDateTimeAsync(int accountId, DateTime dateTime)
 		{
 			var account = await Context.Account.AsNoTracking()
 				.Where(acc => acc.AccountId == accountId)
 				.Include(acc => acc.AccountPeriod)
 				.FirstOrDefaultAsync();
-			FilterAccountPeriodByDate(new[] { account }, dateTime);
+			FilterAccountPeriodByDate([account], dateTime);
 			var accountPeriod = account?.AccountPeriod?.FirstOrDefault();
 			if (accountPeriod == null)
 			{
@@ -697,6 +761,16 @@ namespace EFDataAccess.Repositories
 
 		#region Privates
 
+		private static AccountViewModel CreateAccountViewModel(Account account)
+		{
+			return new AccountViewModel
+			{
+				AccountId = account.AccountId,
+				AccountName = account.Name,
+				GlobalOrder = account.Position ?? 0
+			};
+		}
+
 		private static IReadOnlyCollection<PeriodTypeViewModel> GetPeriodTypeViewModelForAccount(Account account, IEnumerable<PeriodTypeViewModel> periodTypeViewModels)
 		{
 			if (account == null || periodTypeViewModels == null)
@@ -738,17 +812,6 @@ namespace EFDataAccess.Repositories
 				.ToListAsync();
 		}
 
-		private void UpdateCurrentCurrentAccountPeriods(string userId, DateTime? currentDate)
-		{
-			var userGuid = new Guid(userId);
-			var userAccounts = Context.Account
-				.AsNoTracking()
-				.Where(acc => acc.UserId == userGuid)
-				.Include(acc => acc.AccountPeriod)
-				.Include(acc => acc.PeriodDefinition);
-			UpdateCurrentCurrentAccountPeriods(userAccounts, currentDate);
-		}
-
 		private void UpdateCurrentCurrentAccountPeriods(IEnumerable<Account> userAccounts, DateTime? currentDate)
 		{
 			if (currentDate == null)
@@ -759,7 +822,7 @@ namespace EFDataAccess.Repositories
 			var nonCurretPeriodAccounts = userAccounts.Where(acc => AccountHelpers.GetCurrentAccountPeriod(currentDate, acc.AccountPeriod) == null);
 			var nonCurretPeriodAccountsCount = nonCurretPeriodAccounts.Count();
 			var newAccountPeriods = new List<AccountPeriod>();
-			_logger.LogInformation($"Updating {nonCurretPeriodAccountsCount} accounts");
+			logger.LogInformation($"Updating {nonCurretPeriodAccountsCount} accounts");
 			foreach (var account in nonCurretPeriodAccounts)
 			{
 				var newPeriod = PeriodCreatorHelper.GetNewPeriodDates(account, currentDate.Value);
@@ -837,11 +900,11 @@ namespace EFDataAccess.Repositories
 				foreach (var currencyConverterMethod in currencyConverter.CurrencyConverterMethod)
 				{
 					bool isSelected;
-					if(defaultAccountInclude != null)
+					if (defaultAccountInclude != null)
 					{
 						isSelected = defaultAccountInclude.CurrencyConverterMethodId == currencyConverterMethod.CurrencyConverterMethodId;
 					}
-					else if(financialEntityId != null)
+					else if (financialEntityId != null)
 					{
 						isSelected = currencyConverterMethod.FinancialEntityId == financialEntityId;
 					}

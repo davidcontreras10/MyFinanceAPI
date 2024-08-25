@@ -17,7 +17,11 @@ namespace EFDataAccess.Models
         public int? CurrencyConverterMethodId { get; set; }
         public bool? IsOriginal { get; set; }
 
-        public virtual AccountPeriod AccountPeriod { get; set; }
+		public string BankTransactionId { get; set; }
+		public int? BankTrxFinancialEntityId { get; set; }
+
+		public virtual EFBankTransaction BankTransaction { get; set; }
+		public virtual AccountPeriod AccountPeriod { get; set; }
         public virtual CurrencyConverterMethod CurrencyConverterMethod { get; set; }
         public virtual Spend Spend { get; set; }
 
