@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System;
+using System.ComponentModel.DataAnnotations;
 
 namespace MyFinanceModel.ClientViewModel
 {
@@ -7,5 +8,5 @@ namespace MyFinanceModel.ClientViewModel
 		[Range(1, int.MaxValue)]
 		[Required]
 		public int AccountPeriodId { get; set; }
-	}
+    }
 }

@@ -17,7 +17,12 @@ using MyFinanceWebApiCore.Authentication;
 using MyFinanceWebApiCore.Config;
 using MyFinanceWebApiCore.FilterAttributes;
 using MyFinanceWebApiCore.Services;
+using MyFinanceWebApiCore.Services.FinancialEntityFiles;
 using Serilog;
+using System.Collections.Generic;
+using System;
+using MyFinanceModel.Enums;
+using EFDataAccess;
 
 namespace MyFinanceWebApiCore
 {
@@ -137,8 +142,14 @@ namespace MyFinanceWebApiCore
 
 				});
 			services.AddSingleton<IBackendSettings, BackendSettings>();
+
+			services.AddSingleton<IFormFileExcelReader, EDRFormFileExcelReader>();
+			services.AddScoped<IExcelFileReaderService, ExcelFileReaderService>();
+			services.AddScoped<IUnitOfWork, EFUnityOfWork>();
+
 			services.AddScoped<IAuthenticationService, AuthenticationService>();
 
+			services.AddScoped<IBankTransactionsService, BankTransactionsService>();
 			services.AddScoped<ITrxExchangeService, TrxExchangeService>();
 			services.AddScoped<ITransferService, TransferService>();
 			services.AddScoped<IUsersService, UsersService>();
@@ -150,7 +161,9 @@ namespace MyFinanceWebApiCore
 			services.AddScoped<IUserAuthorizeService, UserAuthorizeService>();
 			services.AddScoped<IEmailService, EmailService>();
 			services.AddScoped<IAccountGroupService, AccountGroupService>();
+			services.AddScoped<IAppTransactionsSubService, AppTransactionsSubService>();
 
+			services.AddScoped<IBankTransactionsRepository, EFBankTransactionsRepository>();
 			services.AddScoped<IAccountGroupRepository, EFAccountGroupRepository>();
 			services.AddScoped<ISpendTypeRepository, EFSpendTypeRepository>();
 			services.AddScoped<IUserRespository, EFUserRepository>();
@@ -161,10 +174,33 @@ namespace MyFinanceWebApiCore
 			services.AddScoped<IAutomaticTaskRepository, EFAutomaticTaskRepository>();
 			services.AddScoped<ILoanRepository, EFLoanRepository>();
 			services.AddScoped<IResourceAccessRepository, EFResourceAccessRepository>();
-			
+			services.AddScoped<IFinancialEntitiesRepository, EFFinancialEntitiesRepository>();
+			services.AddScoped<ICurrenciesRepository, EFCurrenciesRepository>();
+
 			services.AddScoped<IScheduledTasksService, ScheduledTasksService>();
 			services.AddScoped<IAccountFinanceService, AccountFinanceService>();
 			services.AddScoped<ILoanService, LoanService>();
+			RegisterFileReaders(services);
+		}
+
+		private static void RegisterFileReaders(IServiceCollection services)
+		{
+			services.AddTransient<ScotiabankFileReader>();
+
+			services.AddSingleton<Dictionary<FinancialEntityFile, Type>>(provider => new Dictionary<FinancialEntityFile, Type>
+			{
+				{ FinancialEntityFile.Scotiabank, typeof(ScotiabankFileReader) }
+			});
+
+			services.AddTransient<Func<FinancialEntityFile, IFinancialEntityFileReader>>(serviceProvider => key =>
+			{
+				var implementations = serviceProvider.GetRequiredService<Dictionary<FinancialEntityFile, Type>>();
+				if (implementations.TryGetValue(key, out var implementationType))
+				{
+					return (IFinancialEntityFileReader)serviceProvider.GetRequiredService(implementationType);
+				}
+				throw new KeyNotFoundException($"Implementation not found for key: {key}");
+			});
 		}
 	}
 }

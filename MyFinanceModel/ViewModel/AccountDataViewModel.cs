@@ -13,7 +13,17 @@ namespace MyFinanceModel.ViewModel
 		bool IsSelected { get; }
 	}
 
-    public class SupportedAccountIncludeViewModel
+	public class BasicDropDownSelectable : IDropDownSelectable
+	{
+		public int Id { get; set; }
+
+		public string Name { get; set; }
+
+        public bool IsSelected { get; set; }
+	}
+
+
+	public class SupportedAccountIncludeViewModel
     {
         public int AccountId { get; set; }
         public IEnumerable<AccountIncludeViewModel> AccountIncludeViewModels { get; set; }
@@ -49,7 +59,7 @@ namespace MyFinanceModel.ViewModel
         public float PeriodBalance { get; set; }
         public float GeneralBalance { get; set; }
         public float GeneralBalanceToday { get; set; }
-        public IReadOnlyCollection<SpendViewModel> SpendViewModels { get; set; }
+        public IReadOnlyCollection<FinanceSpendViewModel> SpendViewModels { get; set; }
         public string AccountPeriodName => GetAccountPeriodName();
 		public TrxFiltersContainer TrxFilters { get; set; }
 
@@ -158,7 +168,13 @@ namespace MyFinanceModel.ViewModel
         #endregion
     }
 
-    public class AddSpendViewModel : AccountDataViewModel
+    public class FinanceSpendViewModel : SpendViewModel
+	{
+		public bool? HasBankTrx { get; set; }
+	}
+
+
+	public class AddSpendViewModel : AccountDataViewModel
     {
         #region Properties
 
@@ -186,7 +202,7 @@ namespace MyFinanceModel.ViewModel
     public class EditSpendViewModel : AddSpendViewModel
     {
         public DateRange PossibleDateRange { get; set; }
-        public SpendViewModel SpendInfo { get; set; }
+        public FinanceSpendViewModel SpendInfo { get; set; }
     }
 
 	public class SpendTypeViewModel : IDropDownSelectable
@@ -211,8 +227,9 @@ namespace MyFinanceModel.ViewModel
         public string Symbol { get; set; }
         public IEnumerable<MethodId> MethodIds { get; set; }
         public bool Isdefault { get; set; }
+        public string IsoCode { get; set; }
 
-		public int Id => CurrencyId;
+        public int Id => CurrencyId;
         public string Name => CurrencyName;
         public bool IsSelected => Isdefault;
 

@@ -1,35 +1,23 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using MyFinanceBackend.Data;
-using MyFinanceBackend.Models;
 using MyFinanceBackend.ServicesExceptions;
 using MyFinanceModel;
 using MyFinanceModel.ClientViewModel;
+using MyFinanceModel.Records;
 using MyFinanceModel.ViewModel;
 
 namespace MyFinanceBackend.Services
 {
-	public class SpendsService : ISpendsService
+	public class SpendsService(IUnitOfWork unitOfWork, IAppTransactionsSubService appTransactionsSubService) : ISpendsService
 	{
-		#region Constructor
-
-		public SpendsService(ISpendsRepository spendsRepository, IResourceAccessRepository resourceAccessRepository)
-		{
-			_spendsRepository = spendsRepository;
-			_resourceAccessRepository = resourceAccessRepository;
-		}
-
-		#endregion
 
 		#region Attributes
 
-		private readonly ISpendsRepository _spendsRepository;
-		private readonly IResourceAccessRepository _resourceAccessRepository;
+		private readonly ISpendsRepository _spendsRepository = unitOfWork.SpendsRepository;
+		private readonly IResourceAccessRepository _resourceAccessRepository = unitOfWork.ResourceAccessRepository;
 
 		#endregion
 
@@ -70,6 +58,27 @@ namespace MyFinanceBackend.Services
 			return await _spendsRepository.GetSavedSpendsAsync(spendId);
 		}
 
+		public async Task<IEnumerable<SpendItemModified>> AddNewAppTransactionByAccountAsync(NewAppTransactionByAccount newAppTransactionByAccount)
+		{
+			var period = await unitOfWork.AccountRepository.GetAccountPeriodInfoByAccountIdDateTimeAsync(newAppTransactionByAccount.AccountId, newAppTransactionByAccount.SpendDate) 
+				?? throw new ArgumentException("Period not found");
+			var clientAddSpendModel = new ClientBasicTrxByPeriod
+			{
+				Amount = newAppTransactionByAccount.Amount,
+				AmountTypeId = newAppTransactionByAccount.TransactionType,
+				CurrencyId = newAppTransactionByAccount.CurrencyId,
+				SpendDate = newAppTransactionByAccount.SpendDate,
+				UserId = newAppTransactionByAccount.UserId,
+				AccountPeriodId = period.AccountPeriodId,
+				Description = newAppTransactionByAccount.Description,
+				IsPending = newAppTransactionByAccount.IsPending,
+				SpendTypeId = newAppTransactionByAccount.SpendTypeId,
+
+			};
+
+			return await AddBasicTransactionAsync(clientAddSpendModel, newAppTransactionByAccount.TransactionType);
+		}
+
 		public async Task<IEnumerable<SpendItemModified>> AddBasicTransactionAsync(ClientBasicTrxByPeriod clientBasicTrxByPeriod, TransactionTypeIds transactionTypeId)
 		{
 			if (clientBasicTrxByPeriod.Amount <= 0)
@@ -93,24 +102,30 @@ namespace MyFinanceBackend.Services
 			if (clientAddSpendModel.Amount <= 0)
 				throw new InvalidAmountException();
 			clientAddSpendModel.AmountTypeId = TransactionTypeIds.Saving;
-			var result = await _spendsRepository.AddSpendAsync(clientAddSpendModel);
-			return result;
+			var result = await appTransactionsSubService.AddMultipleTransactionsAsync(new[] { clientAddSpendModel });
+			return result.Select(ToSpendItemModified);
 		}
 
 		public async Task<IEnumerable<SpendItemModified>> AddSpendAsync(ClientAddSpendModel clientAddSpendModel)
 		{
-			if (clientAddSpendModel == null)
-				throw new ArgumentNullException(nameof(clientAddSpendModel));
+			ArgumentNullException.ThrowIfNull(clientAddSpendModel);
 			if (clientAddSpendModel.Amount <= 0)
 				throw new ArgumentException("Amount must be greater than zero");
 			clientAddSpendModel.AmountTypeId = TransactionTypeIds.Spend;
-			var result = await _spendsRepository.AddSpendAsync(clientAddSpendModel);
-			return result;
+			var result = await appTransactionsSubService.AddMultipleTransactionsAsync(new[] { clientAddSpendModel });
+			return result.Select(ToSpendItemModified);
 		}
 
 		public async Task<IEnumerable<SpendItemModified>> DeleteSpendAsync(string userId, IReadOnlyCollection<int> transactionIds)
 		{
-			var result = await _spendsRepository.DeleteSpendAsync(userId, transactionIds);
+			var trxWithBankTrx = await _spendsRepository.AppTransactionsWithBankTrxAsync(transactionIds);
+			if (trxWithBankTrx.Count != 0)
+			{
+				throw new ServiceException(AppErrorCodes.DeleteTrxWithBankTrx);		
+			}
+
+			var result = await _spendsRepository.DeleteTransactionsAsync(transactionIds);
+			await unitOfWork.SaveAsync();
 			return result;
 		}
 
@@ -188,7 +203,7 @@ namespace MyFinanceBackend.Services
 			var spends = await _spendsRepository.GetSavedSpendsAsync(spendId);
 			if (spends == null || !spends.Any())
 			{
-				return Array.Empty<SpendItemModified>();
+				return [];
 			}
 			var modifiedList = new List<SpendItemModified>();
 			foreach (var savedSpend in spends)
@@ -208,11 +223,7 @@ namespace MyFinanceBackend.Services
 
 		private static FinanceSpend CreateFinanceSpend(SavedSpend savedSpend, DateTime newDateTime)
 		{
-			if (savedSpend == null)
-			{
-				throw new ArgumentNullException(nameof(savedSpend));
-			}
-
+			ArgumentNullException.ThrowIfNull(savedSpend);
 			var result = new FinanceSpend
 			{
 				SpendId = savedSpend.SpendId,
@@ -235,15 +246,8 @@ namespace MyFinanceBackend.Services
 		private static SpendActionResult CreateSpendActionResult(SpendActionAttributes spendActionAttributes,
 			IEnumerable<ResourceAccessReportRow> resourceAccessReportRows, ResourceActionNames resourceActionNames)
 		{
-			if (spendActionAttributes == null)
-			{
-				throw new ArgumentNullException(nameof(spendActionAttributes));
-			}
-
-			if (resourceAccessReportRows == null)
-			{
-				throw new ArgumentNullException(nameof(resourceAccessReportRows));
-			}
+			ArgumentNullException.ThrowIfNull(spendActionAttributes);
+			ArgumentNullException.ThrowIfNull(resourceAccessReportRows);
 
 			var response = new SpendActionResult
 			{
@@ -263,6 +267,16 @@ namespace MyFinanceBackend.Services
 
 			response.Result = SpendActionAttributes.ActionResult.Unknown;
 			return response;
+		}
+
+		private static SpendItemModified ToSpendItemModified(TrxItemModifiedRecord trxItemModifiedRecord)
+		{
+			return new SpendItemModified
+			{
+				AccountId = trxItemModifiedRecord.AccountId,
+				IsModified = trxItemModifiedRecord.IsModified,
+				SpendId = trxItemModifiedRecord.SpendId
+			};
 		}
 
 		#endregion

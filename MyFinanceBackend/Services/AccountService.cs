@@ -27,6 +27,11 @@ namespace MyFinanceBackend.Services
 
 		#region Public methods
 
+		public async Task<IReadOnlyCollection<AccountsByCurrencyViewModel>> GetAccountsByCurrenciesAsync(IEnumerable<int> sourceCurrencyIds, string userId)
+		{
+			return await _accountRepository.GetAccountsByCurrenciesAsync(sourceCurrencyIds, userId);
+		}
+
 		public async Task<IReadOnlyCollection<AccountDetailsPeriodViewModel>> GetAccountDetailsPeriodViewModelAsync(
 			string userId,
 			DateTime dateTime

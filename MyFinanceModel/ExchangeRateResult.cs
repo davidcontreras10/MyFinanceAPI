@@ -11,10 +11,11 @@
         public ResultError ErrorType { get; set; }
         public int MethodId { get; set; }
         public string ErrorDetails { get; set; }
+		public bool? IsPurchase { get; set; }
 
-        #endregion
+		#endregion
 
-        public static ExchangeRateResult CreateDefaultExchangeRateResult(int methodId)
+		public static ExchangeRateResult CreateDefaultExchangeRateResult(int methodId)
         {
             return new ExchangeRateResult
                 {

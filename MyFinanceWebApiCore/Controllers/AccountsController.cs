@@ -36,6 +36,15 @@ namespace MyFinanceWebApiCore.Controllers
 
 		#region Routes
 
+		[HttpGet]
+		[Route("currencies/addition")]
+		public async Task<IReadOnlyCollection<AccountsByCurrencyViewModel>> GetAccountsByCurrenciesAsync([FromQuery]int[] sourceCurrencyIds)
+		{
+			var userId = GetUserId();
+			var res = await _accountService.GetAccountsByCurrenciesAsync(sourceCurrencyIds, userId);
+			return res;
+		}
+
 		[HttpDelete]
 		public void DeleteAccount([FromQuery] int accountId)
 		{
