@@ -28,7 +28,7 @@ namespace MyFinanceBackend.Services
 			{
 				var idDate = new IdDateTime(newAppTransactionByAccount.AccountId, newAppTransactionByAccount.SpendDate);
 				var accountPeriodInfo = accountPeriodsInfo.FirstOrDefault(x => x.Item1 == idDate)?.Item2
-					?? throw new Exception("Account period info not found");
+					?? throw new ServiceException($"Account period info not found for account {newAppTransactionByAccount.AccountId} for {newAppTransactionByAccount.SpendDate:yyyy/MM/dd}");
 				var clientBasicTrxByPeriod = ToClientBasicTrxByPeriod(newAppTransactionByAccount, accountPeriodInfo.AccountPeriodId);
 				var clientAddSpendModel = await unitOfWork.SpendsRepository.CreateClientAddSpendModelAsync(clientBasicTrxByPeriod,
 						clientBasicTrxByPeriod.AccountPeriodId);

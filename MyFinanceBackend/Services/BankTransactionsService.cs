@@ -81,10 +81,10 @@ namespace MyFinanceBackend.Services
 					ItemModifieds = modifieds
 				};
 			}
-			catch (Exception ex)
+			catch (Exception)
 			{
 				await unitOfWork.RollbackAsync();
-				throw new InvalidOperationException("Error processing bank transactions", ex);
+				throw;
 			}
 		}
 
