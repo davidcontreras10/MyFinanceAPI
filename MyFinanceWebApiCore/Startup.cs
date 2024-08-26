@@ -162,6 +162,7 @@ namespace MyFinanceWebApiCore
 			services.AddScoped<IEmailService, EmailService>();
 			services.AddScoped<IAccountGroupService, AccountGroupService>();
 			services.AddScoped<IAppTransactionsSubService, AppTransactionsSubService>();
+			services.AddScoped<ITransfersMigrationService, TransfersMigrationService>();
 
 			services.AddScoped<IBankTransactionsRepository, EFBankTransactionsRepository>();
 			services.AddScoped<IAccountGroupRepository, EFAccountGroupRepository>();

@@ -14,8 +14,10 @@ namespace EFDataAccess
 		IResourceAccessRepository resourceAccessRepository,
 		IAccountRepository accountRepository,
 		IAppTransferRepository appTransferRepository,
-		ISpendTypeRepository spendTypeRepository) : IUnitOfWork
+		ISpendTypeRepository spendTypeRepository,
+		ITransferRepository transferRepository) : IUnitOfWork
 	{
+		public ITransferRepository TransferRepository { get; } = transferRepository;
 		public IAppTransferRepository AppTransferRepository { get; } = appTransferRepository;
 		public IBankTransactionsRepository BankTransactionsRepository { get; } = bankTransactionsRepository;
 		public IFinancialEntitiesRepository FinancialEntitiesRepository { get; } = financialEntitiesRepository;
