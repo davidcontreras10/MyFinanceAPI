@@ -144,7 +144,7 @@ namespace MyFinanceBackend.Services
 		{
 			if (transactionIds == null || !transactionIds.Any())
 			{
-				return Array.Empty<SpendItemModified>();
+				return [];
 			}
 
 			_spendsRepository.BeginTransaction();

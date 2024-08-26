@@ -1,21 +1,74 @@
 ﻿using EFDataAccess.Models;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using MyFinanceBackend.Constants;
 using MyFinanceBackend.Data;
+using MyFinanceModel.ClientViewModel;
 using MyFinanceModel.ViewModel;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace EFDataAccess.Repositories
 {
-	public class EFTransferRepository : BaseEFRepository, ITransferRepository
+	public class EFTransferRepository(MyFinanceContext context, ILogger<EFTransferRepository> logger) : BaseEFRepository(context), ITransferRepository
 	{
-		public EFTransferRepository(MyFinanceContext context) : base(context)
+		public async Task ExecuteMigrationAsync()
 		{
+			var transferRecords = await Context.TransferRecord
+				.Include(tr => tr.Spend)
+				.GroupBy(tr => tr.TransferRecordId)
+				.ToListAsync();
+			var newTransferRecords = new List<EFAppTransfer>();
+			foreach (var oldTransferRecs in transferRecords)
+			{
+				try
+				{
+					if (oldTransferRecs.Count() != 2)
+					{
+						logger.LogError($"Transfer record with id {oldTransferRecs.Key} has {oldTransferRecs.Count()} records");
+						continue;
+					}
+
+					var spend = oldTransferRecs.FirstOrDefault(tr => tr.Spend != null && tr.Spend.AmountTypeId == (int)TransactionTypeIds.Spend);
+					if (spend == null)
+					{
+						logger.LogError($"Transfer record with id {oldTransferRecs.Key} has no spend record");
+					}
+
+					var saving = oldTransferRecs.FirstOrDefault(tr => tr.Spend != null && tr.Spend.AmountTypeId == (int)TransactionTypeIds.Saving);
+					if (saving == null)
+					{
+						logger.LogError($"Transfer record with id {oldTransferRecs.Key} has no saving record");
+					}
+
+					EFAppTransfer newTransfer = new()
+					{
+						SourceAppTrxId = spend.SpendId,
+						DestinationAppTrxId = saving.SpendId
+					};
+
+					await Context.AppTransfers.AddAsync(newTransfer);
+					Context.TransferRecord.RemoveRange(oldTransferRecs);
+
+				}
+				catch(Exception ex)
+				{
+					logger.LogError(ex, $"Error migrating transfer record with id {oldTransferRecs.Key}");
+				}
+			}
+
+			try
+			{
+				await Context.SaveChangesAsync();
+				logger.LogInformation("Transfer records migrated successfully");
+			}
+			catch (Exception ex)
+			{
+				logger.LogError(ex, "Error saving transfer records");
+			}
 		}
 
 		public async Task AddTransferRecordAsync(IEnumerable<int> spendIds, string userId)

@@ -57,12 +57,15 @@ namespace EFDataAccess.Models
 		public virtual DbSet<SpendDependencies> SpendDependencies { get; set; }
 		public virtual DbSet<SpendOnPeriod> SpendOnPeriod { get; set; }
 		public virtual DbSet<SpendType> SpendType { get; set; }
+
+		[Obsolete("use AppTransfer instead")]
 		public virtual DbSet<TransferRecord> TransferRecord { get; set; }
 		public virtual DbSet<TransferTrxDef> TransferTrxDef { get; set; }
 		public virtual DbSet<UserAssignedAccess> UserAssignedAccess { get; set; }
 		public virtual DbSet<UserBankSummaryAccount> UserBankSummaryAccount { get; set; }
 		public virtual DbSet<UserSpendType> UserSpendType { get; set; }
 		public virtual DbSet<EFBankTransaction> BankTransactions { get; set; }
+		public virtual DbSet<EFAppTransfer> AppTransfers { get; set; }
 
 		#endregion
 
@@ -671,6 +674,28 @@ namespace EFDataAccess.Models
 					.HasConstraintName("Spend_FK_SpendTypeId");
 
 
+			});
+
+			modelBuilder.Entity<EFAppTransfer>(entity =>
+			{
+				const string tableName = "AppTransfer";
+				entity.ToTable(tableName);
+
+				entity.HasKey(e => new { e.SourceAppTrxId, e.DestinationAppTrxId })
+					.HasName($"PK_{tableName}")
+					.IsClustered();
+
+				entity.HasOne(d => d.SourceAppTrx)
+					.WithOne(p => p.SourceAppTransfer)
+					.HasForeignKey<EFAppTransfer>(d => d.SourceAppTrxId)
+					.OnDelete(DeleteBehavior.ClientSetNull)
+					.HasConstraintName($"{tableName}_FK_SourceAppTrxId");
+
+				entity.HasOne(d => d.DestinationAppTrx)
+					.WithOne(p => p.DestinationAppTransfer)
+					.HasForeignKey<EFAppTransfer>(d => d.DestinationAppTrxId)
+					.OnDelete(DeleteBehavior.ClientSetNull)
+					.HasConstraintName($"{tableName}_FK_DestinationAppTrxId");
 			});
 
 			modelBuilder.Entity<SpendDependencies>(entity =>
