@@ -57,6 +57,8 @@ namespace EFDataAccess.Models
 		public virtual DbSet<SpendDependencies> SpendDependencies { get; set; }
 		public virtual DbSet<SpendOnPeriod> SpendOnPeriod { get; set; }
 		public virtual DbSet<SpendType> SpendType { get; set; }
+
+		[Obsolete("use AppTransfer instead")]
 		public virtual DbSet<TransferRecord> TransferRecord { get; set; }
 		public virtual DbSet<TransferTrxDef> TransferTrxDef { get; set; }
 		public virtual DbSet<UserAssignedAccess> UserAssignedAccess { get; set; }

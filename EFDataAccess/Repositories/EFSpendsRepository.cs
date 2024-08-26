@@ -16,6 +16,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using Spend = EFDataAccess.Models.Spend;
 
@@ -293,9 +294,15 @@ namespace EFDataAccess.Repositories
 				.Include(sp => sp.BankTransaction)
 				.Where(sp => sp.SpendId == model.SpendId)
 				.AnyAsync(x => x.BankTransaction != null);
-			if (hasBankTrx && model.ModifyList.Any(i => i == ClientEditSpendModel.Field.AmountType))
+			var withTransferSpends = await AppTrxsHasTransfersAsync(spendIds);
+			var hasAmountTypeChange = model.ModifyList.Any(i => i == ClientEditSpendModel.Field.AmountType);
+			if (withTransferSpends && hasAmountTypeChange)
 			{
-				throw new Exception("Cannot modify amount type for bank transactions");
+				throw new ServiceException("Cannot modify amount type for transactions with transfers", HttpStatusCode.BadRequest);
+			}
+			if (hasBankTrx && hasAmountTypeChange)
+			{
+				throw new ServiceException("Cannot modify amount type for bank transactions", HttpStatusCode.BadRequest);
 			}
 
 			var transferRecordId = await Context.TransferRecord
@@ -938,7 +945,7 @@ namespace EFDataAccess.Repositories
 				.Where(tr => spendIds.Contains(tr.SpendId))
 				.Select(tr => tr.TransferRecordId)
 				.ToListAsync();
-			if (trasnferIds.Any())
+			if (trasnferIds.Count != 0)
 			{
 				var transferDeps = await Context.TransferRecord.AsNoTracking()
 						.Where(t => trasnferIds.Contains(t.TransferRecordId))
@@ -974,6 +981,13 @@ namespace EFDataAccess.Repositories
 			allEvaluate.AddRange(dependencies);
 			dependencies.AddRange(await GetDependenciesRecursivleyAsync(allEvaluate));
 			return dependencies;
+		}
+
+		private async Task<bool> AppTrxsHasTransfersAsync(IReadOnlyCollection<int> spendIds)
+		{
+			return await Context.Spend.AsNoTracking()
+				.Where(sp => spendIds.Contains(sp.SpendId) && (sp.SourceAppTransfer != null || sp.DestinationAppTransfer != null))
+				.AnyAsync();
 		}
 
 		private async Task<IReadOnlyCollection<Spend>> GetTransferRelatedAppTrxs(IReadOnlyCollection<int> spendIds, bool asReadOnly)

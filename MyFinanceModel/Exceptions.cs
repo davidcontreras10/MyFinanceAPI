@@ -31,6 +31,13 @@ namespace MyFinanceModel
 			StatusCode = HttpStatusCode.InternalServerError;
 		}
 
+		public ServiceException(string message, HttpStatusCode statusCode = HttpStatusCode.InternalServerError)
+			: base(message)
+		{
+			ErrorCode = DEFAULT_ERROR_CODE;
+			StatusCode = statusCode;
+		}
+
 		public ServiceException(string message, int errorCode = DEFAULT_ERROR_CODE, HttpStatusCode statusCode = HttpStatusCode.InternalServerError)
 			: base(message)
 		{
