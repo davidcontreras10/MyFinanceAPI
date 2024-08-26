@@ -5,6 +5,8 @@ namespace MyFinanceBackend.Data
 {
 	public interface IUnitOfWork
 	{
+		IAppTransferRepository AppTransferRepository { get; }
+		ISpendTypeRepository SpendTypeRepository { get; }
 		ISpendsRepository SpendsRepository { get; }
 		IResourceAccessRepository ResourceAccessRepository { get; }
 		ICurrenciesRepository CurrenciesRepository { get; }

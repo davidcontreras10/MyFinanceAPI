@@ -58,6 +58,7 @@ namespace MyFinanceModel.ClientViewModel
 
     public class ClientAccountFinanceViewModel
     {
+        public bool TransferInfo { get; set; }
         public int AccountPeriodId { get; set; }
         public bool PendingSpends { get; set; } = true;
         public bool LoanSpends { get; set; } = false;

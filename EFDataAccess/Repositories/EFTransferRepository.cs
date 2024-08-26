@@ -12,12 +12,8 @@ using System.Threading.Tasks;
 
 namespace EFDataAccess.Repositories
 {
-	public class EFTransferRepository : BaseEFRepository, ITransferRepository
+	public class EFTransferRepository(MyFinanceContext context) : BaseEFRepository(context), ITransferRepository
 	{
-		public EFTransferRepository(MyFinanceContext context) : base(context)
-		{
-		}
-
 		public async Task AddTransferRecordAsync(IEnumerable<int> spendIds, string userId)
 		{
 			var currentId = await Context.TransferRecord.AsNoTracking()
