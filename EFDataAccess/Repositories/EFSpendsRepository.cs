@@ -636,6 +636,16 @@ namespace EFDataAccess.Repositories
 							.ThenInclude(acc => acc.Currency)
 				.Include(sp => sp.SpendOnPeriod)
 					.ThenInclude(sop => sop.CurrencyConverterMethod)
+				.Include(sp => sp.SourceAppTransfer)
+					.ThenInclude(tr => tr.DestinationAppTrx)
+						.ThenInclude(sp => sp.SpendOnPeriod)
+							.ThenInclude(sop => sop.AccountPeriod)
+								.ThenInclude(accp => accp.Account)
+				.Include(sp => sp.DestinationAppTransfer)
+					.ThenInclude(tr => tr.SourceAppTrx)
+						.ThenInclude(sp => sp.SpendOnPeriod)
+							.ThenInclude(sop => sop.AccountPeriod)
+								.ThenInclude(accp => accp.Account)
 				.FirstAsync();
 			var otherSops = spend.SpendOnPeriod.Where(sop => !sop.IsOriginal.Value);
 			var originalSop = spend.SpendOnPeriod.First(sop => sop.IsOriginal.Value);
@@ -692,7 +702,8 @@ namespace EFDataAccess.Repositories
 					SuggestedDate = DateTime.UtcNow,
 					SpendTypeViewModels = spendTypes.Select(sp => sp.ToSpendTypeViewModel(spend.SpendTypeId)),
 					SupportedAccountInclude = accountIncludeViewModels,
-					SupportedCurrencies = [currency]
+					SupportedCurrencies = [currency],
+					TransferInfo = CreateBasicTransferInfo(spend)
 				}
 			];
 		}
@@ -797,6 +808,23 @@ namespace EFDataAccess.Repositories
 
 		#endregion
 
+		private static BasicTransferInfo CreateBasicTransferInfo(Spend spend)
+		{
+			ArgumentNullException.ThrowIfNull(spend);
+			if(spend.SourceAppTransfer == null && spend.DestinationAppTransfer == null)
+			{
+				return null;
+			}
+
+			var transfer = spend.SourceAppTransfer ?? spend.DestinationAppTransfer;
+			var incomeAccountName = transfer.DestinationAppTrx.SpendOnPeriod.First(sop => sop.IsOriginal == true).AccountPeriod.Account.Name;
+			var spendAccountName = transfer.SourceAppTrx.SpendOnPeriod.First(sop => sop.IsOriginal == true).AccountPeriod.Account.Name;
+			return new BasicTransferInfo
+			{
+				DestinationAccountName = incomeAccountName,
+				SourceAccountName = spendAccountName,
+			};
+		}
 		private async Task<bool> IsLoanSpendDependentAsync(IReadOnlyCollection<int> requestedSpendIds)
 		{
 			var dependencies = await GetSpendDependenciesAsync(requestedSpendIds);

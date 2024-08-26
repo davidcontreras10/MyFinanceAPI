@@ -203,9 +203,16 @@ namespace MyFinanceModel.ViewModel
     {
         public DateRange PossibleDateRange { get; set; }
         public FinanceSpendViewModel SpendInfo { get; set; }
+        public BasicTransferInfo TransferInfo { get; set; }
     }
 
-	public class SpendTypeViewModel : IDropDownSelectable
+    public class BasicTransferInfo
+    {
+        public string SourceAccountName { get; set; }
+        public string DestinationAccountName { get; set; }
+    }
+
+    public class SpendTypeViewModel : IDropDownSelectable
     {
         public int SpendTypeId { get; set; }
         public string SpendTypeName { get; set; }
