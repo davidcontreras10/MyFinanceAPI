@@ -45,6 +45,14 @@ namespace MyFinanceWebApiCore.Controllers
 			return res;
 		}
 
+		[HttpDelete("{accountId}")]
+		public void DeleteAccountV2([FromRoute] int accountId)
+		{
+			var userId = GetUserId();
+			_accountService.DeleteAccount(userId, accountId);
+		}
+
+		[Obsolete("Use DeleteAccountV2 instead.")]
 		[HttpDelete]
 		public void DeleteAccount([FromQuery] int accountId)
 		{
