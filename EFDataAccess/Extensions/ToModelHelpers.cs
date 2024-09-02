@@ -25,7 +25,8 @@ namespace EFDataAccess.Extensions
 				SpendDate = spend.SpendDate ?? new DateTime(),
 				SpendId = spend.SpendId,
 				SpendTypeId = spend.SpendTypeId ?? 0,
-				SpendTypeName = spend.SpendType?.Name
+				SpendTypeName = spend.SpendType?.Name,
+				UtcRecordDate = spend.UtcRecordDate
 			};
 		}
 
@@ -48,7 +49,8 @@ namespace EFDataAccess.Extensions
 				SpendDate = spend.SpendDate ?? new DateTime(),
 				SpendId = spend.SpendId,
 				SpendTypeId = spend.SpendTypeId ?? 0,
-				SpendTypeName = spend.SpendType?.Name
+				SpendTypeName = spend.SpendType?.Name,
+				UtcRecordDate = spend.UtcRecordDate
 			};
 
 			if (res is FinanceSpendViewModel financeSpendViewModel && spend.SpendOnPeriod != null && spend.SpendOnPeriod.Any())

@@ -138,7 +138,8 @@ namespace MyFinanceModel.ViewModel
         public int SpendId { get; set; }
         public DateTime SpendDate { get; set; }
         public DateTime? SetPaymentDate { get; set; }
-        public int SpendTypeId { get; set; }
+		public DateTime? UtcRecordDate { get; set; }
+		public int SpendTypeId { get; set; }
         public string SpendTypeName { get; set; }
         public string CurrencyName { get; set; }
         public string CurrencySymbol { get; set; }
