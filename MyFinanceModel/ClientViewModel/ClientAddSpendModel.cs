@@ -11,6 +11,9 @@ namespace MyFinanceModel.ClientViewModel
         
 		public IEnumerable<ClientAddSpendAccount> IncludedAccounts { get; set; }
 
+        public bool? IsPurchase { get; set; }
+        public int? MethodId { get; set; }
+
         #endregion
     }
 
@@ -56,5 +59,7 @@ namespace MyFinanceModel.ClientViewModel
         public DateTime TrxDate { get; set; }
         public int TrxTypeId { get; set; }
         public Guid? RequestId { get; set; }
-    }
+		public bool? IsPurchase { get; set; }
+		public int? MethodId { get; set; }
+	}
 }

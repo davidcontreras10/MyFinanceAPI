@@ -190,7 +190,9 @@ namespace MyFinanceBackend.Services
 				SpendDate = transferClientViewModel.SpendDate,
 				IsPending = transferClientViewModel.IsPending,
 				RequestId = Guid.NewGuid(),
-				AmountTypeId = TransactionTypeIds.Saving
+				AmountTypeId = TransactionTypeIds.Saving,
+				IsPurchase = currencyConversionResult.IsPurchase,
+				MethodId = currencyConversionResult.MethodId
 			};
 		}
 
