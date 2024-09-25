@@ -13,7 +13,8 @@ namespace EFDataAccess.Models
         {
             AccountInclude = new HashSet<AccountInclude>();
             SpendOnPeriod = new HashSet<SpendOnPeriod>();
-        }
+			Spends = new HashSet<Spend>();
+		}
 
         public int CurrencyConverterMethodId { get; set; }
         public int CurrencyConverterId { get; set; }
@@ -24,6 +25,7 @@ namespace EFDataAccess.Models
         public virtual CurrencyConverter CurrencyConverter { get; set; }
         public virtual ICollection<AccountInclude> AccountInclude { get; set; }
         public virtual ICollection<SpendOnPeriod> SpendOnPeriod { get; set; }
-        public virtual FinancialEntity FinancialEntity { get; set; }
+        public virtual ICollection<Spend> Spends { get; set; }
+		public virtual FinancialEntity FinancialEntity { get; set; }
     }
 }

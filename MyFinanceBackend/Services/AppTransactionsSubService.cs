@@ -99,7 +99,9 @@ namespace MyFinanceBackend.Services
 				PeriodTransactions = dbValues,
 				TrxDate = clientAddSpendModel.SpendDate,
 				TrxTypeId = clientAddSpendModel.SpendTypeId,
-				RequestId = clientAddSpendModel.RequestId
+				RequestId = clientAddSpendModel.RequestId,
+				IsPurchase = clientAddSpendModel.IsPurchase,
+				MethodId = clientAddSpendModel.MethodId
 			};
 		}
 	}

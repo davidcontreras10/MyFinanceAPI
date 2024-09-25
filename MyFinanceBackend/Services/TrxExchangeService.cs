@@ -16,6 +16,7 @@ namespace MyFinanceBackend.Services
 			IReadOnlyCollection<AccountCurrencyPair> accountCurrencyPairList);
 		Task<IEnumerable<AddSpendAccountDbValues>> ConvertTrxCurrencyAsync(ISpendCurrencyConvertible spendCurrencyConvertible, IReadOnlyCollection<AccountCurrencyPair> accountCurrencyPairList);
 		Task<ExchangeRateResult> GetExchangeRateResultAsync(int methodId, DateTime dateTime, bool isIncome, int accountCurrencyId, int amountCurrencyId);
+		Task<ExchangeRateResult> GetExchangeRateResultAsync(int methodId, DateTime dateTime, bool isPurchase);
 	}
 
 	public class TrxExchangeService(ICurrencyService currencyService) : ITrxExchangeService
@@ -104,6 +105,10 @@ namespace MyFinanceBackend.Services
 			return await currencyService.GetExchangeRateResultAsync(methodId, dateTime, isPurchase);
 		}
 
+		public async Task<ExchangeRateResult> GetExchangeRateResultAsync(int methodId, DateTime dateTime, bool isPurchase)
+		{
+			return await currencyService.GetExchangeRateResultAsync(methodId, dateTime, isPurchase);
+		}
 
 		private static IEnumerable<AccountModelCurrency> CreateAccountModelCurrency(ISpendCurrencyConvertible spendCurrencyConvertible,
 																	 IEnumerable<AccountCurrencyPair> pairs)

@@ -673,7 +673,10 @@ namespace EFDataAccess.Models
 					.HasForeignKey(d => d.SpendTypeId)
 					.HasConstraintName("Spend_FK_SpendTypeId");
 
-
+				entity.HasOne(d => d.CurrencyConverterMethod)
+					.WithMany(p => p.Spends)
+					.HasForeignKey(d => d.CurrencyConverterMethodId)
+					.HasConstraintName("Spend_FK_CurrencyConverterMethodId");
 			});
 
 			modelBuilder.Entity<EFAppTransfer>(entity =>
