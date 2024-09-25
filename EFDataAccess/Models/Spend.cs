@@ -11,7 +11,7 @@ namespace EFDataAccess.Models
     {
         public Spend()
         {
-            SpendOnPeriod = new HashSet<SpendOnPeriod>();
+            SpendOnPeriod = [];
         }
 
         public int SpendId { get; set; }
@@ -32,6 +32,8 @@ namespace EFDataAccess.Models
         public virtual SpendType SpendType { get; set; }
         public virtual LoanRecord LoanRecord { get; set; }
         public virtual ICollection<SpendOnPeriod> SpendOnPeriod { get; set; }
+        public virtual EFAppTransfer SourceAppTransfer { get; set; }
+		public virtual EFAppTransfer DestinationAppTransfer { get; set; }
 
 		private static readonly Dictionary<int, int> AmountSign = new()
 		{

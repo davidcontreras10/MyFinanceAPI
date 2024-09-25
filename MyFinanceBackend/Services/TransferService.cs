@@ -10,35 +10,15 @@ using System.Threading.Tasks;
 
 namespace MyFinanceBackend.Services
 {
-	public class TransferService : ITransferService
+	public class TransferService(ISpendsService spendsService,
+		ITrxExchangeService trxExchangeService,
+		ISpendTypeRepository spendTypeRepository,
+		IAccountRepository accountRepository,
+		ITransferRepository transferRepository,
+		ISpendsRepository spendsRepository,
+		IAppTransactionsSubService appTransactionsSubService,
+		IUnitOfWork unitOfWork) : ITransferService
 	{
-		#region Attributes
-
-		private readonly ISpendsRepository _spendsRepository;
-		private readonly ISpendsService _spendsService;
-		private readonly ISpendTypeRepository _spendTypeRepository;
-		private readonly IAccountRepository _accountRepository;
-		private readonly ITransferRepository _transferRepository;
-		private readonly ITrxExchangeService _trxExchangeService;
-
-		#endregion
-
-		#region Constructor
-
-		public TransferService(ISpendsService spendsService, ITrxExchangeService trxExchangeService,
-			ISpendTypeRepository spendTypeRepository, IAccountRepository accountRepository,
-			ITransferRepository transferRepository, ISpendsRepository spendsRepository)
-		{
-			_spendsService = spendsService;
-			_trxExchangeService = trxExchangeService;
-			_spendTypeRepository = spendTypeRepository;
-			_accountRepository = accountRepository;
-			_transferRepository = transferRepository;
-			_spendsRepository = spendsRepository;
-		}
-
-		#endregion
-
 		#region Public methods
 
 		#region Get
@@ -48,11 +28,11 @@ namespace MyFinanceBackend.Services
 		{
 			if (balanceType != BalanceTypes.Custom)
 			{
-				var accountInfo = await _spendsRepository.GetAccountFinanceViewModelAsync(accountPeriodId, userId);
+				var accountInfo = await spendsRepository.GetAccountFinanceViewModelAsync(accountPeriodId, userId);
 				currencyId = accountInfo.CurrencyId;
 			}
 
-			var accounts = await _transferRepository.GetPossibleDestinationAccountAsync(accountPeriodId, currencyId, userId);
+			var accounts = await transferRepository.GetPossibleDestinationAccountAsync(accountPeriodId, currencyId, userId);
 			accounts = await GetOrderAccountViewModelsAsync(accounts, userId);
 			return accounts;
 		}
@@ -65,13 +45,13 @@ namespace MyFinanceBackend.Services
 			if (string.IsNullOrEmpty(userId))
 				throw new ArgumentNullException(nameof(userId));
 
-			var result = await _spendsRepository.GetPossibleCurrenciesAsync(accountId, userId);
+			var result = await spendsRepository.GetPossibleCurrenciesAsync(accountId, userId);
 			return result;
 		}
 
 		public async Task<TransferAccountDataViewModel> GetBasicAccountInfoAsync(int accountPeriodId, string userId)
 		{
-			var accountInfo = await _spendsRepository.GetAccountFinanceViewModelAsync(accountPeriodId, userId);
+			var accountInfo = await spendsRepository.GetAccountFinanceViewModelAsync(accountPeriodId, userId);
 			if (accountInfo == null)
 			{
 				return null;
@@ -80,9 +60,9 @@ namespace MyFinanceBackend.Services
 			var accountId = accountInfo.AccountId;
 			var currencies = await GetPossibleCurrenciesAsync(accountId, userId);
 			var currencyId = currencies.First(c => c.Isdefault).CurrencyId;
-			var accounts = await _transferRepository.GetPossibleDestinationAccountAsync(accountPeriodId, currencyId, userId);
+			var accounts = await transferRepository.GetPossibleDestinationAccountAsync(accountPeriodId, currencyId, userId);
 			accounts = await GetOrderAccountViewModelsAsync(accounts, userId);
-			var spendTypes = await _spendTypeRepository.GetSpendTypeByAccountViewModelsAsync(userId, accountId);
+			var spendTypes = await spendTypeRepository.GetSpendTypeByAccountViewModelsAsync(userId, accountId);
 			var transferData = CreateAccountFinanceViewModel(accountInfo, currencies, accounts, spendTypes);
 			return transferData;
 		}
@@ -110,22 +90,21 @@ namespace MyFinanceBackend.Services
 			var itemsModified = new List<SpendItemModified>();
 			try
 			{
-				_transferRepository.BeginTransaction();
-				itemsModified.AddRange(await _spendsService.AddSpendAsync(response.SpendModel));
-				itemsModified.AddRange(await _spendsService.AddIncomeAsync(response.IncomeModel));
-				if (itemsModified.Any())
-				{
-					var spendIds = itemsModified.GroupBy(i => i.SpendId).Select(gr => gr.First()).Select(i => i.SpendId);
-					await _transferRepository.AddTransferRecordAsync(spendIds, transferClientViewModel.UserId);
-				}
+				transferRepository.BeginTransaction();
+				var transactions = new List<ClientAddSpendModel> { response.SpendModel, response.IncomeModel };
+				var items = await appTransactionsSubService.AddMultipleTransactionsAsync(transactions);
+				var sourceTrxId = items.Where(i => i.RequestId == response.SpendModel.RequestId).Select(i => i.SpendId).FirstOrDefault();
+				var destinationTrxId = items.Where(i => i.RequestId == response.IncomeModel.RequestId).Select(i => i.SpendId).FirstOrDefault();
+				await unitOfWork.AppTransferRepository.AddAsync(sourceTrxId, destinationTrxId);
+				itemsModified.AddRange(items.Select(SpendItemModified.To));
+				transferRepository.Commit();
 			}
 			catch (Exception)
 			{
-				_transferRepository.RollbackTransaction();
+				transferRepository.RollbackTransaction();
 				throw;
 			}
 
-			_transferRepository.Commit();
 			return itemsModified;
 		}
 
@@ -140,12 +119,12 @@ namespace MyFinanceBackend.Services
 		{
 			if (accountViewModels == null || !accountViewModels.Any())
 			{
-				return Array.Empty<AccountViewModel>();
+				return [];
 			}
 
 			IEnumerable<AccountViewModel> accountsList = accountViewModels.ToList();
 			var orderedAccounts = await
-				_accountRepository.GetOrderedAccountViewModelListAsync(accountViewModels.Select(acc => acc.AccountId), userId);
+				accountRepository.GetOrderedAccountViewModelListAsync(accountViewModels.Select(acc => acc.AccountId), userId);
 			foreach (var orderedAccount in orderedAccounts)
 			{
 				var account = accountsList.FirstOrDefault(acc => acc.AccountId == orderedAccount.AccountId);
@@ -164,7 +143,7 @@ namespace MyFinanceBackend.Services
 			ArgumentNullException.ThrowIfNull(transferClientViewModel);
 
 			var spend = await CreateTransferSpendClientAddSpendModelAsync(transferClientViewModel);
-			var accounts = _accountRepository.GetAccountPeriodBasicInfo([transferClientViewModel.AccountPeriodId]);
+			var accounts = accountRepository.GetAccountPeriodBasicInfo([transferClientViewModel.AccountPeriodId]);
 			if(accounts == null || !accounts.Any())
 			{
 				throw new Exception($"Not account found for account period {transferClientViewModel.AccountPeriodId}");
@@ -183,17 +162,17 @@ namespace MyFinanceBackend.Services
 		{
 			ArgumentNullException.ThrowIfNull(transferClientViewModel);
 
-			var destinationAccountInfo =(await _spendsService.GetAccountsCurrencyAsync(new[] { transferClientViewModel.DestinationAccount }))
+			var destinationAccountInfo =(await spendsService.GetAccountsCurrencyAsync(new[] { transferClientViewModel.DestinationAccount }))
 					.First(a => a.AccountId == transferClientViewModel.DestinationAccount);
-			var destinationCurrencyConverterMethodId = await _transferRepository.GetDefaultCurrencyConvertionMethodsAsync(originalAccountId,
+			var destinationCurrencyConverterMethodId = await transferRepository.GetDefaultCurrencyConvertionMethodsAsync(originalAccountId,
 				transferClientViewModel.CurrencyId, destinationAccountInfo.CurrencyId,
 				transferClientViewModel.UserId);
-			var currencyConversionResult = await _trxExchangeService.GetExchangeRateResultAsync(destinationCurrencyConverterMethodId,
+			var currencyConversionResult = await trxExchangeService.GetExchangeRateResultAsync(destinationCurrencyConverterMethodId,
 				transferClientViewModel.SpendDate, true, destinationAccountInfo.CurrencyId, transferClientViewModel.CurrencyId);
 			if (currencyConversionResult == null ||
 				currencyConversionResult.ResultTypeValue != ExchangeRateResult.ResultType.Success)
 				throw new Exception("Invalid currency conversion method result.");
-			var accountCurrencyInfo = await _spendsRepository.GetAccountMethodConversionInfoAsync(destinationAccountInfo.AccountId, null,
+			var accountCurrencyInfo = await spendsRepository.GetAccountMethodConversionInfoAsync(destinationAccountInfo.AccountId, null,
 				transferClientViewModel.UserId, destinationAccountInfo.CurrencyId);
 			var includeAccountData = accountCurrencyInfo.Where(a => a.AccountId != destinationAccountInfo.AccountId);
 			var originalAccountData = accountCurrencyInfo.FirstOrDefault(a => a.AccountId == destinationAccountInfo.AccountId);
@@ -209,14 +188,18 @@ namespace MyFinanceBackend.Services
 				IncludedAccounts = includeAccountData,
 				OriginalAccountData = originalAccountData,
 				SpendDate = transferClientViewModel.SpendDate,
-				IsPending = transferClientViewModel.IsPending
+				IsPending = transferClientViewModel.IsPending,
+				RequestId = Guid.NewGuid(),
+				AmountTypeId = TransactionTypeIds.Saving
 			};
 		}
 
 		private async Task<ClientAddSpendModel> CreateTransferSpendClientAddSpendModelAsync(TransferClientViewModel transferClientViewModel)
 		{
 			var clientAddSpendModel = await
-				_spendsRepository.CreateClientAddSpendModelAsync(transferClientViewModel, transferClientViewModel.AccountPeriodId);
+				spendsRepository.CreateClientAddSpendModelAsync(transferClientViewModel, transferClientViewModel.AccountPeriodId);
+			clientAddSpendModel.RequestId = Guid.NewGuid();
+			clientAddSpendModel.AmountTypeId = TransactionTypeIds.Spend;
 			return clientAddSpendModel;
 		}
 

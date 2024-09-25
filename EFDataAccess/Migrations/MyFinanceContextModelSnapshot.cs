@@ -92,7 +92,7 @@ namespace EFDataAccess.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Account");
+                    b.ToTable("Account", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.AccountGroup", b =>
@@ -127,7 +127,7 @@ namespace EFDataAccess.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("AccountGroup");
+                    b.ToTable("AccountGroup", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.AccountInclude", b =>
@@ -147,7 +147,7 @@ namespace EFDataAccess.Migrations
 
                     b.HasIndex("CurrencyConverterMethodId");
 
-                    b.ToTable("AccountInclude");
+                    b.ToTable("AccountInclude", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.AccountPeriod", b =>
@@ -179,7 +179,7 @@ namespace EFDataAccess.Migrations
 
                     b.HasIndex("CurrencyId");
 
-                    b.ToTable("AccountPeriod");
+                    b.ToTable("AccountPeriod", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.AccountType", b =>
@@ -198,7 +198,7 @@ namespace EFDataAccess.Migrations
 
                     b.HasKey("AccountTypeId");
 
-                    b.ToTable("AccountType");
+                    b.ToTable("AccountType", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.AmountType", b =>
@@ -223,7 +223,7 @@ namespace EFDataAccess.Migrations
                         .IsUnique()
                         .HasDatabaseName("AmountTypeName_unique");
 
-                    b.ToTable("AmountType");
+                    b.ToTable("AmountType", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.AppUser", b =>
@@ -265,7 +265,7 @@ namespace EFDataAccess.Migrations
                         .IsUnique()
                         .HasDatabaseName("AppUser_Unq_Username");
 
-                    b.ToTable("AppUser");
+                    b.ToTable("AppUser", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.AppUserOwner", b =>
@@ -283,7 +283,7 @@ namespace EFDataAccess.Migrations
 
                     SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex("UserId", "OwnerUserId"));
 
-                    b.ToTable("AppUserOwner");
+                    b.ToTable("AppUserOwner", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.ApplicationModule", b =>
@@ -298,7 +298,7 @@ namespace EFDataAccess.Migrations
 
                     b.HasKey("ApplicationModuleId");
 
-                    b.ToTable("ApplicationModule");
+                    b.ToTable("ApplicationModule", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.ApplicationResource", b =>
@@ -313,7 +313,7 @@ namespace EFDataAccess.Migrations
 
                     b.HasKey("ApplicationResourceId");
 
-                    b.ToTable("ApplicationResource");
+                    b.ToTable("ApplicationResource", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.AutomaticTask", b =>
@@ -364,7 +364,7 @@ namespace EFDataAccess.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("AutomaticTask");
+                    b.ToTable("AutomaticTask", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.BccrWebServiceIndicator", b =>
@@ -388,7 +388,7 @@ namespace EFDataAccess.Migrations
 
                     b.HasKey("EntityName");
 
-                    b.ToTable("BccrWebServiceIndicator");
+                    b.ToTable("BccrWebServiceIndicator", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.Currency", b =>
@@ -414,7 +414,7 @@ namespace EFDataAccess.Migrations
 
                     b.HasKey("CurrencyId");
 
-                    b.ToTable("Currency");
+                    b.ToTable("Currency", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.CurrencyConverter", b =>
@@ -437,7 +437,7 @@ namespace EFDataAccess.Migrations
 
                     b.HasIndex("CurrencyIdTwo");
 
-                    b.ToTable("CurrencyConverter");
+                    b.ToTable("CurrencyConverter", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.CurrencyConverterMethod", b =>
@@ -468,7 +468,7 @@ namespace EFDataAccess.Migrations
 
                     b.HasIndex("FinancialEntityId");
 
-                    b.ToTable("CurrencyConverterMethod");
+                    b.ToTable("CurrencyConverterMethod", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.DailyJob", b =>
@@ -489,7 +489,7 @@ namespace EFDataAccess.Migrations
 
                     b.HasKey("DailyJobId");
 
-                    b.ToTable("DailyJob");
+                    b.ToTable("DailyJob", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.EFAccountIdName", b =>
@@ -503,6 +503,28 @@ namespace EFDataAccess.Migrations
                     b.ToTable((string)null);
 
                     b.ToView(null, (string)null);
+                });
+
+            modelBuilder.Entity("EFDataAccess.Models.EFAppTransfer", b =>
+                {
+                    b.Property<int>("SourceAppTrxId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DestinationAppTrxId")
+                        .HasColumnType("int");
+
+                    b.HasKey("SourceAppTrxId", "DestinationAppTrxId")
+                        .HasName("PK_AppTransfer");
+
+                    SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("SourceAppTrxId", "DestinationAppTrxId"));
+
+                    b.HasIndex("DestinationAppTrxId")
+                        .IsUnique();
+
+                    b.HasIndex("SourceAppTrxId")
+                        .IsUnique();
+
+                    b.ToTable("AppTransfer", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.EFBankTransaction", b =>
@@ -577,7 +599,7 @@ namespace EFDataAccess.Migrations
 
                     b.HasKey("EntitiesSupportedId");
 
-                    b.ToTable("EntitiesSupported");
+                    b.ToTable("EntitiesSupported", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.ExecutedTask", b =>
@@ -615,7 +637,7 @@ namespace EFDataAccess.Migrations
                         .IsUnique()
                         .HasDatabaseName("ExecutedTask_Unq_ExecutedTaskId");
 
-                    b.ToTable("ExecutedTask");
+                    b.ToTable("ExecutedTask", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.FinancialEntity", b =>
@@ -633,7 +655,7 @@ namespace EFDataAccess.Migrations
 
                     b.HasKey("FinancialEntityId");
 
-                    b.ToTable("FinancialEntity");
+                    b.ToTable("FinancialEntity", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.LoanRecord", b =>
@@ -663,7 +685,7 @@ namespace EFDataAccess.Migrations
                         .IsUnique()
                         .HasDatabaseName("LoanRecord_UQ_SpendId");
 
-                    b.ToTable("LoanRecord");
+                    b.ToTable("LoanRecord", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.LoanRecordStatus", b =>
@@ -678,7 +700,7 @@ namespace EFDataAccess.Migrations
 
                     b.HasKey("LoanRecordStatusId");
 
-                    b.ToTable("LoanRecordStatus");
+                    b.ToTable("LoanRecordStatus", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.LoanSpend", b =>
@@ -697,7 +719,7 @@ namespace EFDataAccess.Migrations
 
                     SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex("LoanRecordId", "SpendId"));
 
-                    b.ToTable("LoanSpend");
+                    b.ToTable("LoanSpend", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.MethodsSupported", b =>
@@ -713,7 +735,7 @@ namespace EFDataAccess.Migrations
 
                     b.HasIndex("EntitiesSupportedId");
 
-                    b.ToTable("MethodsSupported");
+                    b.ToTable("MethodsSupported", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.PeriodDefinition", b =>
@@ -738,7 +760,7 @@ namespace EFDataAccess.Migrations
 
                     b.HasIndex("PeriodTypeId");
 
-                    b.ToTable("PeriodDefinition");
+                    b.ToTable("PeriodDefinition", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.PeriodType", b =>
@@ -756,7 +778,7 @@ namespace EFDataAccess.Migrations
 
                     b.HasKey("PeriodTypeId");
 
-                    b.ToTable("PeriodType");
+                    b.ToTable("PeriodType", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.ResourceAccessLevel", b =>
@@ -771,7 +793,7 @@ namespace EFDataAccess.Migrations
 
                     b.HasKey("ResourceAccessLevelId");
 
-                    b.ToTable("ResourceAccessLevel");
+                    b.ToTable("ResourceAccessLevel", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.ResourceAction", b =>
@@ -786,7 +808,7 @@ namespace EFDataAccess.Migrations
 
                     b.HasKey("ResourceActionId");
 
-                    b.ToTable("ResourceAction");
+                    b.ToTable("ResourceAction", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.ResourceRequiredAccess", b =>
@@ -814,7 +836,7 @@ namespace EFDataAccess.Migrations
 
                     SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex("ResourceActionId", "ApplicationResourceId", "ResourceAccessLevelId", "ApplicationModuleId"));
 
-                    b.ToTable("ResourceRequiredAccess");
+                    b.ToTable("ResourceRequiredAccess", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.SpFinanceSpendByAccountsListTable", b =>
@@ -915,7 +937,7 @@ namespace EFDataAccess.Migrations
 
                     SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex("AccountId", "AccountPeriodId", "SpendId"));
 
-                    b.ToTable("SpFinanceSpendByAccountsListTable");
+                    b.ToTable("SpFinanceSpendByAccountsListTable", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.SpInTrxDef", b =>
@@ -932,7 +954,7 @@ namespace EFDataAccess.Migrations
                         .IsUnique()
                         .HasDatabaseName("SpInTrxDef_Unq_SpInTrxDefId");
 
-                    b.ToTable("SpInTrxDef");
+                    b.ToTable("SpInTrxDef", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.Spend", b =>
@@ -990,7 +1012,7 @@ namespace EFDataAccess.Migrations
 
                     b.HasIndex("SpendTypeId");
 
-                    b.ToTable("Spend");
+                    b.ToTable("Spend", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.SpendDependencies", b =>
@@ -1009,7 +1031,7 @@ namespace EFDataAccess.Migrations
 
                     SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex("SpendId", "DependencySpendId"));
 
-                    b.ToTable("SpendDependencies");
+                    b.ToTable("SpendDependencies", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.SpendOnPeriod", b =>
@@ -1049,7 +1071,7 @@ namespace EFDataAccess.Migrations
 
                     b.HasIndex("BankTransactionId", "BankTrxFinancialEntityId");
 
-                    b.ToTable("SpendOnPeriod");
+                    b.ToTable("SpendOnPeriod", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.SpendType", b =>
@@ -1071,7 +1093,7 @@ namespace EFDataAccess.Migrations
 
                     b.HasKey("SpendTypeId");
 
-                    b.ToTable("SpendType");
+                    b.ToTable("SpendType", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.TransferRecord", b =>
@@ -1091,7 +1113,7 @@ namespace EFDataAccess.Migrations
 
                     SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex("TransferRecordId", "SpendId"));
 
-                    b.ToTable("TransferRecord");
+                    b.ToTable("TransferRecord", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.TransferTrxDef", b =>
@@ -1110,7 +1132,7 @@ namespace EFDataAccess.Migrations
                         .IsUnique()
                         .HasDatabaseName("TransferTrxDef_Unq_TransferTrxDefId");
 
-                    b.ToTable("TransferTrxDef");
+                    b.ToTable("TransferTrxDef", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.UserAssignedAccess", b =>
@@ -1138,7 +1160,7 @@ namespace EFDataAccess.Migrations
 
                     SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex("UserId", "ResourceActionId", "ApplicationResourceId", "ResourceAccessLevelId"));
 
-                    b.ToTable("UserAssignedAccess");
+                    b.ToTable("UserAssignedAccess", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.UserBankSummaryAccount", b =>
@@ -1153,7 +1175,7 @@ namespace EFDataAccess.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("UserBankSummaryAccount");
+                    b.ToTable("UserBankSummaryAccount", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.UserSpendType", b =>
@@ -1168,7 +1190,7 @@ namespace EFDataAccess.Migrations
 
                     b.HasIndex("SpendTypeId");
 
-                    b.ToTable("UserSpendType");
+                    b.ToTable("UserSpendType", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.Account", b =>
@@ -1215,7 +1237,7 @@ namespace EFDataAccess.Migrations
                         .HasForeignKey("UserId")
                         .HasConstraintName("Account_FK_UserId");
 
-                    b.OwnsOne("EFDataAccess.Models.AccountNotes", "Notes", b1 =>
+                    b.OwnsOne("EFDataAccess.Models.Account.Notes#EFDataAccess.Models.AccountNotes", "Notes", b1 =>
                         {
                             b1.Property<int>("AccountId")
                                 .HasColumnType("int");
@@ -1228,7 +1250,7 @@ namespace EFDataAccess.Migrations
 
                             b1.HasKey("AccountId");
 
-                            b1.ToTable("Account");
+                            b1.ToTable("Account", (string)null);
 
                             b1.WithOwner()
                                 .HasForeignKey("AccountId");
@@ -1404,6 +1426,25 @@ namespace EFDataAccess.Migrations
                     b.Navigation("CurrencyConverter");
 
                     b.Navigation("FinancialEntity");
+                });
+
+            modelBuilder.Entity("EFDataAccess.Models.EFAppTransfer", b =>
+                {
+                    b.HasOne("EFDataAccess.Models.Spend", "DestinationAppTrx")
+                        .WithOne("DestinationAppTransfer")
+                        .HasForeignKey("EFDataAccess.Models.EFAppTransfer", "DestinationAppTrxId")
+                        .IsRequired()
+                        .HasConstraintName("AppTransfer_FK_DestinationAppTrxId");
+
+                    b.HasOne("EFDataAccess.Models.Spend", "SourceAppTrx")
+                        .WithOne("SourceAppTransfer")
+                        .HasForeignKey("EFDataAccess.Models.EFAppTransfer", "SourceAppTrxId")
+                        .IsRequired()
+                        .HasConstraintName("AppTransfer_FK_SourceAppTrxId");
+
+                    b.Navigation("DestinationAppTrx");
+
+                    b.Navigation("SourceAppTrx");
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.EFBankTransaction", b =>
@@ -1842,7 +1883,11 @@ namespace EFDataAccess.Migrations
 
             modelBuilder.Entity("EFDataAccess.Models.Spend", b =>
                 {
+                    b.Navigation("DestinationAppTransfer");
+
                     b.Navigation("LoanRecord");
+
+                    b.Navigation("SourceAppTransfer");
 
                     b.Navigation("SpendOnPeriod");
                 });

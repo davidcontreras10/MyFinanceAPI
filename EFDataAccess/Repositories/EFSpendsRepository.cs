@@ -16,6 +16,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using Spend = EFDataAccess.Models.Spend;
 
@@ -267,6 +268,7 @@ namespace EFDataAccess.Repositories
 				Context.TransferRecord.RemoveWhere(x => spendIds.Contains(x.SpendId));
 				Context.SpendOnPeriod.RemoveWhere(x => spendIds.Contains(x.SpendId));
 				Context.Spend.RemoveWhere(x => spendIds.Contains(x.SpendId));
+				Context.AppTransfers.RemoveWhere(x => spendIds.Contains(x.SourceAppTrxId) || spendIds.Contains(x.DestinationAppTrxId));
 				return affectedAccounts;
 			}
 			catch (Exception ex)
@@ -292,9 +294,15 @@ namespace EFDataAccess.Repositories
 				.Include(sp => sp.BankTransaction)
 				.Where(sp => sp.SpendId == model.SpendId)
 				.AnyAsync(x => x.BankTransaction != null);
-			if (hasBankTrx && model.ModifyList.Any(i => i == ClientEditSpendModel.Field.AmountType))
+			var withTransferSpends = await AppTrxsHasTransfersAsync(spendIds);
+			var hasAmountTypeChange = model.ModifyList.Any(i => i == ClientEditSpendModel.Field.AmountType);
+			if (withTransferSpends && hasAmountTypeChange)
 			{
-				throw new Exception("Cannot modify amount type for bank transactions");
+				throw new ServiceException("Cannot modify amount type for transactions with transfers", HttpStatusCode.BadRequest);
+			}
+			if (hasBankTrx && hasAmountTypeChange)
+			{
+				throw new ServiceException("Cannot modify amount type for bank transactions", HttpStatusCode.BadRequest);
 			}
 
 			var transferRecordId = await Context.TransferRecord
@@ -628,6 +636,16 @@ namespace EFDataAccess.Repositories
 							.ThenInclude(acc => acc.Currency)
 				.Include(sp => sp.SpendOnPeriod)
 					.ThenInclude(sop => sop.CurrencyConverterMethod)
+				.Include(sp => sp.SourceAppTransfer)
+					.ThenInclude(tr => tr.DestinationAppTrx)
+						.ThenInclude(sp => sp.SpendOnPeriod)
+							.ThenInclude(sop => sop.AccountPeriod)
+								.ThenInclude(accp => accp.Account)
+				.Include(sp => sp.DestinationAppTransfer)
+					.ThenInclude(tr => tr.SourceAppTrx)
+						.ThenInclude(sp => sp.SpendOnPeriod)
+							.ThenInclude(sop => sop.AccountPeriod)
+								.ThenInclude(accp => accp.Account)
 				.FirstAsync();
 			var otherSops = spend.SpendOnPeriod.Where(sop => !sop.IsOriginal.Value);
 			var originalSop = spend.SpendOnPeriod.First(sop => sop.IsOriginal.Value);
@@ -648,7 +666,7 @@ namespace EFDataAccess.Repositories
 				CurrencyId = spend.AmountCurrencyId ?? 0,
 				CurrencyName = spend.AmountCurrency.Name,
 				Symbol = spend.AmountCurrency.Symbol,
-				MethodIds = new[] { method },
+				MethodIds = [method],
 				Isdefault = true
 			};
 
@@ -665,11 +683,11 @@ namespace EFDataAccess.Repositories
 				},
 				IsDefault = true,
 				IsSelected = true,
-				MethodIds = new[] { sop.CurrencyConverterMethod.ToMethodId(true, true) }
+				MethodIds = [sop.CurrencyConverterMethod.ToMethodId(true, true)]
 			});
 
-			return new[]
-			{
+			return
+			[
 				new EditSpendViewModel
 				{
 					AccountId = originalSop.AccountPeriod.AccountId ?? 0,
@@ -684,9 +702,10 @@ namespace EFDataAccess.Repositories
 					SuggestedDate = DateTime.UtcNow,
 					SpendTypeViewModels = spendTypes.Select(sp => sp.ToSpendTypeViewModel(spend.SpendTypeId)),
 					SupportedAccountInclude = accountIncludeViewModels,
-					SupportedCurrencies = [currency]
+					SupportedCurrencies = [currency],
+					TransferInfo = CreateBasicTransferInfo(spend)
 				}
-			};
+			];
 		}
 
 		public async Task<IEnumerable<CurrencyViewModel>> GetPossibleCurrenciesAsync(int accountId, string userId)
@@ -750,13 +769,19 @@ namespace EFDataAccess.Repositories
 					);
 			}
 
+			var transferSpends = await GetTransferRelatedAppTrxs([spendId], true);
+			if(transferSpends.Count != 0)
+			{
+				spends.AddRange(transferSpends);
+			}
+
 			var saveSpends = spends.Select(CreateSavedSpend);
 			return saveSpends;
 		}
 
 		public async Task<SpendActionAttributes> GetSpendAttributesAsync(int spendId)
 		{
-			var isLoan = await IsLoanSpendDependentAsync(new[] { spendId });
+			var isLoan = await IsLoanSpendDependentAsync([spendId]);
 			var isTransfer = await Context.TransferRecord.AnyAsync(tr => tr.SpendId == spendId);
 			return new SpendActionAttributes
 			{
@@ -783,6 +808,23 @@ namespace EFDataAccess.Repositories
 
 		#endregion
 
+		private static BasicTransferInfo CreateBasicTransferInfo(Spend spend)
+		{
+			ArgumentNullException.ThrowIfNull(spend);
+			if(spend.SourceAppTransfer == null && spend.DestinationAppTransfer == null)
+			{
+				return null;
+			}
+
+			var transfer = spend.SourceAppTransfer ?? spend.DestinationAppTransfer;
+			var incomeAccountName = transfer.DestinationAppTrx.SpendOnPeriod.First(sop => sop.IsOriginal == true).AccountPeriod.Account.Name;
+			var spendAccountName = transfer.SourceAppTrx.SpendOnPeriod.First(sop => sop.IsOriginal == true).AccountPeriod.Account.Name;
+			return new BasicTransferInfo
+			{
+				DestinationAccountName = incomeAccountName,
+				SourceAccountName = spendAccountName,
+			};
+		}
 		private async Task<bool> IsLoanSpendDependentAsync(IReadOnlyCollection<int> requestedSpendIds)
 		{
 			var dependencies = await GetSpendDependenciesAsync(requestedSpendIds);
@@ -931,7 +973,7 @@ namespace EFDataAccess.Repositories
 				.Where(tr => spendIds.Contains(tr.SpendId))
 				.Select(tr => tr.TransferRecordId)
 				.ToListAsync();
-			if (trasnferIds.Any())
+			if (trasnferIds.Count != 0)
 			{
 				var transferDeps = await Context.TransferRecord.AsNoTracking()
 						.Where(t => trasnferIds.Contains(t.TransferRecordId))
@@ -939,6 +981,12 @@ namespace EFDataAccess.Repositories
 						.Where(sp => !spendIds.Contains(sp.SpendId))
 						.ToListAsync();
 				dependencies.AddRange(transferDeps);
+			}
+
+			var withTransferSpends = await GetTransferRelatedAppTrxs(spendIds, true);
+			if(withTransferSpends.Any())
+			{
+				dependencies.AddRange(withTransferSpends);
 			}
 
 			var loanId = await Context.LoanRecord.AsNoTracking()
@@ -960,6 +1008,61 @@ namespace EFDataAccess.Repositories
 				.ToListAsync();
 			allEvaluate.AddRange(dependencies);
 			dependencies.AddRange(await GetDependenciesRecursivleyAsync(allEvaluate));
+			return dependencies;
+		}
+
+		private async Task<bool> AppTrxsHasTransfersAsync(IReadOnlyCollection<int> spendIds)
+		{
+			return await Context.Spend.AsNoTracking()
+				.Where(sp => spendIds.Contains(sp.SpendId) && (sp.SourceAppTransfer != null || sp.DestinationAppTransfer != null))
+				.AnyAsync();
+		}
+
+		private async Task<IReadOnlyCollection<Spend>> GetTransferRelatedAppTrxs(IReadOnlyCollection<int> spendIds, bool asReadOnly)
+		{
+			if (spendIds == null || spendIds.Count == 0)
+			{
+				return [];
+			}
+
+			var dependencies = new List<Spend>();
+			IQueryable<Spend> query = Context.Spend;
+			if (asReadOnly)
+			{
+				query = query.AsNoTracking();
+			}
+			var withTransferSpends = await query
+				.Where(sp => spendIds.Contains(sp.SpendId) && (sp.SourceAppTransfer != null || sp.DestinationAppTransfer != null))
+				.Include(sp => sp.SourceAppTransfer)
+					.ThenInclude(tr => tr.DestinationAppTrx)
+						.ThenInclude(spd => spd.SpendOnPeriod)
+							.ThenInclude(sop => sop.AccountPeriod)
+				.Include(sp => sp.DestinationAppTransfer)
+					.ThenInclude(tr => tr.SourceAppTrx)
+						.ThenInclude(spd => spd.SpendOnPeriod)
+							.ThenInclude(sop => sop.AccountPeriod)
+				.ToListAsync();
+			if (withTransferSpends.Count != 0)
+			{
+				var transferDeps = withTransferSpends
+					.SelectMany(sp =>
+					{
+						var deps = new List<Spend>();
+						if (sp.SourceAppTransfer != null)
+						{
+							deps.Add(sp.SourceAppTransfer.DestinationAppTrx);
+						}
+
+						if (sp.DestinationAppTransfer != null)
+						{
+							deps.Add(sp.DestinationAppTransfer.SourceAppTrx);
+						}
+
+						return deps;
+					});
+				dependencies.AddRange(transferDeps);
+			}
+
 			return dependencies;
 		}
 
