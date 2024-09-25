@@ -11,7 +11,7 @@ using MyFinanceModel.ViewModel;
 
 namespace MyFinanceBackend.Services
 {
-	public class SpendsService(IUnitOfWork unitOfWork, IAppTransactionsSubService appTransactionsSubService) : ISpendsService
+	public class SpendsService(IUnitOfWork unitOfWork, IAppTransactionsSubService appTransactionsSubService, ITrxExchangeService trxExchangeService) : ISpendsService
 	{
 
 		#region Attributes
@@ -208,12 +208,23 @@ namespace MyFinanceBackend.Services
 			var modifiedList = new List<SpendItemModified>();
 			foreach (var savedSpend in spends)
 			{
-				var financeSpend = CreateFinanceSpend(savedSpend, newPaymentDate);
 				if (!savedSpend.IsPending)
 				{
-					throw new SpendNotPendingException(financeSpend.SpendId);
+					throw new SpendNotPendingException(savedSpend.SpendId);
 				}
 
+				if(savedSpend.AmountNumerator > 0 && savedSpend.AmountDenominator > 0 && savedSpend.MethodId > 0 && savedSpend.IsPurchase != null)
+				{
+					var exchangeResult = await trxExchangeService.GetExchangeRateResultAsync(savedSpend.MethodId.Value, newPaymentDate, savedSpend.IsPurchase.Value);
+					if (exchangeResult == null || !exchangeResult.Success)
+					{
+						throw new Exception("Exchange rate not found");
+					}
+
+					savedSpend.AmountDenominator = (float)exchangeResult.Denominator;
+					savedSpend.AmountNumerator = (float)exchangeResult.Numerator;
+				}
+				var financeSpend = CreateFinanceSpend(savedSpend, newPaymentDate);
 				var modifiedItems = await _spendsRepository.EditSpendAsync(financeSpend);
 				modifiedList.AddRange(modifiedItems);
 			}

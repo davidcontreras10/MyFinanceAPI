@@ -26,6 +26,8 @@ namespace EFDataAccess.Models
         public bool IsPending { get; set; }
         public DateTime? SetPaymentDate { get; set; }
 		public DateTime? UtcRecordDate { get; set; }
+		public bool? IsPurchase { get; set; }
+		public int? CurrencyConverterMethodId { get; set; }
 
 		public virtual Currency AmountCurrency { get; set; }
         public virtual AmountType AmountType { get; set; }
@@ -34,6 +36,7 @@ namespace EFDataAccess.Models
         public virtual ICollection<SpendOnPeriod> SpendOnPeriod { get; set; }
         public virtual EFAppTransfer SourceAppTransfer { get; set; }
 		public virtual EFAppTransfer DestinationAppTransfer { get; set; }
+        public virtual CurrencyConverterMethod CurrencyConverterMethod { get; set; }
 
 		private static readonly Dictionary<int, int> AmountSign = new()
 		{

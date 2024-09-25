@@ -100,7 +100,9 @@ namespace EFDataAccess.Repositories
 				SpendDate = spendDate,
 				SetPaymentDate = setPaymentDate,
 				SpendTypeId = clientConvertedTrxModel.TrxTypeId,
-				UtcRecordDate = DateTime.UtcNow
+				UtcRecordDate = DateTime.UtcNow,
+				IsPurchase = clientConvertedTrxModel.IsPurchase,
+				CurrencyConverterMethodId = clientConvertedTrxModel.MethodId
 			};
 
 			await Context.Spend.AddAsync(spend);
@@ -374,6 +376,8 @@ namespace EFDataAccess.Repositories
 			spend.SetPaymentDate = financeSpend.SetPaymentDate;
 			spend.SpendDate = financeSpend.SpendDate;
 			spend.IsPending = financeSpend.IsPending;
+			spend.Numerator = financeSpend.AmountNumerator;
+			spend.Denominator = financeSpend.AmountDenominator;
 			var toRemoveSpendOnPeriods = await Context.SpendOnPeriod
 				.Where(sop => sop.SpendId == financeSpend.SpendId)
 				.Include(sop => sop.AccountPeriod)
@@ -751,23 +755,6 @@ namespace EFDataAccess.Repositories
 						.ThenInclude(sop => sop.AccountPeriod)
 					.FirstAsync()
 			};
-			var trasnferId = await Context.TransferRecord.AsNoTracking()
-				.Where(tr => tr.SpendId == spendId)
-				.Select(tr => tr.TransferRecordId)
-				.FirstOrDefaultAsync();
-			if (trasnferId > 0)
-			{
-				spends.AddRange(
-					await Context.TransferRecord.AsNoTracking()
-						.Where(t => t.TransferRecordId == trasnferId)
-						.Include(t => t.Spend)
-							.ThenInclude(sp => sp.SpendOnPeriod)
-								.ThenInclude(sop => sop.AccountPeriod)
-						.Select(t => t.Spend)
-						.Where(sp => sp.SpendId != spendId)
-						.ToListAsync()
-					);
-			}
 
 			var transferSpends = await GetTransferRelatedAppTrxs([spendId], true);
 			if(transferSpends.Count != 0)
@@ -918,7 +905,8 @@ namespace EFDataAccess.Repositories
 				IncludedAccounts = new List<ClientAddSpendAccount>(),
 				SpendDate = spend.SpendDate ?? new DateTime(),
 				SpendTypeId = spend.SpendTypeId ?? 0,
-
+				IsPurchase = spend.IsPurchase,
+				MethodId = spend.CurrencyConverterMethodId
 			};
 
 			foreach (var spendOnPeriod in spend.SpendOnPeriod)
