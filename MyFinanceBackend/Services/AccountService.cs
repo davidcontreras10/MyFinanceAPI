@@ -55,9 +55,9 @@ namespace MyFinanceBackend.Services
 	        _accountRepository.DeleteAccount(userId, accountId);
         }
 
-        public void AddAccount(string userId, ClientAddAccount clientAddAccount)
+        public async Task AddAccountAsync(string userId, ClientAddAccount clientAddAccount)
         {
-	        _accountRepository.AddAccount(userId, clientAddAccount);
+	        await _accountRepository.AddAccountAsync(userId, clientAddAccount);
         }
 
 		public async Task<AddAccountViewModel> GetAddAccountViewModelAsync(string userId)

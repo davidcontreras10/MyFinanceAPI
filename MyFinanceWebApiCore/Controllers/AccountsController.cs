@@ -62,10 +62,10 @@ namespace MyFinanceWebApiCore.Controllers
 
 		//[ValidateModelState]
 		[HttpPost]
-		public void AddAccount([FromBody] ClientAddAccount clientAddAccount)
+		public async Task AddAccount([FromBody] ClientAddAccount clientAddAccount)
 		{
 			var userId = GetUserId();
-			_accountService.AddAccount(userId, clientAddAccount);
+			await _accountService.AddAccountAsync(userId, clientAddAccount);
 		}
 
 		[Route("{accountId}/notes")]
