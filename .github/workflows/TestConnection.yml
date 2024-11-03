@@ -33,7 +33,7 @@ jobs:
           namespace TempSqlTestApp {
             public class Program {
               public static void Main() {
-                var connectionString = $"Server=tcp:${{ env.AZURE_SQL_SERVER }},1433;Initial Catalog=${{ env.AZURE_SQL_DATABASE }};Persist Security Info=False;User ID=${{ env.AZURE_CLIENT_ID }};Password=${{ env.AZURE_CLIENT_SECRET }};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Authentication=\"Active Directory Password\"";
+                var connectionString = $"Server=tcp:${{ env.AZURE_SQL_SERVER }},1433;Initial Catalog=${{ env.AZURE_SQL_DATABASE }};Persist Security Info=False;User ID=${{ env.AZURE_CLIENT_ID }};Password=${{ env.AZURE_CLIENT_SECRET }};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Authentication=\"Active Directory Service Principal\";Authority Id=${{ env.AZURE_TENANT_ID }}";
                 using (var connection = new SqlConnection(connectionString)) {
                   connection.Open();
                   Console.WriteLine("Connected successfully.");
