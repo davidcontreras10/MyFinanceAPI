@@ -26,19 +26,22 @@ jobs:
 
       - name: Write TestConnection Program
         run: |
-          echo 'using System;' > TempSqlTestApp/Program.cs
-          echo 'using Microsoft.Data.SqlClient;' >> TempSqlTestApp/Program.cs
-          echo 'namespace TempSqlTestApp {' >> TempSqlTestApp/Program.cs
-          echo '  public class Program {' >> TempSqlTestApp/Program.cs
-          echo '    public static void Main() {' >> TempSqlTestApp/Program.cs
-          echo '      var connectionString = $"Server=tcp:${{ env.AZURE_SQL_SERVER }},1433;Initial Catalog=${{ env.AZURE_SQL_DATABASE }};Persist Security Info=False;User ID=${{ env.AZURE_CLIENT_ID }};Password=${{ env.AZURE_CLIENT_SECRET }};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Authentication=\\"Active Directory Password\\"";' >> TempSqlTestApp/Program.cs
-          echo '      using (var connection = new SqlConnection(connectionString)) {' >> TempSqlTestApp/Program.cs
-          echo '        connection.Open();' >> TempSqlTestApp/Program.cs
-          echo '        Console.WriteLine("Connected successfully.");' >> TempSqlTestApp/Program.cs
-          echo '      }' >> TempSqlTestApp/Program.cs
-          echo '    }' >> TempSqlTestApp/Program.cs
-          echo '  }' >> TempSqlTestApp/Program.cs
-          echo '}' >> TempSqlTestApp/Program.cs
+          cat << EOF > TempSqlTestApp/Program.cs
+          using System;
+          using Microsoft.Data.SqlClient;
+
+          namespace TempSqlTestApp {
+            public class Program {
+              public static void Main() {
+                var connectionString = $"Server=tcp:${{ env.AZURE_SQL_SERVER }},1433;Initial Catalog=${{ env.AZURE_SQL_DATABASE }};Persist Security Info=False;User ID=${{ env.AZURE_CLIENT_ID }};Password=${{ env.AZURE_CLIENT_SECRET }};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Authentication=\"Active Directory Password\"";
+                using (var connection = new SqlConnection(connectionString)) {
+                  connection.Open();
+                  Console.WriteLine("Connected successfully.");
+                }
+              }
+            }
+          }
+          EOF
 
       - name: Run SQL Connection Test
         run: dotnet run --project TempSqlTestApp
