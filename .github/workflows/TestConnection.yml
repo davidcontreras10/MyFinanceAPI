@@ -1,0 +1,41 @@
+name: Test Azure SQL Connection
+
+on:
+  workflow_dispatch: # Trigger manually for testing
+
+jobs:
+  test-azure-sql-connection:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '7.x'  # Specify the version of .NET you need
+
+      - name: Install SQL Client
+        run: dotnet add package Microsoft.Data.SqlClient
+
+      - name: Parse Azure Credentials
+        id: parse_credentials
+        run: |
+          echo "AZURE_CLIENT_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.clientId')" >> $GITHUB_ENV
+          echo "AZURE_CLIENT_SECRET=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.clientSecret')" >> $GITHUB_ENV
+          echo "AZURE_TENANT_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.tenantId')" >> $GITHUB_ENV
+          echo "AZURE_SQL_SERVER=dcontre10.database.windows.net" >> $GITHUB_ENV
+          echo "AZURE_SQL_DATABASE=MYFNDB" >> $GITHUB_ENV
+
+      - name: Test Azure SQL Database Connection
+        run: |
+          echo 'using System; using Microsoft.Data.SqlClient;' > TestConnection.cs
+          echo 'namespace ConnectionTest {' >> TestConnection.cs
+          echo '  public class Program {' >> TestConnection.cs
+          echo '    public static void Main() {' >> TestConnection.cs
+          echo '      var connectionString = $"Server=tcp:${{ env.AZURE_SQL_SERVER }},1433;Initial Catalog=${{ env.AZURE_SQL_DATABASE }};Persist Security Info=False;User ID=${{ env.AZURE_CLIENT_ID }};Password=${{ env.AZURE_CLIENT_SECRET }};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Authentication=\\"Active Directory Password\\"";' >> TestConnection.cs
+          echo '      using (var connection = new SqlConnection(connectionString)) {' >> TestConnection.cs
+          echo '        connection.Open();' >> TestConnection.cs
+          echo '        Console.WriteLine("Connected successfully.");' >> TestConnection.cs
+          echo '      }' >> TestConnection.cs
+          echo '    }' >> TestConnection.cs
+          echo '  }' >> TestConnection.cs
+          echo '}' >> TestConnection.cs
+          dotnet run TestConnection.cs
