@@ -30,7 +30,7 @@ jobs:
       - name: Parse Azure Credentials
         id: parse_credentials
         run: |
-          $creds = ${{ secrets.AZURE_CREDENTIALS }} | ConvertFrom-Json
+          $creds = ConvertFrom-Json '${{ secrets.AZURE_CREDENTIALS }}'
           echo "AZURE_CLIENT_ID=$($creds.clientId)" >> $env:GITHUB_ENV
           echo "AZURE_CLIENT_SECRET=$($creds.clientSecret)" >> $env:GITHUB_ENV
           echo "AZURE_TENANT_ID=$($creds.tenantId)" >> $env:GITHUB_ENV
