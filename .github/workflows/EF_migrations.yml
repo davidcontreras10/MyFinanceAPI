@@ -4,10 +4,7 @@
 name: Run EF Migrations
 
 on:
-  push:
-    branches:
-      - master
-  workflow_dispatch:
+  workflow_dispatch: # Trigger manually for testing
 
 jobs:
   build:
