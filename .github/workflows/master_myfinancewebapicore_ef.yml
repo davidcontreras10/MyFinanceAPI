@@ -1,0 +1,81 @@
+# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
+# More GitHub Actions for Azure: https://github.com/Azure/actions
+
+name: Build and deploy ASP.Net Core app to Azure Web App - MyFinanceWebApiCore
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET Core
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '8.0'
+          include-prerelease: true
+
+      - name: Build with dotnet
+        run: dotnet build --configuration Release
+
+# Added: Parsing Azure credentials and running migrations
+
+      - name: Parse Azure Credentials
+        id: parse_credentials
+        run: |
+          $creds = ConvertFrom-Json '${{ secrets.AZURE_CREDENTIALS }}'
+          echo "AZURE_CLIENT_ID=$($creds.clientId)" >> $env:GITHUB_ENV
+          echo "AZURE_CLIENT_SECRET=$($creds.clientSecret)" >> $env:GITHUB_ENV
+          echo "AZURE_TENANT_ID=$($creds.tenantId)" >> $env:GITHUB_ENV
+          echo "AZURE_SQL_SERVER=dcontre10.database.windows.net" >> $env:GITHUB_ENV
+          echo "AZURE_SQL_DATABASE=MYFNDB" >> $env:GITHUB_ENV
+
+      - name: Install dotnet-ef
+        run: dotnet tool install --global dotnet-ef
+
+      - name: Run EF Migrations
+        env:
+          ConnectionStrings__DefaultConnection: "Server=tcp:${{ env.AZURE_SQL_SERVER }},1433;Initial Catalog=${{ env.AZURE_SQL_DATABASE }};Persist Security Info=False;User ID=${{ env.AZURE_CLIENT_ID }};Password=${{ env.AZURE_CLIENT_SECRET }};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Authentication=\"Active Directory Service Principal\";"
+        run: dotnet ef database update --project EFDataAccess --context EFDataAccess.Models.MyFinanceContext
+
+
+# Original deployment steps follow this section
+
+
+      - name: dotnet publish
+        run: dotnet publish -c Release -o ${{env.DOTNET_ROOT}}/myapp
+
+      - name: Upload artifact for deployment job
+        uses: actions/upload-artifact@v3
+        with:
+          name: .net-app
+          path: ${{env.DOTNET_ROOT}}/myapp
+
+  deploy:
+    runs-on: windows-latest
+    needs: build
+    environment:
+      name: 'Production'
+      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+    
+    steps:
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v3
+        with:
+          name: .net-app
+      
+      - name: Deploy to Azure Web App
+        id: deploy-to-webapp
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: 'MyFinanceWebApiCore'
+          slot-name: 'Production'
+          package: .
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_B3316619E592439C9B1E0C6532A20EFE }}
