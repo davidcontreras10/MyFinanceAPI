@@ -81,7 +81,7 @@ namespace EFDataAccess.Repositories
 			return accountIds;
 		}
 
-		public void AddAccount(string userId, ClientAddAccount clientAddAccount)
+		public async Task AddAccountAsync(string userId, ClientAddAccount clientAddAccount)
 		{
 			var efAccount = new Account
 			{
@@ -99,7 +99,7 @@ namespace EFDataAccess.Repositories
 				DefaultSelectIsPending = clientAddAccount.IsDefaultPending
 			};
 
-			Context.Account.Add(efAccount);
+			await Context.Account.AddAsync(efAccount);
 			var efAccoountIncludes = clientAddAccount.AccountIncludes != null && clientAddAccount.AccountIncludes.Any()
 				? clientAddAccount.AccountIncludes.Select(acci => new AccountInclude
 				{
@@ -110,10 +110,10 @@ namespace EFDataAccess.Repositories
 				: null;
 			if (efAccoountIncludes != null)
 			{
-				Context.AccountInclude.AddRange(efAccoountIncludes);
+				await Context.AccountInclude.AddRangeAsync(efAccoountIncludes);
 			}
 
-			Context.SaveChanges();
+			await Context.SaveChangesAsync();
 		}
 
 		public void DeleteAccount(string userId, int accountId)

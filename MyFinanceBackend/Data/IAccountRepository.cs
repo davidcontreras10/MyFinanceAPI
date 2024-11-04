@@ -25,7 +25,7 @@ namespace MyFinanceBackend.Data
 		Task<AccountMainViewModel> GetAccountDetailsViewModelAsync(string userId, int? accountGroupId);
 		UserAccountsViewModel GetAccountsByUserId(string userId);
 		void DeleteAccount(string userId, int accountId);
-		void AddAccount(string userId, ClientAddAccount clientAddAccount);
+		Task AddAccountAsync(string userId, ClientAddAccount clientAddAccount);
 		Task<AddAccountViewModel> GetAddAccountViewModelAsync(string userId);
 		Task<IEnumerable<ItemModified>> UpdateAccountPositionsAsync(string userId,
 			IEnumerable<ClientAccountPosition> accountPositions);
