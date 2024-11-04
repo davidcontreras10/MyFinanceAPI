@@ -27,6 +27,9 @@ jobs:
 
 # Added: Parsing Azure credentials and running migrations
 
+      - name: Install dotnet-ef
+        run: dotnet tool install --global dotnet-ef
+
       - name: Parse Azure Credentials
         id: parse_credentials
         run: |
@@ -36,12 +39,15 @@ jobs:
           echo "AZURE_SQL_SERVER=dcontre10.database.windows.net" >> $GITHUB_ENV
           echo "AZURE_SQL_DATABASE=MYFNDB" >> $GITHUB_ENV
 
-      - name: Install dotnet-ef
-        run: dotnet tool install --global dotnet-ef
+      - name: Set Connection String
+        env:
+          AZURE_CLIENT_ID: ${{ env.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ env.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ env.AZURE_TENANT_ID }}
+        run: |
+          echo "ConnectionStrings__DefaultConnection=Server=tcp:${{ env.AZURE_SQL_SERVER }},1433;Initial Catalog=${{ env.AZURE_SQL_DATABASE }};Persist Security Info=False;User ID=${{ env.AZURE_CLIENT_ID }};Password=${{ env.AZURE_CLIENT_SECRET }};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Authentication=\"Active Directory Service Principal\";" >> $GITHUB_ENV
 
       - name: Run EF Migrations
-        env:
-          ConnectionStrings__DefaultConnection: "Server=tcp:${{ env.AZURE_SQL_SERVER }},1433;Initial Catalog=${{ env.AZURE_SQL_DATABASE }};Persist Security Info=False;User ID=${{ env.AZURE_CLIENT_ID }};Password=${{ env.AZURE_CLIENT_SECRET }};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Authentication=\"Active Directory Service Principal\";"
         run: dotnet ef database update --project EFDataAccess --context EFDataAccess.Models.MyFinanceContext
 
 
