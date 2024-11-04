@@ -38,7 +38,7 @@ jobs:
       - name: Run EF Migrations
         env:
           ConnectionStrings__DefaultConnection: "Server=tcp:${{ env.AZURE_SQL_SERVER }},1433;Initial Catalog=${{ env.AZURE_SQL_DATABASE }};Persist Security Info=False;User ID=${{ env.AZURE_CLIENT_ID }};Password=${{ env.AZURE_CLIENT_SECRET }};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Authentication=\"Active Directory Service Principal\";"
-        run: dotnet ef database update --project EFDataAccess --context EFDataAccess.Models.MyFinanceContext
+        run: dotnet ef database update --project MyFinanceWebApiCore --context EFDataAccess.Models.MyFinanceContext
 
       - name: dotnet publish
         run: dotnet publish -c Release -o ${{env.DOTNET_ROOT}}/myapp

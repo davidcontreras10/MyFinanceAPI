@@ -1,10 +1,10 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using EFDataAccess.Models;
 using Microsoft.EntityFrameworkCore.Design;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using System;
 using System.IO;
 
-namespace EFDataAccess.Models
+namespace MyFinanceWebApiCore.Models
 {
 	public class MyFinanceContextFactory : IDesignTimeDbContextFactory<MyFinanceContext>
 	{
