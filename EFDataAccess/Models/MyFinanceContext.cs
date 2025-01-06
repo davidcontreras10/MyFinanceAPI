@@ -71,6 +71,37 @@ namespace EFDataAccess.Models
 
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{
+			modelBuilder.Entity<EFDebtRequest>(entity =>
+			{
+				const string tableName = "DebtRequest";
+				entity.ToTable(tableName);
+				entity.HasKey(x => x.Id);
+				entity.HasOne(x => x.DebtorSpend)
+					.WithMany()
+					.HasForeignKey(x => x.DebtorSpendId)
+					.HasConstraintName($"{tableName}_FK_DebtorSpendId");
+
+				entity.HasOne(x => x.CreditorSpend)
+					.WithMany()
+					.HasForeignKey(x => x.CreditorSpendId)
+					.HasConstraintName($"{tableName}_FK_CreditorSpendId");
+
+				entity.HasOne(x => x.Currency)
+					.WithMany()
+					.HasForeignKey(x => x.CurrencyId)
+					.HasConstraintName($"{tableName}_FK_CurrencyId");
+
+				entity.HasOne(x => x.DebtorUser)
+					.WithMany(x => x.DebtorDebtRequests)
+					.HasForeignKey(x => x.DebtorUserId)
+					.HasConstraintName($"{tableName}_FK_DebtorUserId");
+
+				entity.HasOne(x => x.CreditorUser)
+					.WithMany(x => x.CreditorDebtRequests)
+					.HasForeignKey(x => x.CreditorUserId)
+					.HasConstraintName($"{tableName}_FK_CreditorUserId");
+			});
+
 			modelBuilder.Entity<EFBankTransaction>(entity =>
 			{
 				const string tableName = "BankTransaction";

@@ -18,7 +18,9 @@ namespace EFDataAccess.Models
             InverseCreatedByUser = new HashSet<AppUser>();
             UserBankSummaryAccount = new HashSet<UserBankSummaryAccount>();
             UserSpendType = new HashSet<UserSpendType>();
-        }
+			DebtorDebtRequests = new HashSet<EFDebtRequest>();
+			CreditorDebtRequests = new HashSet<EFDebtRequest>();
+		}
 
         public string Username { get; set; }
         public string Name { get; set; }
@@ -35,5 +37,7 @@ namespace EFDataAccess.Models
         public virtual ICollection<AppUser> InverseCreatedByUser { get; set; }
         public virtual ICollection<UserBankSummaryAccount> UserBankSummaryAccount { get; set; }
         public virtual ICollection<UserSpendType> UserSpendType { get; set; }
-    }
+		public virtual ICollection<EFDebtRequest> DebtorDebtRequests { get; set; }
+		public virtual ICollection<EFDebtRequest> CreditorDebtRequests { get; set; }
+	}
 }
