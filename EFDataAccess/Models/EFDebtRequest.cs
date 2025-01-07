@@ -1,15 +1,20 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace EFDataAccess.Models
 {
 	public class EFDebtRequest
 	{
+		public EFDebtRequest()
+		{
+			DebtorSpends = [];
+			CreditorSpends = [];
+		}
+
 		public int Id { get; set; }
-		public Guid DebtorUserId { get; set; }
-		public Guid CreditorUserId { get; set; }
-		public bool MarkedAsPaid { get; set; }
-		public int? DebtorSpendId { get; set; }
-		public int? CreditorSpendId { get; set; }
+
+		public bool DebtorMarkedAsPaid { get; set; }
+		public bool CreditorMarkedAsPaid { get; set; }
 		public string EventName { get; set; }
 		public string EventDescription { get; set; }
 		public DateTime CreatedDate { get; set; }
@@ -17,10 +22,46 @@ namespace EFDataAccess.Models
 		public decimal Amount { get; set; }
 		public int CurrencyId { get; set; }
 
-		public virtual Spend DebtorSpend { get; set; }
-		public virtual Spend CreditorSpend { get; set; }
+		public virtual ICollection<Spend> DebtorSpends { get; set; }
+		public virtual ICollection<Spend> CreditorSpends { get; set; }
 		public virtual Currency Currency { get; set; }
-		public virtual AppUser DebtorUser { get; set; }
-		public virtual AppUser CreditorUser { get; set; }
+
+		public Guid? CreditorId { get; set; }
+		public Guid? DebtorId { get; set; }
+
+		public AppUser CreditorUser { get; set; }
+		public AppUser DebtorUser { get; set; }
+
+		public DebtorUserDetails DebtorDetails { get; set; }
+		public CreditorUserDetails CreditorDetails { get; set; }
+
+		public enum DebtorRequestStatus
+		{
+			Undefined = 0,
+			Pending = 1,
+			Paid = 2,
+			Rejected = 3
+		}
+
+		public enum CreditorRequestStatus
+		{
+			Undefined = 0,
+			Pending = 1,
+			Paid = 2
+		}
+
+		public class DebtorUserDetails
+		{
+			public Guid UserId { get; set; }
+            public DebtorRequestStatus Status { get; set; }
+            public AppUser User { get; set; }
+        }
+
+		public class CreditorUserDetails
+		{
+			public Guid UserId { get; set; }
+			public CreditorRequestStatus Status { get; set; }
+			public AppUser User { get; set; }
+		}
 	}
 }

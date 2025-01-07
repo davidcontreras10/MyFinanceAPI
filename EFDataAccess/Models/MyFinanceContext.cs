@@ -76,30 +76,35 @@ namespace EFDataAccess.Models
 				const string tableName = "DebtRequest";
 				entity.ToTable(tableName);
 				entity.HasKey(x => x.Id);
-				entity.HasOne(x => x.DebtorSpend)
-					.WithMany()
-					.HasForeignKey(x => x.DebtorSpendId)
-					.HasConstraintName($"{tableName}_FK_DebtorSpendId");
-
-				entity.HasOne(x => x.CreditorSpend)
-					.WithMany()
-					.HasForeignKey(x => x.CreditorSpendId)
-					.HasConstraintName($"{tableName}_FK_CreditorSpendId");
 
 				entity.HasOne(x => x.Currency)
 					.WithMany()
 					.HasForeignKey(x => x.CurrencyId)
 					.HasConstraintName($"{tableName}_FK_CurrencyId");
 
-				entity.HasOne(x => x.DebtorUser)
-					.WithMany(x => x.DebtorDebtRequests)
-					.HasForeignKey(x => x.DebtorUserId)
-					.HasConstraintName($"{tableName}_FK_DebtorUserId");
-
 				entity.HasOne(x => x.CreditorUser)
 					.WithMany(x => x.CreditorDebtRequests)
-					.HasForeignKey(x => x.CreditorUserId)
-					.HasConstraintName($"{tableName}_FK_CreditorUserId");
+					.HasForeignKey(x => x.CreditorId)
+					.HasConstraintName($"{tableName}_FK_CreditorId")
+					.OnDelete(DeleteBehavior.Restrict);
+
+				entity.HasOne(x => x.DebtorUser)
+					.WithMany(x => x.DebtorDebtRequests)
+					.HasForeignKey(x => x.DebtorId)
+					.HasConstraintName($"{tableName}_FK_DebtorId")
+					.OnDelete(DeleteBehavior.Restrict);
+
+				entity.OwnsOne(x => x.CreditorDetails, creditor =>
+				{
+					creditor.WithOwner();
+					creditor.Property(x => x.UserId).HasColumnName(nameof(EFDebtRequest.CreditorId));
+				});
+
+				entity.OwnsOne(x => x.DebtorDetails, debtor =>
+				{
+					debtor.WithOwner();
+					debtor.Property(x => x.UserId).HasColumnName(nameof(EFDebtRequest.DebtorId));
+				});
 			});
 
 			modelBuilder.Entity<EFBankTransaction>(entity =>
@@ -708,6 +713,16 @@ namespace EFDataAccess.Models
 					.WithMany(p => p.Spends)
 					.HasForeignKey(d => d.CurrencyConverterMethodId)
 					.HasConstraintName("Spend_FK_CurrencyConverterMethodId");
+
+				entity.HasOne(d => d.DebtorDebtRequest)
+				.WithMany(p => p.DebtorSpends)
+					.HasForeignKey(d => d.DebtorDebtRequestId)
+					.HasConstraintName("Spend_FK_DebtorDebtRequestId");
+
+				entity.HasOne(d => d.CreditorDebtRequest)
+				.WithMany(p => p.CreditorSpends)
+					.HasForeignKey(d => d.CreditorDebtRequestId)
+					.HasConstraintName("Spend_FK_CreditorDebtRequestId");
 			});
 
 			modelBuilder.Entity<EFAppTransfer>(entity =>
