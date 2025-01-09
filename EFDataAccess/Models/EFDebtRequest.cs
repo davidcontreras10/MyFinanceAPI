@@ -29,11 +29,11 @@ namespace EFDataAccess.Models
 		public Guid? CreditorId { get; set; }
 		public Guid? DebtorId { get; set; }
 
-		public AppUser CreditorUser { get; set; }
-		public AppUser DebtorUser { get; set; }
+		public virtual AppUser CreditorUser { get; set; }
+		public virtual AppUser DebtorUser { get; set; }
 
-		public DebtorUserDetails DebtorDetails { get; set; }
-		public CreditorUserDetails CreditorDetails { get; set; }
+        public DebtorRequestStatus DebtorStatus { get; set; }
+		public CreditorRequestStatus CreditorStatus { get; set; }
 
 		public enum DebtorRequestStatus
 		{

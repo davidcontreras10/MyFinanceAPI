@@ -93,18 +93,6 @@ namespace EFDataAccess.Models
 					.HasForeignKey(x => x.DebtorId)
 					.HasConstraintName($"{tableName}_FK_DebtorId")
 					.OnDelete(DeleteBehavior.Restrict);
-
-				entity.OwnsOne(x => x.CreditorDetails, creditor =>
-				{
-					creditor.WithOwner();
-					creditor.Property(x => x.UserId).HasColumnName(nameof(EFDebtRequest.CreditorId));
-				});
-
-				entity.OwnsOne(x => x.DebtorDetails, debtor =>
-				{
-					debtor.WithOwner();
-					debtor.Property(x => x.UserId).HasColumnName(nameof(EFDebtRequest.DebtorId));
-				});
 			});
 
 			modelBuilder.Entity<EFBankTransaction>(entity =>
