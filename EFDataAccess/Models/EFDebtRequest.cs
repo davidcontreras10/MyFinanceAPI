@@ -13,8 +13,6 @@ namespace EFDataAccess.Models
 
 		public int Id { get; set; }
 
-		public bool DebtorMarkedAsPaid { get; set; }
-		public bool CreditorMarkedAsPaid { get; set; }
 		public string EventName { get; set; }
 		public string EventDescription { get; set; }
 		public DateTime CreatedDate { get; set; }
