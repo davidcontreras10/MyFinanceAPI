@@ -1,5 +1,7 @@
-﻿using System;
+﻿using MyFinanceModel.Enums;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace MyFinanceModel
 {
@@ -14,5 +16,10 @@ namespace MyFinanceModel
         public IReadOnlyCollection<AppRole> Roles { get; set; }
 
         #endregion
+
+        public bool HasRole(RoleId role)
+        {
+            return Roles != null && Roles.Any(x => x.RoleId == role);
+        }
     }
 }

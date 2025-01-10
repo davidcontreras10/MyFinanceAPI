@@ -1,4 +1,5 @@
 ﻿using MyFinanceBackend.Data;
+using MyFinanceModel.Enums;
 using MyFinanceModel.ViewModel;
 using System;
 using System.Linq;
@@ -12,7 +13,7 @@ namespace MyFinanceBackend.Services
 		{
 			var currencies = await unitOfWork.CurrenciesRepository.GetCurrenciesAsync();
 			var users = await unitOfWork.UserRepository.GetAppUsersAsync();
-			var usersVm = users.Where(x => x.UserId != userId).Select(x =>
+			var usersVm = users.Where(x => x.UserId != userId && x.HasRole(RoleId.User)).Select(x =>
 			{
 				return new BasicUserViewModel
 				{

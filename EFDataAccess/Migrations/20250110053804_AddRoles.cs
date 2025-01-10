@@ -20,10 +20,6 @@ namespace EFDataAccess.Migrations
                 table: "AppUser",
                 newName: "AppUserUserId");
 
-            migrationBuilder.RenameIndex(
-                name: "IX_AppUser_CreatedByUserId",
-                table: "AppUser",
-                newName: "IX_AppUser_AppUserUserId");
 
             migrationBuilder.CreateTable(
                 name: "AppRole",

@@ -1,14 +1,11 @@
 ﻿using EFDataAccess.Models;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using MyFinanceBackend.Constants;
 using MyFinanceBackend.Data;
 using MyFinanceModel;
 using MyFinanceModel.ClientViewModel;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace EFDataAccess.Repositories
@@ -27,6 +24,7 @@ namespace EFDataAccess.Repositories
 		public async Task<IReadOnlyCollection<MyFinanceModel.AppUser>> GetAppUsersAsync()
 		{
 			return await Context.AppUser.AsNoTracking()
+				.Include(x => x.UserRoles)
 				.Select(x => ToAppUser(x))
 				.ToListAsync();
 		}
@@ -127,7 +125,13 @@ namespace EFDataAccess.Repositories
 				Name = appUser.Name,
 				PrimaryEmail = appUser.PrimaryEmail,
 				UserId = appUser.UserId,
-				Username = appUser.Username
+				Username = appUser.Username,
+				Roles = appUser.UserRoles.Select(x => new AppRole
+				{
+					Id = x.Id,
+					Name = x.Name,
+					Level = x.Level
+				}).ToList()
 			};
 		}
 	}

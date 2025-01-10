@@ -137,7 +137,7 @@ namespace MyFinanceWebApiCore
 			services.AddDbContext<MyFinanceContext>(
 				options =>
 				{
-					options.UseSqlServer(Configuration.GetConnectionString("SqlServerLocalConnection"))
+					options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection"))
 					.UseLoggerFactory(loggerFactory)  // Set the logger factory
 					.EnableSensitiveDataLogging();
 
