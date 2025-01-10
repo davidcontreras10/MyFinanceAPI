@@ -286,11 +286,6 @@ namespace EFDataAccess.Models
 				entity.Property(e => e.Username)
 					.IsRequired()
 					.HasMaxLength(100);
-
-				entity.HasOne(d => d.CreatedByUser)
-					.WithMany(p => p.InverseCreatedByUser)
-					.HasForeignKey(d => d.CreatedByUserId)
-					.HasConstraintName("AppUser_FK_CreatedByUserId");
 			});
 
 			modelBuilder.Entity<AppUserOwner>(entity =>

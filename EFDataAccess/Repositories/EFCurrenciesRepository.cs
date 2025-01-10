@@ -24,5 +24,18 @@ namespace EFDataAccess.Repositories
 				})
 				.ToListAsync();
 		}
+
+		public async Task<IReadOnlyCollection<BasicCurrencyViewModel>> GetCurrenciesAsync()
+		{
+			return await Context.Currency.AsNoTracking()
+				.Select(x => new BasicCurrencyViewModel
+				{
+					CurrencyId = x.CurrencyId,
+					CurrencyName = x.Name,
+					Symbol = x.Symbol,
+					IsoCode = x.IsoCode
+				})
+				.ToListAsync();
+		}
 	}
 }

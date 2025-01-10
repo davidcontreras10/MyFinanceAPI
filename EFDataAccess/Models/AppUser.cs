@@ -27,7 +27,6 @@ namespace EFDataAccess.Models
         public string Password { get; set; }
         public Guid UserId { get; set; }
         public string PrimaryEmail { get; set; }
-        public Guid? CreatedByUserId { get; set; }
 
         public virtual AppUser CreatedByUser { get; set; }
         public virtual ICollection<Account> Account { get; set; }

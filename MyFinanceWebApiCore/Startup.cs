@@ -23,6 +23,7 @@ using System.Collections.Generic;
 using System;
 using MyFinanceModel.Enums;
 using EFDataAccess;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace MyFinanceWebApiCore
 {
@@ -89,7 +90,7 @@ namespace MyFinanceWebApiCore
 								Id="Bearer"
 							}
 						},
-						new string[]{}
+						Array.Empty<string>()
 					}
 				});
 			});
@@ -163,6 +164,7 @@ namespace MyFinanceWebApiCore
 			services.AddScoped<IAccountGroupService, AccountGroupService>();
 			services.AddScoped<IAppTransactionsSubService, AppTransactionsSubService>();
 			services.AddScoped<ITransfersMigrationService, TransfersMigrationService>();
+			services.AddScoped<IDebtRequestService, DebtRequestService>();
 
 			services.AddScoped<IBankTransactionsRepository, EFBankTransactionsRepository>();
 			services.AddScoped<IAccountGroupRepository, EFAccountGroupRepository>();
@@ -182,6 +184,7 @@ namespace MyFinanceWebApiCore
 			services.AddScoped<IScheduledTasksService, ScheduledTasksService>();
 			services.AddScoped<IAccountFinanceService, AccountFinanceService>();
 			services.AddScoped<ILoanService, LoanService>();
+			services.AddScoped<IDebtRequestRepository, EFDebtRequestRepository>();
 			RegisterFileReaders(services);
 		}
 

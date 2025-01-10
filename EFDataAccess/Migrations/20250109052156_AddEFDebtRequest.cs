@@ -33,7 +33,7 @@ namespace EFDataAccess.Migrations
                     EventDescription = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     EventDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    Amount = table.Column<decimal>(type: "decimal(18,5)", nullable: false),
                     CurrencyId = table.Column<int>(type: "int", nullable: false),
                     CreditorId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     DebtorId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),

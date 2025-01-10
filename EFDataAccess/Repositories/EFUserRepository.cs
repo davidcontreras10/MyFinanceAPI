@@ -24,6 +24,13 @@ namespace EFDataAccess.Repositories
 			throw new NotImplementedException();
 		}
 
+		public async Task<IReadOnlyCollection<MyFinanceModel.AppUser>> GetAppUsersAsync()
+		{
+			return await Context.AppUser.AsNoTracking()
+				.Select(x => ToAppUser(x))
+				.ToListAsync();
+		}
+
 		public async Task<LoginResult> AttemptToLoginAsync(string username, string encryptedPassword)
 		{
 			var appUser = await Context.AppUser.AsNoTracking()
