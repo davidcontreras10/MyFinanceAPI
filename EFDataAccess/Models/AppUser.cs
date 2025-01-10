@@ -20,6 +20,7 @@ namespace EFDataAccess.Models
             UserSpendType = new HashSet<UserSpendType>();
 			DebtorDebtRequests = new HashSet<EFDebtRequest>();
 			CreditorDebtRequests = new HashSet<EFDebtRequest>();
+            UserRoles = new HashSet<EFAppRole>();
 		}
 
         public string Username { get; set; }
@@ -28,7 +29,7 @@ namespace EFDataAccess.Models
         public Guid UserId { get; set; }
         public string PrimaryEmail { get; set; }
 
-        public virtual AppUser CreatedByUser { get; set; }
+        public virtual ICollection<EFAppRole> UserRoles { get; set; }
         public virtual ICollection<Account> Account { get; set; }
         public virtual ICollection<AccountGroup> AccountGroup { get; set; }
         public virtual ICollection<AutomaticTask> AutomaticTask { get; set; }

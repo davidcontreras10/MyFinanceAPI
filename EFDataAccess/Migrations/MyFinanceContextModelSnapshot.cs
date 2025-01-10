@@ -233,7 +233,7 @@ namespace EFDataAccess.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasDefaultValueSql("(newid())");
 
-                    b.Property<Guid?>("CreatedByUserId")
+                    b.Property<Guid?>("AppUserUserId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Name")
@@ -259,7 +259,7 @@ namespace EFDataAccess.Migrations
                     b.HasKey("UserId")
                         .HasName("PK_User");
 
-                    b.HasIndex("CreatedByUserId");
+                    b.HasIndex("AppUserUserId");
 
                     b.HasIndex("Username")
                         .IsUnique()
@@ -503,6 +503,27 @@ namespace EFDataAccess.Migrations
                     b.ToTable((string)null);
 
                     b.ToView(null, (string)null);
+                });
+
+            modelBuilder.Entity("EFDataAccess.Models.EFAppRole", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Level")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("AppRole", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.EFAppTransfer", b =>
@@ -1260,6 +1281,21 @@ namespace EFDataAccess.Migrations
                     b.ToTable("UserSpendType");
                 });
 
+            modelBuilder.Entity("UserRole", b =>
+                {
+                    b.Property<int>("RoleId")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("RoleId", "UserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("UserRole");
+                });
+
             modelBuilder.Entity("EFDataAccess.Models.Account", b =>
                 {
                     b.HasOne("EFDataAccess.Models.AccountGroup", "AccountGroup")
@@ -1397,12 +1433,9 @@ namespace EFDataAccess.Migrations
 
             modelBuilder.Entity("EFDataAccess.Models.AppUser", b =>
                 {
-                    b.HasOne("EFDataAccess.Models.AppUser", "CreatedByUser")
+                    b.HasOne("EFDataAccess.Models.AppUser", null)
                         .WithMany("InverseCreatedByUser")
-                        .HasForeignKey("CreatedByUserId")
-                        .HasConstraintName("AppUser_FK_CreatedByUserId");
-
-                    b.Navigation("CreatedByUser");
+                        .HasForeignKey("AppUserUserId");
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.AppUserOwner", b =>
@@ -1884,6 +1917,21 @@ namespace EFDataAccess.Migrations
                     b.Navigation("SpendType");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("UserRole", b =>
+                {
+                    b.HasOne("EFDataAccess.Models.EFAppRole", null)
+                        .WithMany()
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("EFDataAccess.Models.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.Account", b =>

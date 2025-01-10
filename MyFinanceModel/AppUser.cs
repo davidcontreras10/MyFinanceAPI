@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace MyFinanceModel
 {
@@ -10,6 +11,7 @@ namespace MyFinanceModel
         public string Name { set; get; }
         public Guid UserId { get; set; }
         public string PrimaryEmail { get; set; }
+        public IReadOnlyCollection<AppRole> Roles { get; set; }
 
         #endregion
     }

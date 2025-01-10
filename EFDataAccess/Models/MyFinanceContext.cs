@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -66,11 +68,24 @@ namespace EFDataAccess.Models
 		public virtual DbSet<UserSpendType> UserSpendType { get; set; }
 		public virtual DbSet<EFBankTransaction> BankTransactions { get; set; }
 		public virtual DbSet<EFAppTransfer> AppTransfers { get; set; }
+		public virtual DbSet<EFAppRole> AppRoles { get; set; }
 
 		#endregion
 
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{
+			modelBuilder.Entity<EFAppRole>(entity =>
+			{
+				const string tableName = "AppRole";
+				entity.ToTable(tableName);
+				entity.HasKey(e => e.Id);
+
+				entity.Property(e => e.Name)
+					.IsRequired()
+					.HasMaxLength(100);
+
+			});
+
 			modelBuilder.Entity<EFDebtRequest>(entity =>
 			{
 				const string tableName = "DebtRequest";
@@ -237,7 +252,7 @@ namespace EFDataAccess.Models
 					.WithMany(p => p.AccountPeriod)
 					.HasForeignKey(d => d.CurrencyId)
 					.HasConstraintName("AccountPeriod_FK_CurrencyId");
-				entity.Property(p=>p.AccountPeriodId)
+				entity.Property(p => p.AccountPeriodId)
 					.UseIdentityColumn();
 			});
 
@@ -286,6 +301,14 @@ namespace EFDataAccess.Models
 				entity.Property(e => e.Username)
 					.IsRequired()
 					.HasMaxLength(100);
+
+				entity.HasMany(entity => entity.UserRoles)
+					.WithMany(r => r.Users)
+					.UsingEntity<Dictionary<string, object>>(
+						"UserRole", // Name of the join table
+						j => j.HasOne<EFAppRole>().WithMany().HasForeignKey("RoleId"),
+						j => j.HasOne<AppUser>().WithMany().HasForeignKey("UserId")
+					);
 			});
 
 			modelBuilder.Entity<AppUserOwner>(entity =>
