@@ -1,14 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace MyFinanceModel.ViewModel
-{
-	public record class BasicUserViewModel
-	{
-		public Guid UserId { get; set; }
-		public string Username { get; set; }
-        public string Name { get; set; }
-    }
+namespace MyFinanceModel.ViewModel;
 
-	public record class CreateSimpleDebtRequestVm(IReadOnlyCollection<BasicCurrencyViewModel> SupportedCurrencies, IReadOnlyCollection<BasicUserViewModel> SupportedUsers);
-}
+public record BasicUserViewModel(Guid UserId, string Username, string Name);
+
+public record CreateSimpleDebtRequestVm(IReadOnlyCollection<BasicCurrencyViewModel> SupportedCurrencies, IReadOnlyCollection<BasicUserViewModel> SupportedUsers);
+
+

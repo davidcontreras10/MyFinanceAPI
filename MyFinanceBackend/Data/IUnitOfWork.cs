@@ -15,6 +15,7 @@ namespace MyFinanceBackend.Data
 		IFinancialEntitiesRepository FinancialEntitiesRepository { get; }
 		IBankTransactionsRepository BankTransactionsRepository { get; }
 		IAccountRepository AccountRepository { get; }
+		IDebtRequestRepository DebtRequestRepository { get; }
 		Task StartTransactionAsync();
 		Task CommitTransactionAsync();
 		Task RollbackAsync();

@@ -69,6 +69,7 @@ namespace EFDataAccess.Models
 		public virtual DbSet<EFBankTransaction> BankTransactions { get; set; }
 		public virtual DbSet<EFAppTransfer> AppTransfers { get; set; }
 		public virtual DbSet<EFAppRole> AppRoles { get; set; }
+		public virtual DbSet<EFDebtRequest> DebtRequests { get; set; }
 
 		#endregion
 
