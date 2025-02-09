@@ -1067,7 +1067,7 @@ namespace MyFinanceBackend.Services
 				AccountId = Ut.GetInt(dataRow, DatabaseConstants.COL_ACCOUNT_ID),
 				CurrencyId = Ut.GetInt(dataRow, DatabaseConstants.COL_CURRENCY_ID),
 				CurrencyName = Ut.GetString(dataRow, DatabaseConstants.COL_CURRENCY_NAME),
-				Isdefault = Ut.GetBool(dataRow, DatabaseConstants.COL_IS_DEFAULT),
+				IsDefault = Ut.GetBool(dataRow, DatabaseConstants.COL_IS_DEFAULT),
 				Symbol = Ut.GetString(dataRow, DatabaseConstants.COL_CURRENCY_SYMBOL),
 				MethodIds = new List<MethodId>()
 			};

@@ -671,7 +671,7 @@ namespace EFDataAccess.Repositories
 				CurrencyName = spend.AmountCurrency.Name,
 				Symbol = spend.AmountCurrency.Symbol,
 				MethodIds = [method],
-				Isdefault = true
+				IsDefault = true
 			};
 
 			var accountIncludeViewModels = otherSops.Select(sop => new AccountIncludeViewModel
@@ -738,7 +738,7 @@ namespace EFDataAccess.Repositories
 							IsSelected = x.IsDefault ?? false
 						}
 					},
-					Isdefault = x.IsDefault ?? false,
+					IsDefault = x.IsDefault ?? false,
 				})
 				.ToListAsync();
 
@@ -872,7 +872,7 @@ namespace EFDataAccess.Repositories
 						CurrencyName = ccmCurrency.Name,
 						MethodIds = new List<MethodId>(),
 						Symbol = ccmCurrency.Symbol,
-						Isdefault = ccmCurrency.CurrencyId == defaultCurrencyId
+						IsDefault = ccmCurrency.CurrencyId == defaultCurrencyId
 					};
 
 					currencies.Add(currency);

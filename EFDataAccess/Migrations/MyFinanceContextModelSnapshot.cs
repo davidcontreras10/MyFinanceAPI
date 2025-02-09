@@ -233,7 +233,7 @@ namespace EFDataAccess.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasDefaultValueSql("(newid())");
 
-                    b.Property<Guid?>("CreatedByUserId")
+                    b.Property<Guid?>("AppUserUserId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Name")
@@ -259,7 +259,7 @@ namespace EFDataAccess.Migrations
                     b.HasKey("UserId")
                         .HasName("PK_User");
 
-                    b.HasIndex("CreatedByUserId");
+                    b.HasIndex("AppUserUserId");
 
                     b.HasIndex("Username")
                         .IsUnique()
@@ -505,6 +505,27 @@ namespace EFDataAccess.Migrations
                     b.ToView(null, (string)null);
                 });
 
+            modelBuilder.Entity("EFDataAccess.Models.EFAppRole", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Level")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("AppRole", (string)null);
+                });
+
             modelBuilder.Entity("EFDataAccess.Models.EFAppTransfer", b =>
                 {
                     b.Property<int>("SourceAppTrxId")
@@ -557,6 +578,55 @@ namespace EFDataAccess.Migrations
                     b.HasIndex("FinancialEntityId");
 
                     b.ToTable("BankTransaction", (string)null);
+                });
+
+            modelBuilder.Entity("EFDataAccess.Models.EFDebtRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreditorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("CreditorStatus")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CurrencyId")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("DebtorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("DebtorStatus")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("EventDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("EventDescription")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("EventName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreditorId");
+
+                    b.HasIndex("CurrencyId");
+
+                    b.HasIndex("DebtorId");
+
+                    b.ToTable("DebtRequest", (string)null);
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.EFLoginResult", b =>
@@ -971,7 +1041,13 @@ namespace EFDataAccess.Migrations
                     b.Property<int>("AmountTypeId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("CreditorDebtRequestId")
+                        .HasColumnType("int");
+
                     b.Property<int?>("CurrencyConverterMethodId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DebtorDebtRequestId")
                         .HasColumnType("int");
 
                     b.Property<double?>("Denominator")
@@ -1016,7 +1092,11 @@ namespace EFDataAccess.Migrations
 
                     b.HasIndex("AmountTypeId");
 
+                    b.HasIndex("CreditorDebtRequestId");
+
                     b.HasIndex("CurrencyConverterMethodId");
+
+                    b.HasIndex("DebtorDebtRequestId");
 
                     b.HasIndex("SpendTypeId");
 
@@ -1201,6 +1281,21 @@ namespace EFDataAccess.Migrations
                     b.ToTable("UserSpendType");
                 });
 
+            modelBuilder.Entity("UserRole", b =>
+                {
+                    b.Property<int>("RoleId")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("RoleId", "UserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("UserRole");
+                });
+
             modelBuilder.Entity("EFDataAccess.Models.Account", b =>
                 {
                     b.HasOne("EFDataAccess.Models.AccountGroup", "AccountGroup")
@@ -1338,12 +1433,9 @@ namespace EFDataAccess.Migrations
 
             modelBuilder.Entity("EFDataAccess.Models.AppUser", b =>
                 {
-                    b.HasOne("EFDataAccess.Models.AppUser", "CreatedByUser")
+                    b.HasOne("EFDataAccess.Models.AppUser", null)
                         .WithMany("InverseCreatedByUser")
-                        .HasForeignKey("CreatedByUserId")
-                        .HasConstraintName("AppUser_FK_CreatedByUserId");
-
-                    b.Navigation("CreatedByUser");
+                        .HasForeignKey("AppUserUserId");
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.AppUserOwner", b =>
@@ -1472,6 +1564,34 @@ namespace EFDataAccess.Migrations
                     b.Navigation("Currency");
 
                     b.Navigation("FinancialEntity");
+                });
+
+            modelBuilder.Entity("EFDataAccess.Models.EFDebtRequest", b =>
+                {
+                    b.HasOne("EFDataAccess.Models.AppUser", "CreditorUser")
+                        .WithMany("CreditorDebtRequests")
+                        .HasForeignKey("CreditorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("DebtRequest_FK_CreditorId");
+
+                    b.HasOne("EFDataAccess.Models.Currency", "Currency")
+                        .WithMany()
+                        .HasForeignKey("CurrencyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("DebtRequest_FK_CurrencyId");
+
+                    b.HasOne("EFDataAccess.Models.AppUser", "DebtorUser")
+                        .WithMany("DebtorDebtRequests")
+                        .HasForeignKey("DebtorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("DebtRequest_FK_DebtorId");
+
+                    b.Navigation("CreditorUser");
+
+                    b.Navigation("Currency");
+
+                    b.Navigation("DebtorUser");
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.ExecutedTask", b =>
@@ -1611,10 +1731,20 @@ namespace EFDataAccess.Migrations
                         .IsRequired()
                         .HasConstraintName("Spend_FK_AmountTypeId");
 
+                    b.HasOne("EFDataAccess.Models.EFDebtRequest", "CreditorDebtRequest")
+                        .WithMany("CreditorSpends")
+                        .HasForeignKey("CreditorDebtRequestId")
+                        .HasConstraintName("Spend_FK_CreditorDebtRequestId");
+
                     b.HasOne("EFDataAccess.Models.CurrencyConverterMethod", "CurrencyConverterMethod")
                         .WithMany("Spends")
                         .HasForeignKey("CurrencyConverterMethodId")
                         .HasConstraintName("Spend_FK_CurrencyConverterMethodId");
+
+                    b.HasOne("EFDataAccess.Models.EFDebtRequest", "DebtorDebtRequest")
+                        .WithMany("DebtorSpends")
+                        .HasForeignKey("DebtorDebtRequestId")
+                        .HasConstraintName("Spend_FK_DebtorDebtRequestId");
 
                     b.HasOne("EFDataAccess.Models.SpendType", "SpendType")
                         .WithMany("Spend")
@@ -1625,7 +1755,11 @@ namespace EFDataAccess.Migrations
 
                     b.Navigation("AmountType");
 
+                    b.Navigation("CreditorDebtRequest");
+
                     b.Navigation("CurrencyConverterMethod");
+
+                    b.Navigation("DebtorDebtRequest");
 
                     b.Navigation("SpendType");
                 });
@@ -1785,6 +1919,21 @@ namespace EFDataAccess.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("UserRole", b =>
+                {
+                    b.HasOne("EFDataAccess.Models.EFAppRole", null)
+                        .WithMany()
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("EFDataAccess.Models.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("EFDataAccess.Models.Account", b =>
                 {
                     b.Navigation("AccountIncludeAccount");
@@ -1827,6 +1976,10 @@ namespace EFDataAccess.Migrations
                     b.Navigation("AccountGroup");
 
                     b.Navigation("AutomaticTask");
+
+                    b.Navigation("CreditorDebtRequests");
+
+                    b.Navigation("DebtorDebtRequests");
 
                     b.Navigation("ExecutedTask");
 
@@ -1876,6 +2029,13 @@ namespace EFDataAccess.Migrations
             modelBuilder.Entity("EFDataAccess.Models.EFBankTransaction", b =>
                 {
                     b.Navigation("Transactions");
+                });
+
+            modelBuilder.Entity("EFDataAccess.Models.EFDebtRequest", b =>
+                {
+                    b.Navigation("CreditorSpends");
+
+                    b.Navigation("DebtorSpends");
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.FinancialEntity", b =>

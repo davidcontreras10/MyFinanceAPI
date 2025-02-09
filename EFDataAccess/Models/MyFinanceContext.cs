@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -66,11 +68,49 @@ namespace EFDataAccess.Models
 		public virtual DbSet<UserSpendType> UserSpendType { get; set; }
 		public virtual DbSet<EFBankTransaction> BankTransactions { get; set; }
 		public virtual DbSet<EFAppTransfer> AppTransfers { get; set; }
+		public virtual DbSet<EFAppRole> AppRoles { get; set; }
+		public virtual DbSet<EFDebtRequest> DebtRequests { get; set; }
 
 		#endregion
 
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{
+			modelBuilder.Entity<EFAppRole>(entity =>
+			{
+				const string tableName = "AppRole";
+				entity.ToTable(tableName);
+				entity.HasKey(e => e.Id);
+
+				entity.Property(e => e.Name)
+					.IsRequired()
+					.HasMaxLength(100);
+
+			});
+
+			modelBuilder.Entity<EFDebtRequest>(entity =>
+			{
+				const string tableName = "DebtRequest";
+				entity.ToTable(tableName);
+				entity.HasKey(x => x.Id);
+
+				entity.HasOne(x => x.Currency)
+					.WithMany()
+					.HasForeignKey(x => x.CurrencyId)
+					.HasConstraintName($"{tableName}_FK_CurrencyId");
+
+				entity.HasOne(x => x.CreditorUser)
+					.WithMany(x => x.CreditorDebtRequests)
+					.HasForeignKey(x => x.CreditorId)
+					.HasConstraintName($"{tableName}_FK_CreditorId")
+					.OnDelete(DeleteBehavior.Restrict);
+
+				entity.HasOne(x => x.DebtorUser)
+					.WithMany(x => x.DebtorDebtRequests)
+					.HasForeignKey(x => x.DebtorId)
+					.HasConstraintName($"{tableName}_FK_DebtorId")
+					.OnDelete(DeleteBehavior.Restrict);
+			});
+
 			modelBuilder.Entity<EFBankTransaction>(entity =>
 			{
 				const string tableName = "BankTransaction";
@@ -213,7 +253,7 @@ namespace EFDataAccess.Models
 					.WithMany(p => p.AccountPeriod)
 					.HasForeignKey(d => d.CurrencyId)
 					.HasConstraintName("AccountPeriod_FK_CurrencyId");
-				entity.Property(p=>p.AccountPeriodId)
+				entity.Property(p => p.AccountPeriodId)
 					.UseIdentityColumn();
 			});
 
@@ -263,10 +303,13 @@ namespace EFDataAccess.Models
 					.IsRequired()
 					.HasMaxLength(100);
 
-				entity.HasOne(d => d.CreatedByUser)
-					.WithMany(p => p.InverseCreatedByUser)
-					.HasForeignKey(d => d.CreatedByUserId)
-					.HasConstraintName("AppUser_FK_CreatedByUserId");
+				entity.HasMany(entity => entity.UserRoles)
+					.WithMany(r => r.Users)
+					.UsingEntity<Dictionary<string, object>>(
+						"UserRole", // Name of the join table
+						j => j.HasOne<EFAppRole>().WithMany().HasForeignKey("RoleId"),
+						j => j.HasOne<AppUser>().WithMany().HasForeignKey("UserId")
+					);
 			});
 
 			modelBuilder.Entity<AppUserOwner>(entity =>
@@ -677,6 +720,16 @@ namespace EFDataAccess.Models
 					.WithMany(p => p.Spends)
 					.HasForeignKey(d => d.CurrencyConverterMethodId)
 					.HasConstraintName("Spend_FK_CurrencyConverterMethodId");
+
+				entity.HasOne(d => d.DebtorDebtRequest)
+				.WithMany(p => p.DebtorSpends)
+					.HasForeignKey(d => d.DebtorDebtRequestId)
+					.HasConstraintName("Spend_FK_DebtorDebtRequestId");
+
+				entity.HasOne(d => d.CreditorDebtRequest)
+				.WithMany(p => p.CreditorSpends)
+					.HasForeignKey(d => d.CreditorDebtRequestId)
+					.HasConstraintName("Spend_FK_CreditorDebtRequestId");
 			});
 
 			modelBuilder.Entity<EFAppTransfer>(entity =>

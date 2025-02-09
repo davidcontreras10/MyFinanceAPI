@@ -28,6 +28,9 @@ namespace EFDataAccess.Models
 		public DateTime? UtcRecordDate { get; set; }
 		public bool? IsPurchase { get; set; }
 		public int? CurrencyConverterMethodId { get; set; }
+        public int? DebtorDebtRequestId { get; set; }
+		public int? CreditorDebtRequestId { get; set; }
+
 
 		public virtual Currency AmountCurrency { get; set; }
         public virtual AmountType AmountType { get; set; }
@@ -37,6 +40,8 @@ namespace EFDataAccess.Models
         public virtual EFAppTransfer SourceAppTransfer { get; set; }
 		public virtual EFAppTransfer DestinationAppTransfer { get; set; }
         public virtual CurrencyConverterMethod CurrencyConverterMethod { get; set; }
+		public virtual EFDebtRequest DebtorDebtRequest { get; set; }
+		public virtual EFDebtRequest CreditorDebtRequest { get; set; }
 
 		private static readonly Dictionary<int, int> AmountSign = new()
 		{

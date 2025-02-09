@@ -7,5 +7,6 @@ namespace MyFinanceBackend.Data
 	public interface ICurrenciesRepository
 	{
 		Task<IReadOnlyCollection<CurrencyViewModel>> GetCurrenciesByCodesAsync(IEnumerable<string> codes);
+		Task<IReadOnlyCollection<BasicCurrencyViewModel>> GetCurrenciesAsync();
 	}
 }

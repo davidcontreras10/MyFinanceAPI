@@ -5,6 +5,7 @@ namespace MyFinanceBackend.Data
 {
 	public interface IUnitOfWork
 	{
+		IUserRespository UserRepository { get; }
 		ITransferRepository TransferRepository { get; }
 		IAppTransferRepository AppTransferRepository { get; }
 		ISpendTypeRepository SpendTypeRepository { get; }
@@ -14,6 +15,7 @@ namespace MyFinanceBackend.Data
 		IFinancialEntitiesRepository FinancialEntitiesRepository { get; }
 		IBankTransactionsRepository BankTransactionsRepository { get; }
 		IAccountRepository AccountRepository { get; }
+		IDebtRequestRepository DebtRequestRepository { get; }
 		Task StartTransactionAsync();
 		Task CommitTransactionAsync();
 		Task RollbackAsync();

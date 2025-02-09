@@ -59,7 +59,7 @@ namespace MyFinanceBackend.Services
 
 			var accountId = accountInfo.AccountId;
 			var currencies = await GetPossibleCurrenciesAsync(accountId, userId);
-			var currencyId = currencies.First(c => c.Isdefault).CurrencyId;
+			var currencyId = currencies.First(c => c.IsDefault).CurrencyId;
 			var accounts = await transferRepository.GetPossibleDestinationAccountAsync(accountPeriodId, currencyId, userId);
 			accounts = await GetOrderAccountViewModelsAsync(accounts, userId);
 			var spendTypes = await spendTypeRepository.GetSpendTypeByAccountViewModelsAsync(userId, accountId);
