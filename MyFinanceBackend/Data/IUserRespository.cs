@@ -7,7 +7,8 @@ namespace MyFinanceBackend.Data
 {
     public interface IUserRespository : ITransactional
     {
-        Task<AppUser> GetUserByUserIdAsync(string userId);
+        Task<IReadOnlyCollection<AppUser>> GetAppUsersAsync();
+		Task<AppUser> GetUserByUserIdAsync(string userId);
 		Task<IEnumerable<AppUser>> GetOwendUsersByUserIdAsync(string userId);
         Task<AppUser> GetUserByUsernameAsync(string username);
         Task<LoginResult> AttemptToLoginAsync(string username, string encryptedPassword);
