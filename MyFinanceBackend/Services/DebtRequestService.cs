@@ -11,6 +11,18 @@ namespace MyFinanceBackend.Services
 {
 	public class DebtRequestService(IUnitOfWork unitOfWork) : IDebtRequestService
 	{
+		public async Task<UserDebtRequestVm> UpdateCreditorStatusAsync(int debtRequestId, CreditorRequestStatus status)
+		{
+			var debtRequest = await unitOfWork.DebtRequestRepository.UpdateCreditorStatusAsync(debtRequestId, status);
+			return debtRequest;
+		}
+
+		public async Task<UserDebtRequestVm> UpdateDebtorStatusAsync(int debtRequestId, DebtorRequestStatus status)
+		{
+			var debtRequest = await unitOfWork.DebtRequestRepository.UpdateDebtorStatusAsync(debtRequestId, status);
+			return debtRequest;
+		}
+
 		public async Task<CreateSimpleDebtRequestVm> GetCreateSimpleDebtRequestVmAsync(Guid userId)
 		{
 			var currencies = await unitOfWork.CurrenciesRepository.GetCurrenciesAsync();
@@ -23,7 +35,7 @@ namespace MyFinanceBackend.Services
 			return new CreateSimpleDebtRequestVm(currencies, usersVm);
 		}
 
-		public async Task<DebtRequestVm> CreateSimpleDebtRequestAsync(ClientDebtRequest clientDebtRequest)
+		public async Task<UserDebtRequestVm> CreateSimpleDebtRequestAsync(ClientDebtRequest clientDebtRequest)
 		{
 			return await unitOfWork.DebtRequestRepository.CreateSimpleDebtRequestAsync(clientDebtRequest);
 		}
@@ -33,7 +45,7 @@ namespace MyFinanceBackend.Services
 			await unitOfWork.DebtRequestRepository.DeleteDebtRequestAsync(debtRequestId);
 		}
 
-		public async Task<IReadOnlyCollection<DebtRequestVm>> GetDebtRequestByUserIdAsync(Guid userId)
+		public async Task<IReadOnlyCollection<UserDebtRequestVm>> GetDebtRequestByUserIdAsync(Guid userId)
 		{
 			return await unitOfWork.DebtRequestRepository.GetDebtRequestsByUserAsync(userId);
 		}

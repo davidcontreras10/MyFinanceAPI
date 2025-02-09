@@ -3,6 +3,7 @@ using EFDataAccess.Models;
 using Microsoft.EntityFrameworkCore;
 using MyFinanceBackend.Data;
 using MyFinanceModel.ClientViewModel;
+using MyFinanceModel.Enums;
 using MyFinanceModel.ViewModel;
 using System;
 using System.Collections.Generic;
@@ -13,7 +14,35 @@ namespace EFDataAccess.Repositories
 {
 	public class EFDebtRequestRepository(MyFinanceContext context) : BaseEFRepository(context), IDebtRequestRepository
 	{
-		public async Task<DebtRequestVm> CreateSimpleDebtRequestAsync(ClientDebtRequest simpleDebtRequest)
+		public async Task<UserDebtRequestVm> UpdateCreditorStatusAsync(int debtRequestId, CreditorRequestStatus status)
+		{
+			var debtRequest = Context.DebtRequests
+				.Where(x => x.Id == debtRequestId)
+				.Include(x => x.Currency)
+				.Include(x => x.CreditorUser)
+				.Include(x => x.DebtorUser)
+				.Single();
+
+			debtRequest.CreditorStatus = status;
+			await Context.SaveChangesAsync();
+			return debtRequest.ToDebtRequestVm<UserDebtRequestVm>(debtRequest.CreditorId);
+		}
+
+		public async Task<UserDebtRequestVm> UpdateDebtorStatusAsync(int debtRequestId, DebtorRequestStatus status)
+		{
+			var debtRequest = Context.DebtRequests
+				.Where(x => x.Id == debtRequestId)
+				.Include(x => x.Currency)
+				.Include(x => x.CreditorUser)
+				.Include(x => x.DebtorUser)
+				.Single();
+
+			debtRequest.DebtorStatus = status;
+			await Context.SaveChangesAsync();
+			return debtRequest.ToDebtRequestVm<UserDebtRequestVm>(debtRequest.DebtorId);
+		}
+
+		public async Task<UserDebtRequestVm> CreateSimpleDebtRequestAsync(ClientDebtRequest simpleDebtRequest)
 		{
 			var debtRequest = new EFDebtRequest
 			{
@@ -23,14 +52,17 @@ namespace EFDataAccess.Repositories
 				Amount = simpleDebtRequest.Amount,
 				CurrencyId = simpleDebtRequest.CurrencyId,
 				CreditorId = simpleDebtRequest.CreditorId,
-				DebtorId = simpleDebtRequest.DebtorId
+				DebtorId = simpleDebtRequest.DebtorId,
+				CreditorStatus = CreditorRequestStatus.Pending,
+				DebtorStatus = DebtorRequestStatus.Pending,
+				CreatedDate = DateTime.UtcNow
 			};
 			await Context.DebtRequests.AddAsync(debtRequest);
 			await Context.SaveChangesAsync();
 			await Context.Entry(debtRequest).Reference(x => x.Currency).LoadAsync();
 			await Context.Entry(debtRequest).Reference(x => x.CreditorUser).LoadAsync();
 			await Context.Entry(debtRequest).Reference(x => x.DebtorUser).LoadAsync();
-			return debtRequest.ToDebtRequestVm();
+			return debtRequest.ToDebtRequestVm<UserDebtRequestVm>(simpleDebtRequest.CreditorId);
 		}
 
 		public async Task DeleteDebtRequestAsync(int debtRequestId)
@@ -54,10 +86,10 @@ namespace EFDataAccess.Repositories
 				.Include(x => x.DebtorUser)
 				.ToListAsync();
 			
-			return debtRequests.Select(x => x.ToDebtRequestVm()).ToList();
+			return debtRequests.Select(x => x.ToDebtRequestVm<DebtRequestVm>()).ToList();
 		}
 
-		public async Task<IReadOnlyCollection<DebtRequestVm>> GetDebtRequestsByUserAsync(Guid userId)
+		public async Task<IReadOnlyCollection<UserDebtRequestVm>> GetDebtRequestsByUserAsync(Guid userId)
 		{
 			var debtRequests = await Context.DebtRequests.AsNoTracking()
 				.Where(x => x.CreditorId == userId || x.DebtorId == userId)
@@ -66,7 +98,7 @@ namespace EFDataAccess.Repositories
 				.Include(x => x.DebtorUser)
 				.ToListAsync();
 
-			return debtRequests.Select(x => x.ToDebtRequestVm()).ToList();
+			return debtRequests.Select(x => x.ToDebtRequestVm<UserDebtRequestVm>(userId)).ToList();
 		}
 	}
 }

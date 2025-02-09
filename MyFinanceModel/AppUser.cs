@@ -1,4 +1,5 @@
 ﻿using MyFinanceModel.Enums;
+using MyFinanceModel.ViewModel;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -6,7 +7,7 @@ using System.Linq;
 namespace MyFinanceModel
 {
     public class AppUser
-    {
+	{
         #region Attributes 
 
         public string Username { set; get; }

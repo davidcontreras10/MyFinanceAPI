@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MyFinanceModel.Enums;
+using System;
 using System.Collections.Generic;
 
 namespace EFDataAccess.Models
@@ -33,20 +34,7 @@ namespace EFDataAccess.Models
         public DebtorRequestStatus DebtorStatus { get; set; }
 		public CreditorRequestStatus CreditorStatus { get; set; }
 
-		public enum DebtorRequestStatus
-		{
-			Undefined = 0,
-			Pending = 1,
-			Paid = 2,
-			Rejected = 3
-		}
 
-		public enum CreditorRequestStatus
-		{
-			Undefined = 0,
-			Pending = 1,
-			Paid = 2
-		}
 
 		public class DebtorUserDetails
 		{

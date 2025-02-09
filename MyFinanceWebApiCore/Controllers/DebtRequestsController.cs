@@ -14,7 +14,7 @@ namespace MyFinanceWebApiCore.Controllers
 	public class DebtRequestsController(IDebtRequestService debtRequestService) : BaseApiController
     {
 		[HttpGet]
-		public async Task<IReadOnlyCollection<DebtRequestVm>> GetDebtRequestsByUserAsync()
+		public async Task<IReadOnlyCollection<UserDebtRequestVm>> GetDebtRequestsByUserAsync()
 		{
 			var userId = new Guid(GetUserId());
 			return await debtRequestService.GetDebtRequestByUserIdAsync(userId);
@@ -27,8 +27,23 @@ namespace MyFinanceWebApiCore.Controllers
 			return await debtRequestService.GetCreateSimpleDebtRequestVmAsync(userId);
 		}
 
-		[HttpPost("simple")]
-		public async Task<DebtRequestVm> CreateDebtRequest([FromBody] NewSimpleDebtRequest newDebtRequest)
+		[HttpPut("{debtRequestId}/creditor/status")]
+		public async Task<ActionResult<UserDebtRequestVm>> UpdateDebtRequestStatusAsync(int debtRequestId, [FromBody] UpdateCreditorStatusReq request)
+		{
+			var debRequest = await debtRequestService.UpdateCreditorStatusAsync(debtRequestId, request.Status);
+			return Ok(debRequest);
+		}
+
+		[HttpPut("{debtRequestId}/debtor/status")]
+		public async Task<ActionResult<UserDebtRequestVm>> UpdateDebtRequestStatusAsync(int debtRequestId, [FromBody] UpdateDebtorStatusReq request)
+		{
+			var debRequest = await debtRequestService.UpdateDebtorStatusAsync(debtRequestId, request.Status);
+			return Ok(debRequest);
+		}
+
+
+		[HttpPost]
+		public async Task<UserDebtRequestVm> CreateDebtRequest([FromBody] NewSimpleDebtRequest newDebtRequest)
 		{
 			var userId = new Guid(GetUserId());
 			var debtRequest = new ClientDebtRequest

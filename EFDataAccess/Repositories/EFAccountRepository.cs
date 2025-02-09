@@ -276,7 +276,7 @@ namespace EFDataAccess.Repositories
 					CurrencyId = c.CurrencyId,
 					CurrencyName = c.Name,
 					Symbol = c.Symbol,
-					Isdefault = c.CurrencyId == acc.CurrencyId
+					IsDefault = c.CurrencyId == acc.CurrencyId
 				}),
 				AccountGroupViewModels = efAccountGroups.Select(accg => new AccountGroupViewModel
 				{

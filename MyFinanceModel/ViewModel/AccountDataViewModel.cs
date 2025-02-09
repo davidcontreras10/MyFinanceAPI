@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using MyFinanceModel.ClientViewModel;
 using MyFinanceModel.Utilities;
 
@@ -237,13 +236,12 @@ namespace MyFinanceModel.ViewModel
 		public bool IsSelected => IsDefault;
 	}
 
-	public class CurrencyViewModel : BasicCurrencyViewModel, IDropDownSelectable
+	public class CurrencyViewModel : BasicCurrencyViewModel
 	{
 		#region Attributes
 
 		public int AccountId { get; set; }
 		public IEnumerable<MethodId> MethodIds { get; set; }
-		public bool Isdefault { get; set; }
 
 		#endregion
 	}
