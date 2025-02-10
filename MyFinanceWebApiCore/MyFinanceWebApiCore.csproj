@@ -5,6 +5,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Models\MyFinanceContextFactory.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Azure.Identity" Version="1.12.0" />
     <PackageReference Include="DContre.MyFinance.StUtilities" Version="1.0.0" />
     <PackageReference Include="DContre.MyFinance.WebApiBaseConsumer" Version="1.0.0" />
