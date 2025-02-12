@@ -15,7 +15,6 @@ namespace MyFinanceWebApiCore.Models
 			var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
 			var configurationBuilder = new ConfigurationBuilder()
 				.SetBasePath(Directory.GetCurrentDirectory())
-				.AddEnvironmentVariables()
 				.AddJsonFile("appsettings.json");
 
 			if (!string.IsNullOrWhiteSpace(environment))
@@ -23,6 +22,7 @@ namespace MyFinanceWebApiCore.Models
 				configurationBuilder.AddJsonFile($"appsettings.{environment}.json", optional: true);
 			}
 
+			configurationBuilder = configurationBuilder.AddEnvironmentVariables();
 			var configuration = configurationBuilder.Build();
 			var optionsBuilder = new DbContextOptionsBuilder<MyFinanceContext>();
 			var connectionString = configuration.GetConnectionString("DefaultConnection");
@@ -31,3 +31,4 @@ namespace MyFinanceWebApiCore.Models
 		}
 	}
 }
+
