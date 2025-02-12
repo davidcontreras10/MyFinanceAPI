@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using System.IO;
+using System;
 
 namespace MyFinanceWebApiCore.Models
 {
@@ -10,16 +11,24 @@ namespace MyFinanceWebApiCore.Models
 	{
 		public MyFinanceContext CreateDbContext(string[] args)
 		{
-			var config = new ConfigurationBuilder()
+			//System.Diagnostics.Debugger.Launch();
+			var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+			var configurationBuilder = new ConfigurationBuilder()
 				.SetBasePath(Directory.GetCurrentDirectory())
-				.AddJsonFile("appsettings.json", optional: true)
-				.AddEnvironmentVariables()
-				.Build();
+				.AddJsonFile("appsettings.json");
 
+			if (!string.IsNullOrWhiteSpace(environment))
+			{
+				configurationBuilder.AddJsonFile($"appsettings.{environment}.json", optional: true);
+			}
+
+			configurationBuilder = configurationBuilder.AddEnvironmentVariables();
+			var configuration = configurationBuilder.Build();
 			var optionsBuilder = new DbContextOptionsBuilder<MyFinanceContext>();
-			optionsBuilder.UseSqlServer(config.GetConnectionString("DefaultConnection"));
-
+			var connectionString = configuration.GetConnectionString("DefaultConnection");
+			optionsBuilder.UseSqlServer(connectionString);
 			return new MyFinanceContext(optionsBuilder.Options);
 		}
 	}
 }
+
