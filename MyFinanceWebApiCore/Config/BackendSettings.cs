@@ -4,14 +4,9 @@ using static MyFinanceWebApiCore.Config.AppSettings;
 
 namespace MyFinanceWebApiCore.Config
 {
-	public class BackendSettings : IBackendSettings
+	public class BackendSettings(IOptions<ServicesUrls> servicesUrls) : IBackendSettings
 	{
-		private readonly ServicesUrls _servicesUrls;
-
-		public BackendSettings(IOptions<ServicesUrls> servicesUrls)
-		{
-			_servicesUrls = servicesUrls.Value;
-		}
+		private readonly ServicesUrls _servicesUrls = servicesUrls.Value;
 
 		public string CurrencyServiceUrl => _servicesUrls.CurrencyServiceUrl;
 	}

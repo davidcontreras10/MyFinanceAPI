@@ -23,7 +23,8 @@ using System.Collections.Generic;
 using System;
 using MyFinanceModel.Enums;
 using EFDataAccess;
-using Microsoft.Extensions.DependencyInjection.Extensions;
+using MongoDB.Driver;
+using Microsoft.Extensions.Options;
 
 namespace MyFinanceWebApiCore
 {
@@ -142,6 +143,8 @@ namespace MyFinanceWebApiCore
 					.EnableSensitiveDataLogging();
 
 				});
+
+			RegisterMongoDB(services);
 			services.AddSingleton<IBackendSettings, BackendSettings>();
 
 			services.AddSingleton<IFormFileExcelReader, EDRFormFileExcelReader>();
@@ -186,6 +189,20 @@ namespace MyFinanceWebApiCore
 			services.AddScoped<ILoanService, LoanService>();
 			services.AddScoped<IDebtRequestRepository, EFDebtRequestRepository>();
 			RegisterFileReaders(services);
+		}
+
+		private void RegisterMongoDB(IServiceCollection services)
+		{
+			services.Configure<MongoOptions>(
+				Configuration.GetSection(MongoOptions.SectionName)
+			);
+
+			services.AddSingleton(sp =>
+			{
+				var options = sp.GetRequiredService<IOptions<MongoOptions>>().Value;
+				var client = new MongoClient(options.ConnectionString);
+				return client.GetDatabase(options.DatabaseName);
+			});
 		}
 
 		private static void RegisterFileReaders(IServiceCollection services)
