@@ -25,6 +25,8 @@ using MyFinanceModel.Enums;
 using EFDataAccess;
 using MongoDB.Driver;
 using Microsoft.Extensions.Options;
+using MongoDB.Repositories;
+using MyFinanceBackend.APIs;
 
 namespace MyFinanceWebApiCore
 {
@@ -168,6 +170,8 @@ namespace MyFinanceWebApiCore
 			services.AddScoped<IAppTransactionsSubService, AppTransactionsSubService>();
 			services.AddScoped<ITransfersMigrationService, TransfersMigrationService>();
 			services.AddScoped<IDebtRequestService, DebtRequestService>();
+			services.AddScoped<IClassifiedExpensesCacheService, ClassifiedExpensesCacheService>();
+			services.AddScoped<IExpensesClassificationSubService, ExpensesClassificationSubService>();
 
 			services.AddScoped<IBankTransactionsRepository, EFBankTransactionsRepository>();
 			services.AddScoped<IAccountGroupRepository, EFAccountGroupRepository>();
@@ -183,6 +187,8 @@ namespace MyFinanceWebApiCore
 			services.AddScoped<IFinancialEntitiesRepository, EFFinancialEntitiesRepository>();
 			services.AddScoped<ICurrenciesRepository, EFCurrenciesRepository>();
 			services.AddScoped<IAppTransferRepository, EFAppTransferRepository>();
+			services.AddScoped<IGptClassifiedExpensesCacheRepository, GptClassifiedExpensesCacheRepository>();
+			services.AddScoped<IBankTrxCategorizationRepository, GptBankTrxCategorizationRepository>();
 
 			services.AddScoped<IScheduledTasksService, ScheduledTasksService>();
 			services.AddScoped<IAccountFinanceService, AccountFinanceService>();
@@ -200,7 +206,8 @@ namespace MyFinanceWebApiCore
 			services.AddSingleton(sp =>
 			{
 				var options = sp.GetRequiredService<IOptions<MongoOptions>>().Value;
-				var client = new MongoClient(options.ConnectionString);
+				var connectionString = Configuration.GetConnectionString("MongoDB");
+				var client = new MongoClient(connectionString);
 				return client.GetDatabase(options.DatabaseName);
 			});
 		}

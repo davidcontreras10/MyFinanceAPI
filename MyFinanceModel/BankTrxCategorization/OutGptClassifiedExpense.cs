@@ -1,6 +1,6 @@
 ﻿namespace MyFinanceModel.BankTrxCategorization
 {
-	public class OutGptClassifiedExpense
+	public class OutGptClassifiedExpense : IGptCacheKey
 	{
 		public string Id { get; set; }
 		public string Description { get; set; }

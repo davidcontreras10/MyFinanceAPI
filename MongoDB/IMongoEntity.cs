@@ -2,6 +2,6 @@
 {
 	public interface IMongoEntity<T>
 	{
-		T Id { get; set; }
+		T Id { get; }
 	}
 }

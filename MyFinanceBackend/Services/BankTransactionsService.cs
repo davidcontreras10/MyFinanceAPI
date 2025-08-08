@@ -99,8 +99,12 @@ namespace MyFinanceBackend.Services
 				return new BankTrxReqResp();
 			}
 
-			BankTrxReqResp response = new();
 			var financialEntity = await unitOfWork.FinancialEntitiesRepository.GetByFinancialEntityFile(financialEntityFile);
+			BankTrxReqResp response = new()
+			{
+				FinancialEntityFile = financialEntityFile,
+				FinancialEntityId = financialEntity.FinancialEntityId
+			};
 			var currencyCodes = fileBankTransactions.Select(r => r.CurrencyCode).Distinct().ToList();
 			var currencies = await unitOfWork.CurrenciesRepository.GetCurrenciesByCodesAsync(currencyCodes);
 			var dbBankTrxs = await unitOfWork.BankTransactionsRepository

@@ -2,7 +2,7 @@
 
 namespace MongoDB.Repositories
 {
-	internal abstract class MongoRepositoryBase<TDocument, Tid> where TDocument : class, IMongoEntity<Tid>
+	public abstract class MongoRepositoryBase<TDocument, Tid> where TDocument : class, IMongoEntity<Tid>
 	{
 		protected readonly IMongoCollection<TDocument> Collection;
 

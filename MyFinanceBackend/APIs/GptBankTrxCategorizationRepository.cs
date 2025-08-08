@@ -1,19 +1,24 @@
 ﻿using MyFinanceBackend.Data;
+using MyFinanceBackend.Models;
 using MyFinanceModel.BankTrxCategorization;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-using static MyFinanceBackend.APIs.BankTrxCategorizationRepository;
+using static MyFinanceBackend.APIs.GptBankTrxCategorizationRepository;
 
 namespace MyFinanceBackend.APIs
 {
-	public class BankTrxCategorizationRepository(IHttpClientFactory httpClientFactory) : IBankTrxCategorizationRepository
+	public class GptBankTrxCategorizationRepository(IHttpClientFactory httpClientFactory, IBackendSettings BackendSettings) : IBankTrxCategorizationRepository
 	{
+		private readonly OpenAISettings _openAISettings = BackendSettings.OpenAISettings;
+
 		public enum GptModel
 		{
 			Gpt35Turbo,
@@ -73,9 +78,9 @@ Important: Return only the JSON array, and do not include markdown formatting (n
 				temperature = 0.2
 			};
 
-			var requestJson = JsonSerializer.Serialize(requestBody);
-			var responseString = await CallOpenAIAsync(requestJson);
-			//var responseString = await openAICaller.FakeCallOpenAIAsync(requestJson);
+			var requestJson = JsonConvert.SerializeObject(requestBody);
+			//var responseString = await CallOpenAIAsync(requestJson);
+			var responseString = await FakeCallOpenAIAsync(requestJson);
 			using var doc = JsonDocument.Parse(responseString);
 			var rawContent = doc.RootElement
 				.GetProperty("choices")[0]
@@ -84,7 +89,7 @@ Important: Return only the JSON array, and do not include markdown formatting (n
 				.GetString();
 
 			rawContent = CleanGptJson(rawContent);
-			var classifiedExpenses = JsonSerializer.Deserialize<IReadOnlyCollection<OutGptClassifiedExpense>>(rawContent);
+			var classifiedExpenses = JsonConvert.DeserializeObject<IReadOnlyCollection<OutGptClassifiedExpense>>(rawContent);
 			CompleteClassifiedExpenseResults(inputExpenses, classifiedExpenses);
 			return classifiedExpenses ?? [];
 		}
@@ -122,13 +127,27 @@ Important: Return only the JSON array, and do not include markdown formatting (n
 			}
 		}
 
+		private static async Task<string> FakeCallOpenAIAsync(string _)
+		{
+			try
+			{
+				var fileContent = await File.ReadAllTextAsync("FakeOpenAIResponse.json");
+				return fileContent;
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"Error reading fake OpenAI response: {ex.Message}");
+				throw new Exception("Failed to read the fake OpenAI response file.", ex);
+			}
+		}
+
 		private async Task<string> CallOpenAIAsync(string requestJson)
 		{
-			var openAIAPIKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+			var openAIAPIKey = _openAISettings.ApiKey;
 			var httpClient = httpClientFactory.CreateClient("OpenAI");
 			httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", openAIAPIKey);
 			var response = await httpClient.PostAsync(
-				"https://api.openai.com/v1/chat/completions",
+				_openAISettings.ChatUrl,
 				new StringContent(requestJson, Encoding.UTF8, "application/json"));
 			response.EnsureSuccessStatusCode();
 			var responseString = await response.Content.ReadAsStringAsync();

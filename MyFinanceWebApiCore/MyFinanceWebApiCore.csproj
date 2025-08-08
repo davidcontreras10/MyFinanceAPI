@@ -28,6 +28,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\EFDataAccess\EFDataAccess.csproj" />
+    <ProjectReference Include="..\MongoDB\MongoDB.csproj" />
     <ProjectReference Include="..\MyFinanceBackend\MyFinanceBackend.csproj" />
     <ProjectReference Include="..\MyFinanceModel\MyFinanceModel.csproj" />
   </ItemGroup>
