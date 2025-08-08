@@ -79,8 +79,8 @@ Important: Return only the JSON array, and do not include markdown formatting (n
 			};
 
 			var requestJson = JsonConvert.SerializeObject(requestBody);
-			//var responseString = await CallOpenAIAsync(requestJson);
-			var responseString = await FakeCallOpenAIAsync(requestJson);
+			var responseString = await CallOpenAIAsync(requestJson);
+			//var responseString = await FakeCallOpenAIAsync(requestJson);
 			using var doc = JsonDocument.Parse(responseString);
 			var rawContent = doc.RootElement
 				.GetProperty("choices")[0]
