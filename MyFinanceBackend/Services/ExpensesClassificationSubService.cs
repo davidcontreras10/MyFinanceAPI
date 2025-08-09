@@ -30,17 +30,17 @@ namespace MyFinanceBackend.Services
 		{
 			var toClassifyData = await unitOfWork.BankTransactionsRepository.GetToClassifyBankTransactionsAsync(financialEntityId, refNumbers);
 			var expensesToClassify = toClassifyData.Select(BankTrxCategorizationMapper.ToExpenseToClassify).ToList();
-			var cachedResults = await GetCachedClassifiedExpensesAsync(expensesToClassify);
-			if (cachedResults.NotCachedItems.Count == 0)
+			var cacheSearchResults = await GetCachedClassifiedExpensesAsync(expensesToClassify);
+			if (cacheSearchResults.NotCachedItems.Count == 0)
 			{
-				return cachedResults.CachedItems;
+				return cacheSearchResults.CachedItems;
 			}
 
-			expensesToClassify = cachedResults.NotCachedItems;
+			expensesToClassify = cacheSearchResults.NotCachedItems;
 			var fromLastXMonthsDate = DateTime.UtcNow.AddMonths(LastHistoricalMonths * -1);
 			var classifiedData = await unitOfWork.BankTransactionsRepository.GetClassifiedBankTransactionsAsync(financialEntityId, userId, fromLastXMonthsDate);
 			var historicalExamples = classifiedData.Select(BankTrxCategorizationMapper.ToInHisotricClassfiedExpense);
-			historicalExamples = ExpenseDataCleanup<InHisotricClassfiedExpense>.Clean(historicalExamples.ToList());
+			historicalExamples = ExpenseDataCleanup<InHisotricClassfiedExpense>.Clean([.. historicalExamples]);
 
 			var spendTypes = await unitOfWork.SpendTypeRepository.GetSpendTypesAsync(userId, false);
 			var categories = spendTypes.Where(x => !string.IsNullOrWhiteSpace(x.SpendTypeName))
@@ -50,19 +50,25 @@ namespace MyFinanceBackend.Services
 			var accountDescriptions = accounts.Where(x => !string.IsNullOrWhiteSpace(x.AiClassificationHint) && !string.IsNullOrWhiteSpace(x.AccountName))
 				.Select(BankTrxCategorizationMapper.ToGptAccount).ToList();
 
-			var classificationResults = await bankTrxCategorizationRepository.ClassifyExpensesWithGptAsync(
+			var aiClassificationResults = await bankTrxCategorizationRepository.ClassifyExpensesWithGptAsync(
 				expensesToClassify,
 				categories,
 				accountDescriptions,
-				historicalExamples.ToList());
+				[.. historicalExamples]);
 
-			var cacheItems = classificationResults
+			var toCacheItems = aiClassificationResults
 				.Select(BankTrxCategorizationMapper.ToInGptClassifiedExpenseCache)
 				.ToList();
 
-			cacheItems.ApplyDescriptionNormalizations();
-			await classifiedExpensesCacheRepository.UpsertMultipleAsync(cacheItems);
-			return classificationResults;
+			toCacheItems.ApplyDescriptionNormalizations();
+			await classifiedExpensesCacheRepository.UpsertMultipleAsync(toCacheItems);
+			var cachedItemsResult = cacheSearchResults.CachedItems;
+			if (cachedItemsResult == null)
+			{
+				cachedItemsResult = [];
+			}
+			var allResults = cachedItemsResult.Concat(aiClassificationResults).ToList();
+			return allResults;
 		}
 
 		private async Task<CacheSearchResults> GetCachedClassifiedExpensesAsync(List<ExpenseToClassify> expenseToClassify)
