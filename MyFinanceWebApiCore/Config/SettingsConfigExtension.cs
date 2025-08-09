@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using MyFinanceBackend.Models;
 
 namespace MyFinanceWebApiCore.Config
 {
@@ -9,6 +10,7 @@ namespace MyFinanceWebApiCore.Config
 		{
 			services.Configure<AppSettings.AuthConfig>(configuration.GetSection("authentication"));
 			services.Configure<AppSettings.ServicesUrls>(configuration.GetSection("servicesUrls"));
+			services.Configure<OpenAISettings>(configuration.GetSection("OpenAI"));
 		}
 	}
 }

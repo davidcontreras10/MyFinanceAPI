@@ -33,7 +33,7 @@ namespace EFDataAccess.Repositories
 		{
 			var appUser = await Context.AppUser.AsNoTracking()
 				.Where(x => x.Username == username)
-				.SingleAsync();
+				.FirstOrDefaultAsync();
 			if (appUser == null)
 			{
 				return new LoginResult

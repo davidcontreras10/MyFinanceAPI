@@ -13,6 +13,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MyFinanceModel", "MyFinance
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MyFinanceBackend", "MyFinanceBackend\MyFinanceBackend.csproj", "{34EB41CD-86B7-46C1-BC4C-B96E2B1A30B5}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MongoDB", "MongoDB\MongoDB.csproj", "{FD64B9E9-9C93-48D4-86CF-9DA05656FEB4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		AzureProd|Any CPU = AzureProd|Any CPU
@@ -83,6 +85,18 @@ Global
 		{34EB41CD-86B7-46C1-BC4C-B96E2B1A30B5}.Prod|Any CPU.Build.0 = Debug|Any CPU
 		{34EB41CD-86B7-46C1-BC4C-B96E2B1A30B5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{34EB41CD-86B7-46C1-BC4C-B96E2B1A30B5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FD64B9E9-9C93-48D4-86CF-9DA05656FEB4}.AzureProd|Any CPU.ActiveCfg = Debug|Any CPU
+		{FD64B9E9-9C93-48D4-86CF-9DA05656FEB4}.AzureProd|Any CPU.Build.0 = Debug|Any CPU
+		{FD64B9E9-9C93-48D4-86CF-9DA05656FEB4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FD64B9E9-9C93-48D4-86CF-9DA05656FEB4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FD64B9E9-9C93-48D4-86CF-9DA05656FEB4}.DevTest|Any CPU.ActiveCfg = Debug|Any CPU
+		{FD64B9E9-9C93-48D4-86CF-9DA05656FEB4}.DevTest|Any CPU.Build.0 = Debug|Any CPU
+		{FD64B9E9-9C93-48D4-86CF-9DA05656FEB4}.PreProd|Any CPU.ActiveCfg = Debug|Any CPU
+		{FD64B9E9-9C93-48D4-86CF-9DA05656FEB4}.PreProd|Any CPU.Build.0 = Debug|Any CPU
+		{FD64B9E9-9C93-48D4-86CF-9DA05656FEB4}.Prod|Any CPU.ActiveCfg = Debug|Any CPU
+		{FD64B9E9-9C93-48D4-86CF-9DA05656FEB4}.Prod|Any CPU.Build.0 = Debug|Any CPU
+		{FD64B9E9-9C93-48D4-86CF-9DA05656FEB4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FD64B9E9-9C93-48D4-86CF-9DA05656FEB4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

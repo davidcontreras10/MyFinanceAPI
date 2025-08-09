@@ -40,5 +40,16 @@ namespace MyFinanceModel.Records
 		IReadOnlyCollection<SpendViewModel> Transactions
 	);
 
-	public record class BankTrxAppTrx(BankTrxId BankTrxId, int appTrxId);
+	public record class BankTrxAppTrxId(BankTrxId BankTrxId, int appTrxId);
+
+	public record class RawBankTrx(BankTrxId BankTrxId, decimal OriginalAmount, string CurrencyCode, string Description);
+
+	public record class ClassifiedBankTrx(decimal OriginalAmount, string CurrencyCode, string trxDescription, string AccountName, string TrxTypeName);
+
+	public record class ToClassifyBankTrx(
+		BankTrxId BankTrxId,
+		string Description,
+		decimal OriginalAmount,
+		string CurrencyCode
+	);
 }

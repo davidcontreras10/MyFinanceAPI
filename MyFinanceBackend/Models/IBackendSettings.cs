@@ -7,5 +7,6 @@ namespace MyFinanceBackend.Models
 	public interface IBackendSettings
 	{
 		string CurrencyServiceUrl { get; }
+		public OpenAISettings OpenAISettings { get; }
 	}
 }
