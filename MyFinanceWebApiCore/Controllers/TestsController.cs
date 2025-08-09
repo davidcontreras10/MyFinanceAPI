@@ -1,13 +1,12 @@
-﻿using EFDataAccess.Models;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Mvc;
 using MyFinanceBackend.Data;
-using MyFinanceModel;
+using MyFinanceBackend.Services;
+using MyFinanceModel.BankTrxCategorization;
 using MyFinanceModel.ClientViewModel;
+using MyFinanceModel.GptClassifiedExpenseCache;
+using MyFinanceModel.Records;
 using MyFinanceModel.ViewModel;
-using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace MyFinanceWebApiCore.Controllers
@@ -18,11 +17,42 @@ namespace MyFinanceWebApiCore.Controllers
 	{
 		private readonly IAccountRepository _accountRepository;
 		private readonly ISpendsRepository _spendsRepository;
+		private readonly IClassifiedExpensesCacheService _classifiedExpensesCacheService;
+		private readonly IExpensesClassificationSubService _expensesClassificationSubService;
 
-		public TestsController(IAccountRepository accountRepository, ISpendsRepository spendsRepository)
+		public TestsController(IAccountRepository accountRepository
+			, ISpendsRepository spendsRepository
+			, IClassifiedExpensesCacheService classifiedExpensesCacheService
+			, IExpensesClassificationSubService expensesClassificationSubService)
 		{
 			_accountRepository = accountRepository;
 			_spendsRepository = spendsRepository;
+			_classifiedExpensesCacheService = classifiedExpensesCacheService;
+			_expensesClassificationSubService = expensesClassificationSubService;
+		}
+
+		[HttpGet("classify-expenses")]
+		public async Task<IReadOnlyCollection<OutGptClassifiedExpense>> ClassifyExpenses()
+		{
+			var userId = GetUserId();
+			var trxIds = new[]
+			{
+				"1256607295","413302","428337","1255903010","620539","922680","530532","117906","1247602175","838134"
+			};
+			return await _expensesClassificationSubService.ClassifyExistingBankTransactionsAsync(trxIds, 6, userId);
+		}
+
+		[HttpGet("historical-expenses-classification")]
+		public async Task<IEnumerable<ClassifiedBankTrx>> GetHistoricalExpensesClassificationAsync()
+		{
+			var userId = GetUserId();
+			return await _expensesClassificationSubService.GetClassifiedBankTransactionsAsync(userId);
+		}
+
+		[HttpGet("classified-expenses-cache")]
+		public async Task<IEnumerable<OutGptClassifiedExpenseCache>> GetClassifiedExpensesCacheAsync()
+		{
+			return await _classifiedExpensesCacheService.GetItems();
 		}
 
 		[HttpGet]

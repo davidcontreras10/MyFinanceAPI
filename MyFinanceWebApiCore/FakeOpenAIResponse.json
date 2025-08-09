@@ -1,0 +1,36 @@
+{
+		"id": "chatcmpl-BuYOl1EzNy6ZAr4MkiIHSXDHSqZc3",
+		"object": "chat.completion",
+		"created": 1752818295,
+		"model": "gpt-3.5-turbo-0125",
+		"choices": [
+				{
+						"index": 0,
+						"message": {
+								"role": "assistant",
+								"content": "[\n    {\n        \"id\": 117906,\n        \"description\": \"TACO BELL VISTANA\",\n        \"category\": \"Comida/Rest\",\n        \"categoryId\": 2,\n        \"categoryConfidence\": \"High\",\n        \"accountName\": \"Gastos Semanales\",\n        \"accountId\": 11103,\n        \"accountConfidence\": \"High\"\n    },\n    {\n        \"id\": 1247602175,\n        \"description\": \"IVA Servicio Digital Transf\",\n        \"category\": \"Varios\",\n        \"categoryId\": 1,\n        \"categoryConfidence\": \"High\",\n        \"accountName\": \"General Bac\",\n        \"accountId\": 3004,\n        \"accountConfidence\": \"High\"\n    },\n    {\n        \"id\": 1255903010,\n        \"description\": \"IVA Servicio Digital Transf\",\n        \"category\": \"Varios\",\n        \"categoryId\": 1,\n        \"categoryConfidence\": \"High\",\n        \"accountName\": \"General Bac\",\n        \"accountId\": 3004,\n        \"accountConfidence\": \"High\"\n    },\n    {\n        \"id\": 1256607295,\n        \"description\": \"IVA Servicio Digital Transf\",\n        \"category\": \"Varios\",\n        \"categoryId\": 1,\n        \"categoryConfidence\": \"High\",\n        \"accountName\": \"General Bac\",\n        \"accountId\": 3004,\n        \"accountConfidence\": \"High\"\n    },\n    {\n        \"id\": 413302,\n        \"description\": \"PAYPAL *GITHUB INC\",\n        \"category\": \"Varios\",\n        \"categoryId\": 1,\n        \"categoryConfidence\": \"High\",\n        \"accountName\": \"Ingresos Ahorros\",\n        \"accountId\": 4016,\n        \"accountConfidence\": \"High\"\n    },\n    {\n        \"id\": 428337,\n        \"description\": \"MICROSOFT#G100635072\",\n        \"category\": \"Varios\",\n        \"categoryId\": 1,\n        \"categoryConfidence\": \"High\",\n        \"accountName\": \"General Bac\",\n        \"accountId\": 3004,\n        \"accountConfidence\": \"High\"\n    },\n    {\n        \"id\": 530532,\n        \"description\": \"SERVICENTRO SAN JOAQU\",\n        \"category\": \"Gasolina\",\n        \"categoryId\": 8,\n        \"categoryConfidence\": \"High\",\n        \"accountName\": \"Gasolina M\",\n        \"accountId\": 8042,\n        \"accountConfidence\": \"High\"\n    },\n    {\n        \"id\": 620539,\n        \"description\": \"OPENAI *CHATGPT SUBSCR\",\n        \"category\": \"Varios\",\n        \"categoryId\": 1,\n        \"categoryConfidence\": \"High\",\n        \"accountName\": \"Ingresos Ahorros\",\n        \"accountId\": 4016,\n        \"accountConfidence\": \"High\"\n    },\n    {\n        \"id\": 838134,\n        \"description\": \"GOOGLE *CLOUD 5R4H2X\",\n        \"category\": \"Varios\",\n        \"categoryId\": 1,\n        \"categoryConfidence\": \"High\",\n        \"accountName\": \"General Bac\",\n        \"accountId\": 3004,\n        \"accountConfidence\": \"High\"\n    },\n    {\n        \"id\": 922680,\n        \"description\": \"OPENAI\",\n        \"category\": \"Varios\",\n        \"categoryId\": 1,\n        \"categoryConfidence\": \"High\",\n        \"accountName\": \"Ahorro Libre\",\n        \"accountId\": 2004,\n        \"accountConfidence\": \"High\"\n    }\n]",
+								"refusal": null,
+								"annotations": []
+						},
+						"logprobs": null,
+						"finish_reason": "stop"
+				}
+		],
+		"usage": {
+				"prompt_tokens": 1904,
+				"completion_tokens": 775,
+				"total_tokens": 2679,
+				"prompt_tokens_details": {
+						"cached_tokens": 0,
+						"audio_tokens": 0
+				},
+				"completion_tokens_details": {
+						"reasoning_tokens": 0,
+						"audio_tokens": 0,
+						"accepted_prediction_tokens": 0,
+						"rejected_prediction_tokens": 0
+				}
+		},
+		"service_tier": "default",
+		"system_fingerprint": null
+}

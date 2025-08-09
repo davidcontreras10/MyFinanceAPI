@@ -23,7 +23,10 @@ using System.Collections.Generic;
 using System;
 using MyFinanceModel.Enums;
 using EFDataAccess;
-using Microsoft.Extensions.DependencyInjection.Extensions;
+using MongoDB.Driver;
+using Microsoft.Extensions.Options;
+using MongoDB.Repositories;
+using MyFinanceBackend.APIs;
 
 namespace MyFinanceWebApiCore
 {
@@ -142,6 +145,8 @@ namespace MyFinanceWebApiCore
 					.EnableSensitiveDataLogging();
 
 				});
+
+			RegisterMongoDB(services);
 			services.AddSingleton<IBackendSettings, BackendSettings>();
 
 			services.AddSingleton<IFormFileExcelReader, EDRFormFileExcelReader>();
@@ -165,6 +170,8 @@ namespace MyFinanceWebApiCore
 			services.AddScoped<IAppTransactionsSubService, AppTransactionsSubService>();
 			services.AddScoped<ITransfersMigrationService, TransfersMigrationService>();
 			services.AddScoped<IDebtRequestService, DebtRequestService>();
+			services.AddScoped<IClassifiedExpensesCacheService, ClassifiedExpensesCacheService>();
+			services.AddScoped<IExpensesClassificationSubService, ExpensesClassificationSubService>();
 
 			services.AddScoped<IBankTransactionsRepository, EFBankTransactionsRepository>();
 			services.AddScoped<IAccountGroupRepository, EFAccountGroupRepository>();
@@ -180,12 +187,29 @@ namespace MyFinanceWebApiCore
 			services.AddScoped<IFinancialEntitiesRepository, EFFinancialEntitiesRepository>();
 			services.AddScoped<ICurrenciesRepository, EFCurrenciesRepository>();
 			services.AddScoped<IAppTransferRepository, EFAppTransferRepository>();
+			services.AddScoped<IGptClassifiedExpensesCacheRepository, GptClassifiedExpensesCacheRepository>();
+			services.AddScoped<IBankTrxCategorizationRepository, GptBankTrxCategorizationRepository>();
 
 			services.AddScoped<IScheduledTasksService, ScheduledTasksService>();
 			services.AddScoped<IAccountFinanceService, AccountFinanceService>();
 			services.AddScoped<ILoanService, LoanService>();
 			services.AddScoped<IDebtRequestRepository, EFDebtRequestRepository>();
 			RegisterFileReaders(services);
+		}
+
+		private void RegisterMongoDB(IServiceCollection services)
+		{
+			services.Configure<MongoOptions>(
+				Configuration.GetSection(MongoOptions.SectionName)
+			);
+
+			services.AddSingleton(sp =>
+			{
+				var options = sp.GetRequiredService<IOptions<MongoOptions>>().Value;
+				var connectionString = Configuration.GetConnectionString("MongoDB");
+				var client = new MongoClient(connectionString);
+				return client.GetDatabase(options.DatabaseName);
+			});
 		}
 
 		private static void RegisterFileReaders(IServiceCollection services)

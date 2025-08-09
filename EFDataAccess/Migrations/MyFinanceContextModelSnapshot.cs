@@ -38,6 +38,9 @@ namespace EFDataAccess.Migrations
                         .HasColumnType("int")
                         .HasDefaultValueSql("((1))");
 
+                    b.Property<string>("AiClassificationHint")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<float?>("BaseBudget")
                         .HasColumnType("real");
 

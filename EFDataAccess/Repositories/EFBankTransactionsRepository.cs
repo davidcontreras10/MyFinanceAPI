@@ -17,6 +17,63 @@ namespace EFDataAccess.Repositories
 	public class EFBankTransactionsRepository(MyFinanceContext context)
 		: BaseEFRepository(context), IBankTransactionsRepository
 	{
+		public async Task<IReadOnlyCollection<ToClassifyBankTrx>> GetToClassifyBankTransactionsAsync(
+			int financialEntityId, 
+			IReadOnlyCollection<string> bankTransactions)
+		{
+			if (bankTransactions == null || bankTransactions.Count == 0)
+			{
+				return [];
+			}
+			var toClassifyTransactions = await Context.BankTransactions.AsNoTracking()
+				.Where(x =>
+					bankTransactions.Contains(x.BankTransactionId)
+					&& x.FinancialEntityId == financialEntityId
+					&& x.Status == BankTransactionStatus.Inserted
+				)
+				.Include(x => x.Currency)
+				.Select(x =>
+					new ToClassifyBankTrx(
+						new BankTrxId(x.FinancialEntityId, x.BankTransactionId),
+						x.FileDescription,
+						x.OriginalAmount ?? 0,
+						x.Currency.IsoCode
+					)
+				).ToListAsync();
+
+			return toClassifyTransactions;
+		}
+
+		public async Task<IReadOnlyCollection<ClassifiedBankTrx>> GetClassifiedBankTransactionsAsync(int financialEntityId, string userId, DateTime? initialDate)
+		{
+			var userGuid = Guid.Parse(userId);
+			var classifiedBankTrxs = await Context.BankTransactions.AsNoTracking()
+				.Where(x => x.FinancialEntityId == financialEntityId
+					&& (initialDate == null || x.TransactionDate >= initialDate)
+					&& x.OriginalAmount > 0
+					&& x.Transactions.Count == 1
+					&& x.Status == BankTransactionStatus.Processed
+					&& x.Transactions.All(t =>
+						t.Spend != null &&
+						t.Spend.SpendType != null &&
+						t.AccountPeriod != null &&
+						t.AccountPeriod.Account != null &&
+						t.AccountPeriod.Account.UserId == userGuid))
+				.Select(x => new ClassifiedBankTrx(
+					x.OriginalAmount.Value,
+					x.Currency.IsoCode,
+					x.FileDescription,
+					x.Transactions
+						.Select(t => t.AccountPeriod.Account.Name)
+						.FirstOrDefault(),
+					x.Transactions
+						.Select(t => t.Spend.SpendType.Name)
+						.FirstOrDefault()
+				))
+				.ToListAsync();
+
+			return classifiedBankTrxs;
+		}
 
 		public async Task UpdateBankTransactionsDatesAsync(IEnumerable<BankTrxDate> trxDates)
 		{
@@ -35,7 +92,7 @@ namespace EFDataAccess.Repositories
 			await Context.SaveChangesAsync();
 		}
 
-		public async Task<IReadOnlyCollection<BankTrxAppTrx>> GetBankTransactionsBySearchCriteriaAsync(IUserSearchCriteria userSearchCriteria)
+		public async Task<IReadOnlyCollection<BankTrxAppTrxId>> GetBankTransactionsBySearchCriteriaAsync(IUserSearchCriteria userSearchCriteria)
 		{
 			if (userSearchCriteria == null)
 			{
@@ -64,12 +121,12 @@ namespace EFDataAccess.Repositories
 			throw new InvalidOperationException("Invalid search criteria");
 		}
 
-		private async Task<IReadOnlyCollection<BankTrxAppTrx>> GetBankTransactionsByDescriptionAsync(string description)
+		private async Task<IReadOnlyCollection<BankTrxAppTrxId>> GetBankTransactionsByDescriptionAsync(string description)
 		{
 			var bankTrxs = await Context.BankTransactions.AsNoTracking()
 				.Where(x => x.FileDescription.Contains(description))
 				.Include(x => x.Transactions)
-				.Select(x => new BankTrxAppTrx
+				.Select(x => new BankTrxAppTrxId
 					(
 						new BankTrxId(x.FinancialEntityId, x.BankTransactionId),
 						x.Transactions.Select(t => t.SpendId).FirstOrDefault()
@@ -79,13 +136,13 @@ namespace EFDataAccess.Repositories
 			return bankTrxs;
 		}
 
-		private async Task<IReadOnlyCollection<BankTrxAppTrx>> GetBankTransactionsByDateAsync(DateOnly dateOnly)
+		private async Task<IReadOnlyCollection<BankTrxAppTrxId>> GetBankTransactionsByDateAsync(DateOnly dateOnly)
 		{
 			var dateTime = dateOnly.ToDateTime(TimeOnly.MinValue).Date;
 			var bankTrxs = await Context.BankTransactions.AsNoTracking()
 				.Where(x => x.TransactionDate != null && x.TransactionDate.HasValue && x.TransactionDate.Value.Date == dateTime)
 				.Include(x => x.Transactions)
-				.Select(x => new BankTrxAppTrx
+				.Select(x => new BankTrxAppTrxId
 					(
 						new BankTrxId(x.FinancialEntityId, x.BankTransactionId),
 						x.Transactions.Select(t => t.SpendId).FirstOrDefault()
@@ -95,7 +152,7 @@ namespace EFDataAccess.Repositories
 			return bankTrxs;
 		}
 
-		private async Task<IReadOnlyCollection<BankTrxAppTrx>> GetBankTransactionsByRefNumberAsync(string refNumber)
+		private async Task<IReadOnlyCollection<BankTrxAppTrxId>> GetBankTransactionsByRefNumberAsync(string refNumber)
 		{
 			if (string.IsNullOrWhiteSpace(refNumber))
 			{
@@ -105,7 +162,7 @@ namespace EFDataAccess.Repositories
 			var bankTrxs = await Context.BankTransactions.AsNoTracking()
 				.Where(x => x.BankTransactionId == refNumber)
 				.Include(x => x.Transactions)
-				.Select(x => new BankTrxAppTrx
+				.Select(x => new BankTrxAppTrxId
 					(
 						new BankTrxId(x.FinancialEntityId, x.BankTransactionId),
 						x.Transactions.Select(t => t.SpendId).FirstOrDefault()
@@ -115,7 +172,7 @@ namespace EFDataAccess.Repositories
 			return bankTrxs;
 		}
 
-		private async Task<IReadOnlyCollection<BankTrxAppTrx>> GetBankTransactionsByAppIdsAsync(IEnumerable<int> appIds)
+		private async Task<IReadOnlyCollection<BankTrxAppTrxId>> GetBankTransactionsByAppIdsAsync(IEnumerable<int> appIds)
 		{
 			if (appIds == null || !appIds.Any())
 			{
@@ -125,7 +182,7 @@ namespace EFDataAccess.Repositories
 			var bankTrxs = await Context.SpendOnPeriod.AsNoTracking()
 				.Where(x => appIds.Contains(x.SpendId) && x.BankTransaction != null)
 				.Include(x => x.BankTransaction)
-				.Select(x => new BankTrxAppTrx
+				.Select(x => new BankTrxAppTrxId
 					(
 						new BankTrxId(x.BankTransaction.FinancialEntityId, x.BankTransaction.BankTransactionId),
 						x.SpendId
@@ -193,7 +250,7 @@ namespace EFDataAccess.Repositories
 
 		public async Task<IReadOnlyCollection<BankTransactionDto>> GetBankTransactionDtoByIdsAsync(IEnumerable<BankTrxId> bankTrxIds)
 		{
-			if (bankTrxIds == null || !bankTrxIds.Any()) return Array.Empty<BankTransactionDto>();
+			if (bankTrxIds == null || !bankTrxIds.Any()) return [];
 			var ids = bankTrxIds.Select(x => x.TransactionId);
 			var res = await Context.BankTransactions.AsNoTracking()
 				.Where(x => ids.Contains(x.BankTransactionId))

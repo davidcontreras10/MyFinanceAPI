@@ -40,8 +40,10 @@ namespace MyFinanceWebApiCore.Controllers
 			return Ok(transactions);
 		}
 
-		[HttpPost("UploadRequest")]
-		public async Task<ActionResult<BankTrxReqResp>> GetFileBankTransactionState(IFormFile file)
+
+
+		[HttpPost("{financialEntityFile}/UploadRequest")]
+		public async Task<ActionResult<BankTrxReqResp>> GetFileBankTransactionState([FromForm] IFormFile file, [FromRoute] FinancialEntityFile financialEntityFile)
 		{
 			if (file == null || file.Length == 0)
 			{
@@ -49,15 +51,14 @@ namespace MyFinanceWebApiCore.Controllers
 			}
 
 			var fileExtension = Path.GetExtension(file.FileName);
-
 			if (fileExtension != ".xls" && fileExtension != ".xlsx")
 			{
 				return BadRequest("Invalid file type. Only .xls and .xlsx are allowed.");
 			}
 
-			var transactions = await _excelFileReaderService.ReadTransactionsFromFile(file, FinancialEntityFile.Scotiabank);
+			var transactions = await _excelFileReaderService.ReadTransactionsFromFile(file, financialEntityFile);
 			var userId = GetUserId();
-			var resultTrxs = await _bankTransactionsService.InsertAndGetFileBankTransactionState(transactions, FinancialEntityFile.Scotiabank, userId);
+			var resultTrxs = await _bankTransactionsService.InsertAndGetFileBankTransactionState(transactions, financialEntityFile, userId);
 			return Ok(resultTrxs);
 		}
 
@@ -86,20 +87,20 @@ namespace MyFinanceWebApiCore.Controllers
 		public async Task<ActionResult<BankTrxReqResp>> GetBankTransactionBySearchCriteria([FromQuery] DateOnly? date, [FromQuery] string refNumber, [FromQuery] string description)
 		{
 			var userId = GetUserId();
-			if(date == null && string.IsNullOrWhiteSpace(description) && string.IsNullOrWhiteSpace(refNumber))
+			if (date == null && string.IsNullOrWhiteSpace(description) && string.IsNullOrWhiteSpace(refNumber))
 			{
 				return BadRequest("No search criteria provided.");
 			}
 
 			var inputValues = new List<string> { date?.ToString(), refNumber, description };
-			if(inputValues.Count(input => !string.IsNullOrWhiteSpace(input)) > 1)
+			if (inputValues.Count(input => !string.IsNullOrWhiteSpace(input)) > 1)
 			{
 				return BadRequest("Only one search criteria is allowed.");
 			}
 
 
 			IUserSearchCriteria userSearchCriteria;
-			if(date != null)
+			if (date != null)
 			{
 				userSearchCriteria = new BankTrxSearchCriteria.DateSearchCriteria
 				{
@@ -107,7 +108,7 @@ namespace MyFinanceWebApiCore.Controllers
 					RequesterUserId = userId
 				};
 			}
-			else if(!string.IsNullOrWhiteSpace(description))
+			else if (!string.IsNullOrWhiteSpace(description))
 			{
 				userSearchCriteria = new BankTrxSearchCriteria.DescriptionSearchCriteria
 				{

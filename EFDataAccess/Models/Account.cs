@@ -34,8 +34,10 @@ namespace EFDataAccess.Models
         public int? AccountGroupId { get; set; }
         public int? DefaultSelectCurrencyId { get; set; }
         public bool DefaultSelectIsPending { get; set; }
+        public string AiClassificationHint { get; set; }
 
-        public virtual AccountGroup AccountGroup { get; set; }
+
+		public virtual AccountGroup AccountGroup { get; set; }
         public virtual AccountType AccountType { get; set; }
         public virtual Currency Currency { get; set; }
         public virtual Currency DefaultSelectCurrency { get; set; }

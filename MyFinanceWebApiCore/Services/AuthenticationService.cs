@@ -42,7 +42,7 @@ namespace MyFinanceWebApiCore.Services
 		private AuthToken GenerateJwtToken(LoginResult user)
 		{
 			var tokenHandler = new JwtSecurityTokenHandler();
-			if (_authConfig.Secret == null)
+			if (string.IsNullOrWhiteSpace(_authConfig.Secret))
 			{
 				throw new Exception($"Expected: {nameof(_authConfig.Secret)}");
 			}
