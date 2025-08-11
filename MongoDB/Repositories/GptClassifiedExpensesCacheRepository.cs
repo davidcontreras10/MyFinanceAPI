@@ -29,7 +29,7 @@ namespace MongoDB.Repositories
 				gptCacheKeys.Select(GptClassifiedExpenseCacheItem.GenerateCacheKey)
 			);
 			var items = await Collection.Find(filter).ToListAsync();
-			return items.Select(ToOutGptClassifiedExpenseCache).ToList();
+			return [.. items.Select(ToOutGptClassifiedExpenseCache)];
 		}
 
 		public async Task UpsertMultipleAsync(IEnumerable<InGptClassifiedExpenseCache> inputItems)

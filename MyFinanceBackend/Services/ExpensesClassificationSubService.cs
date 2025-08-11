@@ -30,7 +30,7 @@ namespace MyFinanceBackend.Services
 		{
 			var toClassifyData = await unitOfWork.BankTransactionsRepository.GetToClassifyBankTransactionsAsync(financialEntityId, refNumbers);
 			var expensesToClassify = toClassifyData.Select(BankTrxCategorizationMapper.ToExpenseToClassify).ToList();
-			var cacheSearchResults = await GetCachedClassifiedExpensesAsync(expensesToClassify);
+			var cacheSearchResults = await GetCachedClassifiedExpensesAsync(expensesToClassify, userId);
 			if (cacheSearchResults.NotCachedItems.Count == 0)
 			{
 				return cacheSearchResults.CachedItems;
@@ -71,7 +71,7 @@ namespace MyFinanceBackend.Services
 			return allResults;
 		}
 
-		private async Task<CacheSearchResults> GetCachedClassifiedExpensesAsync(List<ExpenseToClassify> expenseToClassify)
+		private async Task<CacheSearchResults> GetCachedClassifiedExpensesAsync(List<ExpenseToClassify> expenseToClassify, string userId)
 		{
 			if (expenseToClassify == null || expenseToClassify.Count == 0)
 			{
@@ -88,12 +88,14 @@ namespace MyFinanceBackend.Services
 
 			ExpenseDataExtensions.ApplyDescriptionNormalizations(cacheKeys);
 			var itemsInCache = await classifiedExpensesCacheRepository.GetByIds(cacheKeys);
+			var accountIds = itemsInCache.Select(x => x.AccountId).Distinct();
+			var userAccountIds = await unitOfWork.AccountRepository.GetMatchedAccountIdsByUserIdAsync(userId, accountIds);
 			List<ExpenseToClassify> notCachedItems = [];
 			List<OutGptClassifiedExpense> cachedItems = [];
 			foreach (var item in expenseToClassify)
 			{
 				var cacheKeyItem = cacheKeys.First(x => x.RefId == item.Id);
-				var cachedItem = itemsInCache.FirstOrDefault(x => x.EqualsExt(cacheKeyItem));
+				var cachedItem = itemsInCache.FirstOrDefault(x => userAccountIds.Contains(x.AccountId) && x.EqualsExt(cacheKeyItem));
 				if (cachedItem != null)
 				{
 					var outPutItem = ToOutGptClassifiedExpenseCache(cachedItem, item);
