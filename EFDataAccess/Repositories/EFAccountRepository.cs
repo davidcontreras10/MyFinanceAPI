@@ -21,6 +21,16 @@ namespace EFDataAccess.Repositories
 {
 	public class EFAccountRepository(MyFinanceContext context, ILogger<EFAccountRepository> logger) : BaseEFRepository(context), IAccountRepository
 	{
+		public async Task<IReadOnlyCollection<int>> GetMatchedAccountIdsByUserIdAsync(string userId, IEnumerable<int> accountIds)
+		{
+			var userGuid = new Guid(userId);
+			return await Context.Account.AsNoTracking()
+				.Where(acc => acc.UserId == userGuid && accountIds.Contains(acc.AccountId))
+				.Select(acc => acc.AccountId)
+				.ToListAsync();
+		}
+
+
 		public async Task<IReadOnlyCollection<AiClassifiableAccount>> GetAiClassifiableAccountsAsync(string userId)
 		{
 			var userGuid = new Guid(userId);
