@@ -1,4 +1,5 @@
 ﻿using MyFinanceBackend.Data;
+using MyFinanceBackend.ServicesExceptions;
 using MyFinanceModel;
 using MyFinanceModel.ClientViewModel;
 using MyFinanceModel.Records;
@@ -14,10 +15,80 @@ namespace MyFinanceBackend.Services
 		Task<IEnumerable<TrxItemModifiedRecord>> AddMultipleTrxsByAccountAsync(IReadOnlyCollection<NewAppTransactionByAccount> newAppTransactionsByAccount);
 		Task<IEnumerable<TrxItemModifiedRecord>> AddMultipleTransactionsAsync(IReadOnlyCollection<ClientAddSpendModel> clientAddSpendModels);
 		Task<IEnumerable<TrxItemModifiedRecord>> AddMultipleTransactionsAsync(IReadOnlyCollection<ClientConvertedTrxModel> transactions);
+		Task<IEnumerable<SpendItemModified>> ExecuteConfirmPendingTransactionAsync(int spendId, DateTime newPaymentDate);
+		Task<IEnumerable<SpendItemModified>> ExecuteConfirmPendingTransactionsAsync(IReadOnlyCollection<int> transactionIds, DateTime newPaymentDate);
 	}
 
 	public class AppTransactionsSubService(IUnitOfWork unitOfWork, ITrxExchangeService trxExchangeService) : IAppTransactionsSubService
 	{
+		public async Task<IEnumerable<SpendItemModified>> ExecuteConfirmPendingTransactionsAsync(IReadOnlyCollection<int> transactionIds, DateTime newPaymentDate)
+		{
+			if(transactionIds == null || transactionIds.Count == 0) return [];
+			var modifiedList = new List<SpendItemModified>();
+			foreach (var spendId in transactionIds)
+			{
+				var modifiedItems = await ExecuteConfirmPendingTransactionAsync(spendId, newPaymentDate);
+				modifiedList.AddRange(modifiedItems);
+			}
+			return modifiedList;
+		}
+
+		public async Task<IEnumerable<SpendItemModified>> ExecuteConfirmPendingTransactionAsync(int spendId, DateTime newPaymentDate)
+		{
+			var spends = await unitOfWork.SpendsRepository.GetSavedSpendsAsync(spendId);
+			if (spends == null || !spends.Any())
+			{
+				return [];
+			}
+			var modifiedList = new List<SpendItemModified>();
+			foreach (var savedSpend in spends)
+			{
+				if (!savedSpend.IsPending)
+				{
+					throw new SpendNotPendingException(savedSpend.SpendId);
+				}
+
+				if (savedSpend.AmountNumerator > 0 && savedSpend.AmountDenominator > 0 && savedSpend.MethodId > 0 && savedSpend.IsPurchase != null)
+				{
+					var exchangeResult = await trxExchangeService.GetExchangeRateResultAsync(savedSpend.MethodId.Value, newPaymentDate, savedSpend.IsPurchase.Value);
+					if (exchangeResult == null || !exchangeResult.Success)
+					{
+						throw new Exception("Exchange rate not found");
+					}
+
+					savedSpend.AmountDenominator = (float)exchangeResult.Denominator;
+					savedSpend.AmountNumerator = (float)exchangeResult.Numerator;
+				}
+				var financeSpend = CreateFinanceSpend(savedSpend, newPaymentDate);
+				var modifiedItems = await unitOfWork.SpendsRepository.EditSpendAsync(financeSpend);
+				modifiedList.AddRange(modifiedItems);
+			}
+
+			return modifiedList;
+		}
+
+		private static FinanceSpend CreateFinanceSpend(SavedSpend savedSpend, DateTime newDateTime)
+		{
+			ArgumentNullException.ThrowIfNull(savedSpend);
+			var result = new FinanceSpend
+			{
+				SpendId = savedSpend.SpendId,
+				Amount = savedSpend.Amount,
+				UserId = savedSpend.UserId,
+				SpendDate = savedSpend.SpendDate,
+				AmountDenominator = savedSpend.AmountDenominator,
+				CurrencyId = savedSpend.CurrencyId,
+				AmountNumerator = savedSpend.AmountNumerator,
+				SetPaymentDate = newDateTime,
+				OriginalAccountData = savedSpend.OriginalAccountData,
+				IncludedAccounts = savedSpend.IncludedAccounts,
+				IsPending = false,
+				AmountTypeId = savedSpend.AmountTypeId
+			};
+
+			return result;
+		}
+
 		public async Task<IEnumerable<TrxItemModifiedRecord>> AddMultipleTrxsByAccountAsync(IReadOnlyCollection<NewAppTransactionByAccount> newAppTransactionsByAccount)
 		{
 			if(newAppTransactionsByAccount == null || newAppTransactionsByAccount.Count == 0) return [];

@@ -34,7 +34,22 @@ namespace EFDataAccess.Models
         public DebtorRequestStatus DebtorStatus { get; set; }
 		public CreditorRequestStatus CreditorStatus { get; set; }
 
+		public ICollection<Spend> GetSpendCollection(bool forCreditor)
+		{
+			return forCreditor ? CreditorSpends : DebtorSpends;
+		}
 
+		public void SetSpendCollection(bool forCreditor, ICollection<Spend> spends)
+		{
+			if (forCreditor)
+			{
+				CreditorSpends = spends;
+			}
+			else
+			{
+				DebtorSpends = spends;
+			}
+		}
 
 		public class DebtorUserDetails
 		{
