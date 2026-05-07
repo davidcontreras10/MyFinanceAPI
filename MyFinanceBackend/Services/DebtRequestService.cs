@@ -82,7 +82,7 @@ namespace MyFinanceBackend.Services
 			}
 		}
 		
-		private async Task ConfirmPendingCreditorDebtRequestTrxsAsync(int debtRequestId, Guid userId, DateTime dateTime)
+		private async Task<IEnumerable<SpendItemModified>> ConfirmPendingCreditorDebtRequestTrxsAsync(int debtRequestId, Guid userId, DateTime dateTime)
 		{
 			var debtRequest = await unitOfWork.DebtRequestRepository.GetDebtRequestsByIdAsync(debtRequestId, userId, true) as UserDebtRequestVm
 				?? throw new ServiceException($"Debt request with id {debtRequestId} not found");
@@ -90,10 +90,11 @@ namespace MyFinanceBackend.Services
 			await unitOfWork.StartTransactionAsync();
 			try
 			{
-				await appTransactionsSubService.ExecuteConfirmPendingTransactionsAsync(trxIds, dateTime);
+				var modifieds = await appTransactionsSubService.ExecuteConfirmPendingTransactionsAsync(trxIds, dateTime);
 				debtRequest = await unitOfWork.DebtRequestRepository.UpdateCreditorStatusAsync(debtRequestId, CreditorRequestStatus.Paid);
 				await unitOfWork.SaveAsync();
 				await unitOfWork.CommitTransactionAsync();
+				return modifieds;
 			}
 			catch(Exception ex)
 			{
@@ -147,7 +148,7 @@ namespace MyFinanceBackend.Services
 			return debtRequest;
 		}
 
-		private async Task ConfirmPendingDebtorDebtRequestTrxsAsync(int debtRequestId, Guid userId, DateTime dateTime)
+		private async Task<IEnumerable<SpendItemModified>> ConfirmPendingDebtorDebtRequestTrxsAsync(int debtRequestId, Guid userId, DateTime dateTime)
 		{
 			var debtRequest = await unitOfWork.DebtRequestRepository.GetDebtRequestsByIdAsync(debtRequestId, userId, true) as UserDebtRequestVm
 				?? throw new ServiceException($"Debt request with id {debtRequestId} not found");
@@ -155,10 +156,11 @@ namespace MyFinanceBackend.Services
 			await unitOfWork.StartTransactionAsync();
 			try
 			{
-				await appTransactionsSubService.ExecuteConfirmPendingTransactionsAsync(trxIds, dateTime);
+				var modifieds = await appTransactionsSubService.ExecuteConfirmPendingTransactionsAsync(trxIds, dateTime);
 				debtRequest = await unitOfWork.DebtRequestRepository.UpdateDebtorStatusAsync(debtRequestId, DebtorRequestStatus.Paid);
 				await unitOfWork.SaveAsync();
 				await unitOfWork.CommitTransactionAsync();
+				return modifieds;
 			}
 			catch (Exception ex)
 			{
