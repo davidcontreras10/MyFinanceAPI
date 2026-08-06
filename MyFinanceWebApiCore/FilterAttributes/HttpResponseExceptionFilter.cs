@@ -28,7 +28,8 @@ namespace MyFinanceWebApiCore.FilterAttributes
 				var error = new
 				{
 					serviceException.Message,
-					serviceException.ErrorCode
+					serviceException.ErrorCode,
+					serviceException.DataObject
 				};
 				context.Result = new ObjectResult(error)
 				{

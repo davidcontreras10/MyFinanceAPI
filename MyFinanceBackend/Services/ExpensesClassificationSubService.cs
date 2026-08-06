@@ -17,10 +17,11 @@ namespace MyFinanceBackend.Services
 		IBankTrxCategorizationRepository bankTrxCategorizationRepository) : IExpensesClassificationSubService
 	{
 		private const int LastHistoricalMonths = 3;
+		private const int ScotiabankFinancialEntityId = 6;
 
 		public async Task<IReadOnlyCollection<ClassifiedBankTrx>> GetClassifiedBankTransactionsAsync(string userId)
 		{
-			return await unitOfWork.BankTransactionsRepository.GetClassifiedBankTransactionsAsync(6, userId, null);
+			return await unitOfWork.BankTransactionsRepository.GetClassifiedBankTransactionsAsync(ScotiabankFinancialEntityId, userId, null);
 		}
 
 		public async Task<IReadOnlyCollection<OutGptClassifiedExpense>> ClassifyExistingBankTransactionsAsync(

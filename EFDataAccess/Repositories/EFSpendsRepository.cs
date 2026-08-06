@@ -9,6 +9,7 @@ using MyFinanceBackend.Services;
 using MyFinanceBackend.ServicesExceptions;
 using MyFinanceModel;
 using MyFinanceModel.ClientViewModel;
+using MyFinanceModel.Enums;
 using MyFinanceModel.Records;
 using MyFinanceModel.Utilities;
 using MyFinanceModel.ViewModel;
@@ -251,10 +252,17 @@ namespace EFDataAccess.Repositories
 					await Context.Spend.Where(sp => transactionIds.Contains(sp.SpendId)).FirstAsync()
 				};
 
+				
 				var spendDependencies = await GetSpendDependenciesAsync(transactionIds);
 				var spendIds = new List<int>();
 				spendIds.AddRange(transactionIds);
 				spendIds.AddRange(spendDependencies.Select(sp => sp.SpendId));
+				var cantDeleteReasons = await GetCantDeleteTransactions(spendIds);
+				if (cantDeleteReasons.Any())
+				{
+					throw new CantDeleteAppTrxException(cantDeleteReasons);
+				}
+
 				var affectedAccounts = await Context.SpendOnPeriod.AsNoTracking()
 					.Where(sop => spendIds.Contains(sop.SpendId))
 					.Include(sop => sop.AccountPeriod)
@@ -279,6 +287,21 @@ namespace EFDataAccess.Repositories
 				throw;
 			}
 
+		}
+
+		private async Task<IReadOnlyCollection<CantDeleteAppTrxReason>> GetCantDeleteTransactions(IReadOnlyCollection<int> transactionIds)
+		{
+			var reasons = new List<CantDeleteAppTrxReason>();
+			var hasDebtRequestRecors = await Context.Spend
+				.Where(sp => transactionIds.Contains(sp.SpendId))
+				.Include(sp => sp.LoanRecord)
+				.AnyAsync(sp => sp.DebtorDebtRequestId != null || sp.CreditorDebtRequestId != null);
+			if(hasDebtRequestRecors)
+			{
+				reasons.Add(CantDeleteAppTrxReason.HasDebtRequest);
+			}
+
+			return reasons;
 		}
 
 		public async Task<IEnumerable<SpendItemModified>> EditSpendAsync(ClientEditSpendModel model)
