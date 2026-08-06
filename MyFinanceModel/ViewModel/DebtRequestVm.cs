@@ -1,9 +1,5 @@
-﻿using MyFinanceModel.Enums;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace MyFinanceModel.ViewModel
 {
@@ -18,10 +14,20 @@ namespace MyFinanceModel.ViewModel
 		public BasicCurrencyViewModel Currency { get; set; }
 		public Creditor Creditor { get; set; }
 		public Debtor Debtor { get; set; }
+		public int DebtorSpendsCount { get; set; }
+		public int CreditorSpendsCount { get; set; }
 	}
 
 	public class UserDebtRequestVm(Guid userId) : DebtRequestVm
 	{
 		public bool CreatedByMe => Creditor?.UserId == userId;
+
+		public IReadOnlyCollection<SpendViewModel> UserTrxs { get; set; } = [];
+		public int? TrxCount { get; set; }
 	}
+
+    public class TrxModifiedDebtRequestVm(Guid userId) : UserDebtRequestVm(userId)
+    {
+        public IEnumerable<SpendItemModified> ModifiedTrxs { get; set; } = [];
+    }
 }

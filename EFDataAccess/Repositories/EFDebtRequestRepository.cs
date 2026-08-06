@@ -1,5 +1,7 @@
-﻿using EFDataAccess.Helpers;
+﻿using EFDataAccess.Extensions;
+using EFDataAccess.Helpers;
 using EFDataAccess.Models;
+using EFDataAccess.Models.Customs;
 using Microsoft.EntityFrameworkCore;
 using MyFinanceBackend.Data;
 using MyFinanceModel.ClientViewModel;
@@ -14,32 +16,128 @@ namespace EFDataAccess.Repositories
 {
 	public class EFDebtRequestRepository(MyFinanceContext context) : BaseEFRepository(context), IDebtRequestRepository
 	{
-		public async Task<UserDebtRequestVm> UpdateCreditorStatusAsync(int debtRequestId, CreditorRequestStatus status)
+		public async Task<IReadOnlyCollection<int>> GetAppTransactionIdsByDebtRequestIdAsync(int debtRequestId, Guid userId)
 		{
-			var debtRequest = Context.DebtRequests
+			var debtRequestAdditional = await Context.DebtRequests
+				.Where(x => x.Id == debtRequestId)
+				.IncludeAllAdditionalQuery(true)
+				.FirstOrDefaultAsync();
+			var debtRequest = debtRequestAdditional.EFDebtRequest;
+			if (debtRequest == null)
+			{
+				throw new Exception("Debt request not found");
+			}
+			bool? isCreditor = null;
+			if (debtRequest.CreditorId == userId)
+			{
+				isCreditor = true;
+			}
+			else if (debtRequest.DebtorId == userId)
+			{
+				isCreditor = false;
+			}
+			else
+			{
+				throw new Exception("User is not part of the debt request");
+			}
+			var spendCollection = debtRequest.GetSpendCollection(isCreditor.Value);
+			return spendCollection.Select(x => x.SpendId).ToList();
+		}
+
+		public async Task RemoveAllAppTransactionsFromDebtRequestAsync(int debtRequestId, Guid userId)
+		{
+			var debtRequest = await Context.DebtRequests
+				.Where(x => x.Id == debtRequestId)
+				.Include(x => x.CreditorUser)
+				.Include(x => x.DebtorUser)
+				.Include(x => x.CreditorSpends)
+				.Include(x => x.DebtorSpends)
+				.FirstOrDefaultAsync();
+			if (debtRequest == null)
+			{
+				throw new Exception("Debt request not found");
+			}
+			bool? isCreditor = null;
+			if (debtRequest.CreditorId == userId)
+			{
+				isCreditor = true;
+			}
+			else if (debtRequest.DebtorId == userId)
+			{
+				isCreditor = false;
+			}
+			else
+			{
+				throw new Exception("User is not part of the debt request");
+			}
+			var spendCollection = debtRequest.GetSpendCollection(isCreditor.Value);
+			if (spendCollection.Count == 0)
+			{
+				throw new Exception("No transactions to remove");
+			}
+
+			Context.Spend.RemoveRange(spendCollection);
+			Context.SpendOnPeriod.RemoveRange(Context.SpendOnPeriod.Where(x => spendCollection.Select(s => s.SpendId).Contains(x.SpendId)));
+			debtRequest.SetSpendCollection(isCreditor.Value, []);
+		}
+
+		public async Task AddAppTransactionAsync(int debtRequestId, IReadOnlyCollection<int> trxIds, Guid userId)
+		{
+			var existingAppTrx = await Context.Spend.Where(x => trxIds.Contains(x.SpendId)).ToListAsync();
+			if (existingAppTrx.Count != trxIds.Count)
+			{
+				throw new Exception("One or more transactions not found");
+			}
+
+			bool? isCreditor = null;
+			var debtRequest = await Context.DebtRequests
 				.Where(x => x.Id == debtRequestId)
 				.Include(x => x.Currency)
 				.Include(x => x.CreditorUser)
 				.Include(x => x.DebtorUser)
-				.Single();
+				.FirstOrDefaultAsync();
 
-			debtRequest.CreditorStatus = status;
-			await Context.SaveChangesAsync();
-			return debtRequest.ToDebtRequestVm<UserDebtRequestVm>(debtRequest.CreditorId);
+			if (debtRequest.CreditorId == userId)
+			{
+				isCreditor = true;
+			}
+			else if (debtRequest.DebtorId == userId)
+			{
+				isCreditor = false;
+			}
+			else
+			{
+				throw new Exception("User is not part of the debt request");
+			}
+
+			if(debtRequest.GetSpendCollection(isCreditor.Value).Count != 0)
+			{
+				throw new Exception("Transactions already added to this debt request");
+			}
+			var spendsToAdd = Context.Spend.Where(x => trxIds.Contains(x.SpendId)).ToList();
+			debtRequest.SetSpendCollection(isCreditor.Value, spendsToAdd);
+		}
+
+		public async Task<UserDebtRequestVm> UpdateCreditorStatusAsync(int debtRequestId, CreditorRequestStatus status)
+		{
+			var debtRequest = await Context.DebtRequests
+				.Where(x => x.Id == debtRequestId)
+				.IncludeAllAdditionalQuery(false)
+				.FirstOrDefaultAsync();
+
+			debtRequest.EFDebtRequest.CreditorStatus = status;
+			return debtRequest.ToDebtRequestVm<UserDebtRequestVm>(debtRequest.EFDebtRequest.CreditorId);
 		}
 
 		public async Task<UserDebtRequestVm> UpdateDebtorStatusAsync(int debtRequestId, DebtorRequestStatus status)
 		{
-			var debtRequest = Context.DebtRequests
+			var debtRequest = await Context.DebtRequests
 				.Where(x => x.Id == debtRequestId)
-				.Include(x => x.Currency)
-				.Include(x => x.CreditorUser)
-				.Include(x => x.DebtorUser)
-				.Single();
+				.IncludeAllAdditionalQuery(false)
+				.FirstOrDefaultAsync();
 
-			debtRequest.DebtorStatus = status;
-			await Context.SaveChangesAsync();
-			return debtRequest.ToDebtRequestVm<UserDebtRequestVm>(debtRequest.DebtorId);
+			debtRequest.EFDebtRequest.DebtorStatus = status;
+			return debtRequest.ToDebtRequestVm<UserDebtRequestVm>(debtRequest.EFDebtRequest.DebtorId);
 		}
 
 		public async Task<UserDebtRequestVm> CreateSimpleDebtRequestAsync(ClientDebtRequest simpleDebtRequest)
@@ -62,7 +160,13 @@ namespace EFDataAccess.Repositories
 			await Context.Entry(debtRequest).Reference(x => x.Currency).LoadAsync();
 			await Context.Entry(debtRequest).Reference(x => x.CreditorUser).LoadAsync();
 			await Context.Entry(debtRequest).Reference(x => x.DebtorUser).LoadAsync();
-			return debtRequest.ToDebtRequestVm<UserDebtRequestVm>(simpleDebtRequest.CreditorId);
+			var efDebtRequestAdditional = new EFDebtRequestAdditional
+			{
+				EFDebtRequest = debtRequest,
+				CreditorSpendsCount = 0,
+				DebtorSpendsCount = 0
+			};
+			return efDebtRequestAdditional.ToDebtRequestVm<UserDebtRequestVm>(simpleDebtRequest.CreditorId);
 		}
 
 		public async Task DeleteDebtRequestAsync(int debtRequestId)
@@ -74,31 +178,49 @@ namespace EFDataAccess.Repositories
 			}
 			
 			Context.DebtRequests.Remove(debtRequest);
-			await Context.SaveChangesAsync();
 		}
 
-		public async Task<IReadOnlyCollection<DebtRequestVm>> GetDebtRequestsByIdAsync(int debtRequestId)
+		public async Task<DebtRequestVm> GetDebtRequestsByIdAsync(int debtRequestId, Guid? userId = null, bool includeAppTrxs = false)
 		{
 			var debtRequests = await Context.DebtRequests.AsNoTracking()
 				.Where(x => x.Id == debtRequestId)
-				.Include(x => x.Currency)
-				.Include(x => x.CreditorUser)
-				.Include(x => x.DebtorUser)
-				.ToListAsync();
-			
-			return debtRequests.Select(x => x.ToDebtRequestVm<DebtRequestVm>()).ToList();
+				.IncludeAllAdditionalQuery(includeAppTrxs && userId != null)
+				.FirstOrDefaultAsync();
+
+			return userId != null ? debtRequests?.ToDebtRequestVm<UserDebtRequestVm>(userId.Value)
+				: debtRequests?.ToDebtRequestVm<DebtRequestVm>();
 		}
 
-		public async Task<IReadOnlyCollection<UserDebtRequestVm>> GetDebtRequestsByUserAsync(Guid userId)
+        public async Task<T> GetDebtRequestsByIdAsync<T>(int debtRequestId, Guid? userId = null, bool includeAppTrxs = false) where T : DebtRequestVm
+        {
+            var debtRequests = await Context.DebtRequests.AsNoTracking()
+                .Where(x => x.Id == debtRequestId)
+                .IncludeAllAdditionalQuery(includeAppTrxs && userId != null)
+                .FirstOrDefaultAsync();
+
+            if(typeof(UserDebtRequestVm).IsAssignableFrom(typeof(T)) && userId != null)
+            {
+                return debtRequests?.ToDebtRequestVm<T>(userId.Value);
+            }
+            else if (typeof(T) == typeof(DebtRequestVm))
+            {
+                return debtRequests?.ToDebtRequestVm<DebtRequestVm>() as T;
+            }
+            else
+            {
+                throw new InvalidOperationException("Invalid type parameter. Must be either UserDebtRequestVm or DebtRequestVm.");
+            }
+        }
+
+        public async Task<IReadOnlyCollection<UserDebtRequestVm>> GetDebtRequestsByUserAsync(Guid userId, bool includeAppTrxs = false)
 		{
 			var debtRequests = await Context.DebtRequests.AsNoTracking()
 				.Where(x => x.CreditorId == userId || x.DebtorId == userId)
-				.Include(x => x.Currency)
-				.Include(x => x.CreditorUser)
-				.Include(x => x.DebtorUser)
+				.IncludeAllAdditionalQuery(includeAppTrxs)
 				.ToListAsync();
 
 			return debtRequests.Select(x => x.ToDebtRequestVm<UserDebtRequestVm>(userId)).ToList();
 		}
+
 	}
 }
