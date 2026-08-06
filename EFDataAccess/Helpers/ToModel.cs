@@ -17,9 +17,16 @@ namespace EFDataAccess.Helpers
 		{
 			var debtRequest = debtRequestAdditional.EFDebtRequest;
 			T debtRequestVm;
-			if (typeof(T) == typeof(UserDebtRequestVm) && reqUserId != null)
-			{
-				debtRequestVm = new UserDebtRequestVm(reqUserId.Value) as T;
+            if (typeof(UserDebtRequestVm).IsAssignableFrom(typeof(T)) && reqUserId != null)
+            {
+				if(typeof(T) == typeof(TrxModifiedDebtRequestVm))
+				{
+					debtRequestVm = new TrxModifiedDebtRequestVm(reqUserId.Value) as T;
+				}
+				else
+				{
+					debtRequestVm = new UserDebtRequestVm(reqUserId.Value) as T;
+				}
 			}
 			else
 			{

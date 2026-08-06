@@ -56,7 +56,7 @@ namespace MyFinanceBackend.Services
 
 		public async Task<UserDebtRequestVm> UpdateCreditorStatusAsync(int debtRequestId, CreditorRequestStatus newStatus, Guid userId, DateTime dateTime)
 		{
-			var debtRequest = await unitOfWork.DebtRequestRepository.GetDebtRequestsByIdAsync(debtRequestId, userId) as UserDebtRequestVm
+			var debtRequest = await unitOfWork.DebtRequestRepository.GetDebtRequestsByIdAsync<UserDebtRequestVm>(debtRequestId, userId)
 				?? throw new ServiceException($"Debt request with id {debtRequestId} not found");
 			if(debtRequest.TrxCount == 0)
 			{
@@ -71,10 +71,11 @@ namespace MyFinanceBackend.Services
 			}
 			else if(newStatus == CreditorRequestStatus.Paid)
 			{
-				await ConfirmPendingCreditorDebtRequestTrxsAsync(debtRequestId, userId, dateTime);
-				debtRequest = await unitOfWork.DebtRequestRepository.GetDebtRequestsByIdAsync(debtRequestId, userId) as UserDebtRequestVm
+				var modifiedTrxs = await ConfirmPendingCreditorDebtRequestTrxsAsync(debtRequestId, userId, dateTime);
+				var modifiedDebtRequest = await unitOfWork.DebtRequestRepository.GetDebtRequestsByIdAsync<TrxModifiedDebtRequestVm>(debtRequestId, userId)
 					?? throw new ServiceException($"Debt request with id {debtRequestId} not found");
-				return debtRequest;
+				modifiedDebtRequest.ModifiedTrxs = modifiedTrxs;
+                return modifiedDebtRequest;
 			}
 			else
 			{
@@ -84,14 +85,18 @@ namespace MyFinanceBackend.Services
 		
 		private async Task<IEnumerable<SpendItemModified>> ConfirmPendingCreditorDebtRequestTrxsAsync(int debtRequestId, Guid userId, DateTime dateTime)
 		{
-			var debtRequest = await unitOfWork.DebtRequestRepository.GetDebtRequestsByIdAsync(debtRequestId, userId, true) as UserDebtRequestVm
+			var debtRequest = await unitOfWork.DebtRequestRepository.GetDebtRequestsByIdAsync<TrxModifiedDebtRequestVm>(debtRequestId, userId, true)
 				?? throw new ServiceException($"Debt request with id {debtRequestId} not found");
+			if (debtRequest.UserTrxs == null || !debtRequest.UserTrxs.Any())
+			{
+				throw new ServiceException($"No transactions found for debt request {debtRequestId}");
+			}
 			var trxIds = debtRequest.UserTrxs.Select(x => x.SpendId).ToList();
 			await unitOfWork.StartTransactionAsync();
 			try
 			{
 				var modifieds = await appTransactionsSubService.ExecuteConfirmPendingTransactionsAsync(trxIds, dateTime);
-				debtRequest = await unitOfWork.DebtRequestRepository.UpdateCreditorStatusAsync(debtRequestId, CreditorRequestStatus.Paid);
+				await unitOfWork.DebtRequestRepository.UpdateCreditorStatusAsync(debtRequestId, CreditorRequestStatus.Paid);
 				await unitOfWork.SaveAsync();
 				await unitOfWork.CommitTransactionAsync();
 				return modifieds;
@@ -106,15 +111,25 @@ namespace MyFinanceBackend.Services
 
 		private async Task<UserDebtRequestVm> UpdateCreditorResetStatusAsync(int debtRequestId, Guid userId, CreditorRequestStatus newStatus)
 		{
-			await unitOfWork.DebtRequestRepository.RemoveAllAppTransactionsFromDebtRequestAsync(debtRequestId, userId);
-			var debtRequest = await unitOfWork.DebtRequestRepository.UpdateCreditorStatusAsync(debtRequestId, newStatus);
-			await unitOfWork.SaveAsync();
-			return debtRequest;
+			await unitOfWork.StartTransactionAsync();
+			try
+			{
+				await unitOfWork.DebtRequestRepository.RemoveAllAppTransactionsFromDebtRequestAsync(debtRequestId, userId);
+				var debtRequest = await unitOfWork.DebtRequestRepository.UpdateCreditorStatusAsync(debtRequestId, newStatus);
+				await unitOfWork.SaveAsync();
+				await unitOfWork.CommitTransactionAsync();
+				return debtRequest;
+			}
+			catch
+			{
+				await unitOfWork.RollbackAsync();
+				throw;
+			}
 		}
 
 		public async Task<UserDebtRequestVm> UpdateDebtorStatusAsync(int debtRequestId, DebtorRequestStatus status, Guid userId, DateTime dateTime)
 		{
-			var debtRequest = await unitOfWork.DebtRequestRepository.GetDebtRequestsByIdAsync(debtRequestId, userId) as UserDebtRequestVm
+			var debtRequest = await unitOfWork.DebtRequestRepository.GetDebtRequestsByIdAsync<UserDebtRequestVm>(debtRequestId, userId) 
 				?? throw new ServiceException($"Debt request with id {debtRequestId} not found");
 			if (debtRequest.TrxCount == 0)
 			{
@@ -129,10 +144,11 @@ namespace MyFinanceBackend.Services
 			}
 			else if (status == DebtorRequestStatus.Paid)
 			{
-				await ConfirmPendingDebtorDebtRequestTrxsAsync(debtRequestId, userId, dateTime);
-				debtRequest = await unitOfWork.DebtRequestRepository.GetDebtRequestsByIdAsync(debtRequestId, userId) as UserDebtRequestVm
-					?? throw new ServiceException($"Debt request with id {debtRequestId} not found");
-				return debtRequest;
+				var modifieds = await ConfirmPendingDebtorDebtRequestTrxsAsync(debtRequestId, userId, dateTime);
+				var modifiedDebtRequest = await unitOfWork.DebtRequestRepository.GetDebtRequestsByIdAsync<TrxModifiedDebtRequestVm>(debtRequestId, userId)
+                    ?? throw new ServiceException($"Debt request with id {debtRequestId} not found");
+				modifiedDebtRequest.ModifiedTrxs = modifieds;
+                return modifiedDebtRequest;
 			}
 			else
 			{
@@ -142,16 +158,30 @@ namespace MyFinanceBackend.Services
 
 		private async Task<UserDebtRequestVm> UpdateDebtorResetStatusAsync(int debtRequestId, Guid userId, DebtorRequestStatus newStatus)
 		{
-			await unitOfWork.DebtRequestRepository.RemoveAllAppTransactionsFromDebtRequestAsync(debtRequestId, userId);
-			var debtRequest = await unitOfWork.DebtRequestRepository.UpdateDebtorStatusAsync(debtRequestId, newStatus);
-			await unitOfWork.SaveAsync();
-			return debtRequest;
+			await unitOfWork.StartTransactionAsync();
+			try
+			{
+				await unitOfWork.DebtRequestRepository.RemoveAllAppTransactionsFromDebtRequestAsync(debtRequestId, userId);
+				var debtRequest = await unitOfWork.DebtRequestRepository.UpdateDebtorStatusAsync(debtRequestId, newStatus);
+				await unitOfWork.SaveAsync();
+				await unitOfWork.CommitTransactionAsync();
+				return debtRequest;
+			}
+			catch
+			{
+				await unitOfWork.RollbackAsync();
+				throw;
+			}
 		}
 
 		private async Task<IEnumerable<SpendItemModified>> ConfirmPendingDebtorDebtRequestTrxsAsync(int debtRequestId, Guid userId, DateTime dateTime)
 		{
 			var debtRequest = await unitOfWork.DebtRequestRepository.GetDebtRequestsByIdAsync(debtRequestId, userId, true) as UserDebtRequestVm
 				?? throw new ServiceException($"Debt request with id {debtRequestId} not found");
+			if (debtRequest.UserTrxs == null || !debtRequest.UserTrxs.Any())
+			{
+				throw new ServiceException($"No transactions found for debt request {debtRequestId}");
+			}
 			var trxIds = debtRequest.UserTrxs.Select(x => x.SpendId).ToList();
 			await unitOfWork.StartTransactionAsync();
 			try
@@ -190,6 +220,7 @@ namespace MyFinanceBackend.Services
 		public async Task DeleteDebtRequestAsync(int debtRequestId)
 		{
 			await unitOfWork.DebtRequestRepository.DeleteDebtRequestAsync(debtRequestId);
+			await unitOfWork.SaveAsync();
 		}
 
 		public async Task<IReadOnlyCollection<UserDebtRequestVm>> GetDebtRequestByUserIdAsync(Guid userId)

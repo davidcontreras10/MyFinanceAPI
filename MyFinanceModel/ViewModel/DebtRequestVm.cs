@@ -25,4 +25,9 @@ namespace MyFinanceModel.ViewModel
 		public IReadOnlyCollection<SpendViewModel> UserTrxs { get; set; } = [];
 		public int? TrxCount { get; set; }
 	}
+
+    public class TrxModifiedDebtRequestVm(Guid userId) : UserDebtRequestVm(userId)
+    {
+        public IEnumerable<SpendItemModified> ModifiedTrxs { get; set; } = [];
+    }
 }

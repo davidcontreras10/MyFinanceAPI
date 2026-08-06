@@ -178,7 +178,6 @@ namespace EFDataAccess.Repositories
 			}
 			
 			Context.DebtRequests.Remove(debtRequest);
-			await Context.SaveChangesAsync();
 		}
 
 		public async Task<DebtRequestVm> GetDebtRequestsByIdAsync(int debtRequestId, Guid? userId = null, bool includeAppTrxs = false)
@@ -192,7 +191,28 @@ namespace EFDataAccess.Repositories
 				: debtRequests?.ToDebtRequestVm<DebtRequestVm>();
 		}
 
-		public async Task<IReadOnlyCollection<UserDebtRequestVm>> GetDebtRequestsByUserAsync(Guid userId, bool includeAppTrxs = false)
+        public async Task<T> GetDebtRequestsByIdAsync<T>(int debtRequestId, Guid? userId = null, bool includeAppTrxs = false) where T : DebtRequestVm
+        {
+            var debtRequests = await Context.DebtRequests.AsNoTracking()
+                .Where(x => x.Id == debtRequestId)
+                .IncludeAllAdditionalQuery(includeAppTrxs && userId != null)
+                .FirstOrDefaultAsync();
+
+            if(typeof(UserDebtRequestVm).IsAssignableFrom(typeof(T)) && userId != null)
+            {
+                return debtRequests?.ToDebtRequestVm<T>(userId.Value);
+            }
+            else if (typeof(T) == typeof(DebtRequestVm))
+            {
+                return debtRequests?.ToDebtRequestVm<DebtRequestVm>() as T;
+            }
+            else
+            {
+                throw new InvalidOperationException("Invalid type parameter. Must be either UserDebtRequestVm or DebtRequestVm.");
+            }
+        }
+
+        public async Task<IReadOnlyCollection<UserDebtRequestVm>> GetDebtRequestsByUserAsync(Guid userId, bool includeAppTrxs = false)
 		{
 			var debtRequests = await Context.DebtRequests.AsNoTracking()
 				.Where(x => x.CreditorId == userId || x.DebtorId == userId)

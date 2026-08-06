@@ -17,5 +17,7 @@ namespace MyFinanceBackend.Data
 		Task<UserDebtRequestVm> CreateSimpleDebtRequestAsync(ClientDebtRequest simpleDebtRequest);
 		Task<DebtRequestVm> GetDebtRequestsByIdAsync(int debtRequestId, Guid? userId = null, bool includeAppTrxs = false);
 		Task<IReadOnlyCollection<UserDebtRequestVm>> GetDebtRequestsByUserAsync(Guid userId, bool includeAppTrxs = false);
-	}
+		Task<T> GetDebtRequestsByIdAsync<T>(int debtRequestId, Guid? userId = null, bool includeAppTrxs = false) where T : DebtRequestVm;
+
+    }
 }
