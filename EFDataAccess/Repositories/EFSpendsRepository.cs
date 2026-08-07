@@ -632,7 +632,7 @@ namespace EFDataAccess.Repositories
 					EndDate = endDate,
 					GlobalOrder = accountPeriod.Account.Position ?? 0,
 					InitialDate = initialDate,
-					SpendTypeViewModels = spendTypes.Select(spt => spt.ToSpendTypeViewModel(accountPeriod.Account.DefaultSpendTypeId)),
+					SpendTypeViewModels = spendTypes.Select(spt => spt.ToSpendTypeViewModel(accountPeriod.Account.DefaultSpendTypeId ?? 1)),
 					SuggestedDate = suggesteDate,
 					IsDefaultPending = accountPeriod.Account.DefaultSelectIsPending
 				};
@@ -1341,6 +1341,11 @@ namespace EFDataAccess.Repositories
 
 			if (trxFiltersContainer.DescriptionTrxFilter != null &&
 				(string.IsNullOrWhiteSpace(spend.Description) || !spend.Description.Contains(trxFiltersContainer.DescriptionTrxFilter.SearchText)))
+			{
+				return false;
+			}
+
+			if (trxFiltersContainer.TrxTypeFilter != null && spend.SpendTypeId != trxFiltersContainer.TrxTypeFilter.TrxTypeId)
 			{
 				return false;
 			}

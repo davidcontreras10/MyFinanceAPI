@@ -12,6 +12,10 @@ namespace MyFinanceWebApiCore.Controllers
 		protected string GetUserId()
 		{
 			var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);
+			if(userIdClaim?.Value == null)
+			{
+				throw new UnauthorizedAccessException();
+			}
 			return userIdClaim.Value;
 		}
 
