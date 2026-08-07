@@ -1345,6 +1345,11 @@ namespace EFDataAccess.Repositories
 				return false;
 			}
 
+			if (trxFiltersContainer.TrxTypeFilter != null && spend.SpendTypeId != trxFiltersContainer.TrxTypeFilter.TrxTypeId)
+			{
+				return false;
+			}
+
 			return true;
 		}
 

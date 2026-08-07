@@ -10,8 +10,9 @@ namespace MyFinanceModel.ClientViewModel
 	{
 		Unknown = 0,
 		PendingTrxs = 1,
-		ByDescription = 2
-	}
+		ByDescription = 2,
+        ByTrxType = 3
+    }
 
 	public interface ITrxFilter
 	{
@@ -24,6 +25,7 @@ namespace MyFinanceModel.ClientViewModel
 		public DateTime? EndDate { get; set; }
         public PendingTrxFilter PendingTrxFilter { get; set; }
         public DescriptionTrxFilter DescriptionTrxFilter { get; set; }
+        public TrxTypeFilter TrxTypeFilter { get; set; }
     }
 
 	public class PendingTrxFilter : ITrxFilter
@@ -37,5 +39,10 @@ namespace MyFinanceModel.ClientViewModel
 		public TrxFilterType TrxFilterType => TrxFilterType.ByDescription;
         public string SearchText { get; set; }
     }
-
+	
+	public class TrxTypeFilter : ITrxFilter
+	{
+		public TrxFilterType TrxFilterType => TrxFilterType.ByTrxType;
+        public int TrxTypeId { get; set; }
+    }
 }
