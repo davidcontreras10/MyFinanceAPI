@@ -143,6 +143,11 @@ Important: Return only the JSON array, and do not include markdown formatting (n
 
 		private async Task<string> CallOpenAIAsync(string requestJson)
 		{
+			if(string.IsNullOrEmpty(_openAISettings.ApiKey))
+			{
+				throw new InvalidOperationException("OpenAI API key is not configured.");
+			}
+
 			var openAIAPIKey = _openAISettings.ApiKey;
 			var httpClient = httpClientFactory.CreateClient("OpenAI");
 			httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", openAIAPIKey);
