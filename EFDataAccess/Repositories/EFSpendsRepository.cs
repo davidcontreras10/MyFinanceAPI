@@ -632,7 +632,7 @@ namespace EFDataAccess.Repositories
 					EndDate = endDate,
 					GlobalOrder = accountPeriod.Account.Position ?? 0,
 					InitialDate = initialDate,
-					SpendTypeViewModels = spendTypes.Select(spt => spt.ToSpendTypeViewModel(accountPeriod.Account.DefaultSpendTypeId)),
+					SpendTypeViewModels = spendTypes.Select(spt => spt.ToSpendTypeViewModel(accountPeriod.Account.DefaultSpendTypeId ?? 1)),
 					SuggestedDate = suggesteDate,
 					IsDefaultPending = accountPeriod.Account.DefaultSelectIsPending
 				};
