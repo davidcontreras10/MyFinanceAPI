@@ -1,8 +1,11 @@
-﻿using EFDataAccess.Models;
+﻿using EFDataAccess.Extensions;
+using EFDataAccess.Models;
+using EFDataAccess.Models.Customs;
 using MyFinanceModel;
 using MyFinanceModel.Enums;
 using MyFinanceModel.ViewModel;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using AppUser = EFDataAccess.Models.AppUser;
 
@@ -10,12 +13,20 @@ namespace EFDataAccess.Helpers
 {
 	public static class ToModel
 	{
-		public static T ToDebtRequestVm<T>(this EFDebtRequest debtRequest, Guid? reqUserId = null) where T : DebtRequestVm
+		internal static T ToDebtRequestVm<T>(this EFDebtRequestAdditional debtRequestAdditional, Guid? reqUserId = null) where T : DebtRequestVm
 		{
+			var debtRequest = debtRequestAdditional.EFDebtRequest;
 			T debtRequestVm;
-			if (typeof(T) == typeof(UserDebtRequestVm) && reqUserId != null)
-			{
-				debtRequestVm = new UserDebtRequestVm(reqUserId.Value) as T;
+            if (typeof(UserDebtRequestVm).IsAssignableFrom(typeof(T)) && reqUserId != null)
+            {
+				if(typeof(T) == typeof(TrxModifiedDebtRequestVm))
+				{
+					debtRequestVm = new TrxModifiedDebtRequestVm(reqUserId.Value) as T;
+				}
+				else
+				{
+					debtRequestVm = new UserDebtRequestVm(reqUserId.Value) as T;
+				}
 			}
 			else
 			{
@@ -31,8 +42,24 @@ namespace EFDataAccess.Helpers
 			debtRequestVm.Creditor = debtRequest.CreditorUser?.ToAppUser<Creditor>(creditorRequestStatus: debtRequest.CreditorStatus);
 			debtRequestVm.Debtor = debtRequest.DebtorUser?.ToAppUser<Debtor>(debtorRequestStatus: debtRequest.DebtorStatus);
 			debtRequestVm.CreatedDate = debtRequest.CreatedDate;
+			debtRequestVm.DebtorSpendsCount = debtRequestAdditional.DebtorSpendsCount;
+			debtRequestVm.CreditorSpendsCount = debtRequestAdditional.CreditorSpendsCount;
+			if(debtRequestVm is UserDebtRequestVm userDebtRequestVm)
+			{
+				userDebtRequestVm.UserTrxs = ToSpendOnPeriod(debtRequest, userDebtRequestVm);
+				userDebtRequestVm.TrxCount = userDebtRequestVm.CreatedByMe ? debtRequestAdditional.CreditorSpendsCount : debtRequestAdditional.DebtorSpendsCount;
+			}
+
 			return debtRequestVm;
 		}
+
+		private static IReadOnlyCollection<SpendViewModel> ToSpendOnPeriod(EFDebtRequest debtRequest, UserDebtRequestVm userDebtRequestVm)
+		{
+			var convertTransactions = userDebtRequestVm.CreatedByMe ? debtRequest.CreditorSpends : debtRequest.DebtorSpends;
+			var spendOnPeriods = convertTransactions.SelectMany(x => x.SpendOnPeriod.Where(x => x.IsOriginal == true)).ToList();
+			return [.. spendOnPeriods.Select(x => x.ToSpendSpendViewModel())];
+		}
+
 
 		public static BasicCurrencyViewModel ToBasicCurrencyViewModel(this Currency currency)
 		{

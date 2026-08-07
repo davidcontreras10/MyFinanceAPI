@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Runtime.Serialization;
 using DContre.MyFinance.StUtilities;
+using MyFinanceModel.Enums;
 using MyFinanceModel.Utilities;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -74,6 +76,8 @@ namespace MyFinanceModel
 			StatusCode = (HttpStatusCode)StringUtilities.GetInt(statusCodeEntry.Value.Value);
 		}
 
+		public object DataObject { get; set; }
+
 		public int ErrorCode
 		{
 			get => _errorCode;
@@ -112,6 +116,31 @@ namespace MyFinanceModel
 		public static bool IsServiceExceptionErrorCodeValid(int errorCode)
 		{
 			return errorCode != 0;
+		}
+	}
+
+	public class CantDeleteAppTrxException : ServiceException
+	{
+		public CantDeleteAppTrxException(IReadOnlyCollection<CantDeleteAppTrxReason> reasons)
+			: base(AppErrorCodes.DeleteTrxWithErrors)
+		{
+			DataObject = reasons.Select(r =>
+			{
+				return new
+				{
+					Code = r,
+					Message = GetReasonMessage(r)
+				};
+			});
+		}
+
+		private static string GetReasonMessage(CantDeleteAppTrxReason reason)
+		{
+			return reason switch
+			{
+				CantDeleteAppTrxReason.HasDebtRequest => "Has debt request associated",
+				_ => "Unknown reason"
+			};
 		}
 	}
 

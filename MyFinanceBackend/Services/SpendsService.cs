@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using MyFinanceBackend.Data;
 using MyFinanceBackend.ServicesExceptions;
 using MyFinanceModel;
@@ -11,7 +12,7 @@ using MyFinanceModel.ViewModel;
 
 namespace MyFinanceBackend.Services
 {
-	public class SpendsService(IUnitOfWork unitOfWork, IAppTransactionsSubService appTransactionsSubService, ITrxExchangeService trxExchangeService) : ISpendsService
+	public class SpendsService(IUnitOfWork unitOfWork, IAppTransactionsSubService appTransactionsSubService, ITrxExchangeService trxExchangeService, ILogger<SpendsService> logger) : ISpendsService
 	{
 
 		#region Attributes
@@ -142,7 +143,7 @@ namespace MyFinanceBackend.Services
 
 		public async Task<IEnumerable<SpendItemModified>> ConfirmPendingTransactionsAsync(IReadOnlyCollection<int> transactionIds, DateTime newPaymentDate)
 		{
-			if (transactionIds == null || !transactionIds.Any())
+			if (transactionIds == null || transactionIds.Count == 0)
 			{
 				return [];
 			}
@@ -162,7 +163,7 @@ namespace MyFinanceBackend.Services
 
 				foreach (var transactionId in transactionIds)
 				{
-					var modifieds = await ExecuteConfirmPendingTransactionAsync(transactionId, newPaymentDate);
+					var modifieds = await appTransactionsSubService.ExecuteConfirmPendingTransactionAsync(transactionId, newPaymentDate);
 					var notIncluded = modifieds.Where(m => !modifiedList.Any(mli => mli == m));
 					modifiedList.AddRange(notIncluded);
 				}
@@ -172,10 +173,10 @@ namespace MyFinanceBackend.Services
 			}
 			catch (Exception ex)
 			{
+				logger.LogError(ex, "Error confirming pending transactions");
 				_spendsRepository.RollbackTransaction();
 				throw;
 			}
-
 		}
 
 		public async Task<IEnumerable<SpendItemModified>> ConfirmPendingSpendAsync(int spendId, DateTime newPaymentDate)
@@ -183,12 +184,13 @@ namespace MyFinanceBackend.Services
 			_spendsRepository.BeginTransaction();
 			try
 			{
-				var modifiedList = await ExecuteConfirmPendingTransactionAsync(spendId, newPaymentDate);
+				var modifiedList = await appTransactionsSubService.ExecuteConfirmPendingTransactionAsync(spendId, newPaymentDate);
 				_spendsRepository.Commit();
 				return modifiedList;
 			}
-			catch (Exception)
+			catch (Exception ex)
 			{
+				logger.LogError(ex, "Error confirming pending spend");
 				_spendsRepository.RollbackTransaction();
 				throw;
 			}
@@ -197,63 +199,7 @@ namespace MyFinanceBackend.Services
 		#endregion
 
 		#region Privates
-
-		private async Task<IEnumerable<SpendItemModified>> ExecuteConfirmPendingTransactionAsync(int spendId, DateTime newPaymentDate)
-		{
-			var spends = await _spendsRepository.GetSavedSpendsAsync(spendId);
-			if (spends == null || !spends.Any())
-			{
-				return [];
-			}
-			var modifiedList = new List<SpendItemModified>();
-			foreach (var savedSpend in spends)
-			{
-				if (!savedSpend.IsPending)
-				{
-					throw new SpendNotPendingException(savedSpend.SpendId);
-				}
-
-				if(savedSpend.AmountNumerator > 0 && savedSpend.AmountDenominator > 0 && savedSpend.MethodId > 0 && savedSpend.IsPurchase != null)
-				{
-					var exchangeResult = await trxExchangeService.GetExchangeRateResultAsync(savedSpend.MethodId.Value, newPaymentDate, savedSpend.IsPurchase.Value);
-					if (exchangeResult == null || !exchangeResult.Success)
-					{
-						throw new Exception("Exchange rate not found");
-					}
-
-					savedSpend.AmountDenominator = (float)exchangeResult.Denominator;
-					savedSpend.AmountNumerator = (float)exchangeResult.Numerator;
-				}
-				var financeSpend = CreateFinanceSpend(savedSpend, newPaymentDate);
-				var modifiedItems = await _spendsRepository.EditSpendAsync(financeSpend);
-				modifiedList.AddRange(modifiedItems);
-			}
-
-			return modifiedList;
-		}
-
-		private static FinanceSpend CreateFinanceSpend(SavedSpend savedSpend, DateTime newDateTime)
-		{
-			ArgumentNullException.ThrowIfNull(savedSpend);
-			var result = new FinanceSpend
-			{
-				SpendId = savedSpend.SpendId,
-				Amount = savedSpend.Amount,
-				UserId = savedSpend.UserId,
-				SpendDate = savedSpend.SpendDate,
-				AmountDenominator = savedSpend.AmountDenominator,
-				CurrencyId = savedSpend.CurrencyId,
-				AmountNumerator = savedSpend.AmountNumerator,
-				SetPaymentDate = newDateTime,
-				OriginalAccountData = savedSpend.OriginalAccountData,
-				IncludedAccounts = savedSpend.IncludedAccounts,
-				IsPending = false,
-				AmountTypeId = savedSpend.AmountTypeId
-			};
-
-			return result;
-		}
-
+		
 		private static SpendActionResult CreateSpendActionResult(SpendActionAttributes spendActionAttributes,
 			IEnumerable<ResourceAccessReportRow> resourceAccessReportRows, ResourceActionNames resourceActionNames)
 		{
