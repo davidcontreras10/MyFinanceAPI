@@ -187,6 +187,19 @@ namespace MyFinanceModel
 		}
 	}
 
+	public class CurrencyConversionNotSupportedException : ServiceException
+	{
+		public CurrencyConversionNotSupportedException(int sourceCurrencyId, int destinationCurrencyId)
+			: base(GetMessage(sourceCurrencyId, destinationCurrencyId))
+		{
+		}
+
+		private static string GetMessage(int sourceCurrencyId, int destinationCurrencyId)
+		{
+			return $"No currency conversion method is configured to convert currency {sourceCurrencyId} into currency {destinationCurrencyId}.";
+		}
+	}
+
 	public class FinancialEntityFileUploadException : ServiceException
 	{
 		public FinancialEntityFileUploadException(string error, string financialEntity) : base(GetMessage(error, financialEntity))
