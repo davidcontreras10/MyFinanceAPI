@@ -167,7 +167,8 @@ namespace MyFinanceBackend.Services
 			}
 
 			var bankTrxs = await unitOfWork.BankTransactionsRepository.GetBasicBankTransactionByIdsAsync(bankTrxIds);
-			var spends = bankTrxs.SelectMany(trx => trx.Transactions ?? Array.Empty<SpendViewModel>()).ToList();
+			var processedBankTrxs = bankTrxs.Where(trx => trx.Status == BankTransactionStatus.Processed).ToList();
+			var spends = processedBankTrxs.SelectMany(trx => trx.Transactions ?? Array.Empty<SpendViewModel>()).ToList();
 			if (spends.Count == 0)
 			{
 				return new BankTrxSpendSummaryResponse();
