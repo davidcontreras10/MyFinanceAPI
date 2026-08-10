@@ -623,6 +623,45 @@ namespace EFDataAccess.Repositories
 			});
 		}
 
+		public async Task<IReadOnlyCollection<BankFlaggedAccountBasicInfo>> GetBankFlaggedAccountsBasicInfoAsync(string userId, IEnumerable<int> accountIds)
+		{
+			var accountIdsList = accountIds?.Distinct().ToList() ?? [];
+			if (accountIdsList.Count == 0)
+			{
+				return [];
+			}
+
+			var userGuid = new Guid(userId);
+			var userBankAccounts = await Context.UserBankSummaryAccount.AsNoTracking()
+				.Where(bacc => bacc.UserId == userGuid && accountIdsList.Contains(bacc.AccountId))
+				.Include(bacc => bacc.Account)
+					.ThenInclude(acc => acc.FinancialEntity)
+				.ToListAsync();
+
+			return userBankAccounts.Select(bacc => new BankFlaggedAccountBasicInfo
+			{
+				AccountId = bacc.AccountId,
+				AccountName = bacc.Account.Name,
+				CurrencyId = bacc.Account.CurrencyId ?? 0,
+				FinancialEntityId = bacc.Account.FinancialEntityId,
+				FinancialEntityName = bacc.Account.FinancialEntity?.Name
+			}).ToList();
+		}
+
+		public async Task<IReadOnlyCollection<AccountIncludeEdge>> GetAccountIncludeEdgesAsync(IEnumerable<int> accountIds)
+		{
+			var accountIdsList = accountIds?.Distinct().ToList() ?? [];
+			if (accountIdsList.Count == 0)
+			{
+				return [];
+			}
+
+			return await Context.AccountInclude.AsNoTracking()
+				.Where(ai => accountIdsList.Contains(ai.AccountId))
+				.Select(ai => new AccountIncludeEdge { AccountId = ai.AccountId, AccountIncludeId = ai.AccountIncludeId })
+				.ToListAsync();
+		}
+
 		public async Task<IEnumerable<AccountViewModel>> GetOrderedAccountViewModelListAsync(IEnumerable<int> accountIds, string userId)
 		{
 			var userGuid = new Guid(userId);

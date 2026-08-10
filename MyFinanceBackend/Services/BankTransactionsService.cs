@@ -4,6 +4,7 @@ using MyFinanceModel.ClientViewModel;
 using MyFinanceModel.Dto;
 using MyFinanceModel.Enums;
 using MyFinanceModel.Records;
+using MyFinanceModel.ViewModel;
 using MyFinanceModel.ViewModel.BankTransactions;
 using System;
 using System.Collections.Generic;
@@ -12,7 +13,7 @@ using System.Threading.Tasks;
 
 namespace MyFinanceBackend.Services
 {
-	public class BankTransactionsService(IUnitOfWork unitOfWork, IAppTransactionsSubService appTransactionsSubService) : IBankTransactionsService
+	public class BankTransactionsService(IUnitOfWork unitOfWork, IAppTransactionsSubService appTransactionsSubService, ITrxExchangeService trxExchangeService) : IBankTransactionsService
 	{
 		public async Task DeleteBankTransactionAsync(BankTrxId bankTrxId)
 		{
@@ -156,6 +157,271 @@ namespace MyFinanceBackend.Services
 			response.BankTransactions = results;
 			response.AccountsPerCurrencies = await unitOfWork.AccountRepository.GetAccountsByCurrenciesAsync(currencies.Select(c => c.Id), userId);
 			return response;
+		}
+
+		public async Task<BankTrxSpendSummaryResponse> GetBankTrxSpendSummaryAsync(string userId, IReadOnlyCollection<BankTrxId> bankTrxIds)
+		{
+			if (bankTrxIds == null || bankTrxIds.Count == 0)
+			{
+				return new BankTrxSpendSummaryResponse();
+			}
+
+			var bankTrxs = await unitOfWork.BankTransactionsRepository.GetBasicBankTransactionByIdsAsync(bankTrxIds);
+			var processedBankTrxs = bankTrxs.Where(trx => trx.Status == BankTransactionStatus.Processed).ToList();
+			var spends = processedBankTrxs.SelectMany(trx => trx.Transactions ?? Array.Empty<SpendViewModel>()).ToList();
+			if (spends.Count == 0)
+			{
+				return new BankTrxSpendSummaryResponse();
+			}
+
+			// A spend's AccountId may be a sub-account (old recursive AccountInclude design): the account actually
+			// flagged as a bank account can be one of its ancestors, so every ancestor must be considered too.
+			var spendAccountIds = spends.Select(s => s.AccountId).Distinct().ToList();
+			var ancestorChains = await GetAccountAncestorChainsAsync(spendAccountIds);
+			var candidateAccountIds = spendAccountIds.Concat(ancestorChains.Values.SelectMany(chain => chain)).Distinct().ToList();
+
+			var bankAccounts = (await unitOfWork.AccountRepository.GetBankFlaggedAccountsBasicInfoAsync(userId, candidateAccountIds))
+				.Where(acc => acc.FinancialEntityId.HasValue)
+				.ToList();
+			if (bankAccounts.Count == 0)
+			{
+				return new BankTrxSpendSummaryResponse();
+			}
+
+			var bankAccountIds = bankAccounts.Select(acc => acc.AccountId).ToHashSet();
+			var spendsByBankAccountId = spends
+				.Select(spend => (Spend: spend, BankAccountId: ResolveBankAccountId(spend.AccountId, bankAccountIds, ancestorChains)))
+				.Where(x => x.BankAccountId.HasValue)
+				.GroupBy(x => x.BankAccountId.Value)
+				.ToList();
+			if (spendsByBankAccountId.Count == 0)
+			{
+				return new BankTrxSpendSummaryResponse();
+			}
+
+			var accountSummaries = new List<(BankFlaggedAccountBasicInfo Account, IReadOnlyCollection<BankTrxSpendSummaryCurrencyAmount> CurrencyAmounts)>();
+			foreach (var group in spendsByBankAccountId)
+			{
+				var bankAccount = bankAccounts.First(acc => acc.AccountId == group.Key);
+				var currencyAmounts = group
+					.GroupBy(x => x.Spend.AmountCurrencyId)
+					.Select(g => new BankTrxSpendSummaryCurrencyAmount { CurrencyId = g.Key, Amount = g.Sum(x => (double)x.Spend.OriginalAmount) })
+					.Where(ca => ca.Amount != 0)
+					.ToList();
+				if (currencyAmounts.Count == 0) continue;
+
+				accountSummaries.Add((bankAccount, currencyAmounts));
+			}
+
+			if (accountSummaries.Count == 0)
+			{
+				return new BankTrxSpendSummaryResponse();
+			}
+
+			var conversionRateCache = new Dictionary<(int SourceCurrencyId, int DestinationCurrencyId, int? FinancialEntityId), double>();
+			var accountTotals = new Dictionary<int, double>();
+			foreach (var (account, currencyAmounts) in accountSummaries)
+			{
+				double total = 0;
+				foreach (var currencyAmount in currencyAmounts)
+				{
+					var rate = await GetConversionRateAsync(currencyAmount.CurrencyId, account.CurrencyId, account.FinancialEntityId, conversionRateCache);
+					total += currencyAmount.Amount * rate;
+				}
+				accountTotals[account.AccountId] = total;
+			}
+
+			var currencyIds = accountSummaries.SelectMany(x => x.CurrencyAmounts.Select(ca => ca.CurrencyId)).Distinct().ToList();
+			var allCurrencies = await unitOfWork.CurrenciesRepository.GetCurrenciesAsync();
+			var currencies = allCurrencies.Where(c => currencyIds.Contains(c.CurrencyId)).ToList();
+
+			var banks = accountSummaries
+				.GroupBy(x => x.Account.FinancialEntityId.Value)
+				.Select(g => new BankTrxSpendSummaryBank
+				{
+					FinancialEntityId = g.Key,
+					FinancialEntityName = g.First().Account.FinancialEntityName,
+					Accounts = g.Select(x => new BankTrxSpendSummaryAccount
+					{
+						AccountId = x.Account.AccountId,
+						AccountName = x.Account.AccountName,
+						CurrencyId = x.Account.CurrencyId,
+						CurrencyAmounts = x.CurrencyAmounts,
+						Total = accountTotals[x.Account.AccountId]
+					}).ToList()
+				})
+				.ToList();
+
+			return new BankTrxSpendSummaryResponse
+			{
+				Currencies = currencies,
+				Banks = banks
+			};
+		}
+
+		public async Task<BankTrxRawAmountSummaryResponse> GetBankTrxRawAmountSummaryAsync(IReadOnlyCollection<BankTrxId> bankTrxIds)
+		{
+			if (bankTrxIds == null || bankTrxIds.Count == 0)
+			{
+				return new BankTrxRawAmountSummaryResponse();
+			}
+
+			// Unlike GetBankTrxSpendSummaryAsync, this covers bank transactions of any status: it reports the raw
+			// file amount/currency straight off BasicBankTransactionDto, with no Spend/Account involved.
+			var bankTrxs = await unitOfWork.BankTransactionsRepository.GetBasicBankTransactionByIdsAsync(bankTrxIds);
+			var validBankTrxs = bankTrxs.Where(trx => trx.CurrencyId.HasValue && trx.OriginalAmount.HasValue).ToList();
+			if (validBankTrxs.Count == 0)
+			{
+				return new BankTrxRawAmountSummaryResponse();
+			}
+
+			var financialEntityIds = validBankTrxs.Select(trx => trx.FinancialEntityId).Distinct().ToList();
+			var financialEntities = await unitOfWork.FinancialEntitiesRepository.GetByIdsAsync(financialEntityIds);
+
+			var banks = validBankTrxs
+				.GroupBy(trx => trx.FinancialEntityId)
+				.Select(g => new BankTrxRawAmountSummaryBank
+				{
+					FinancialEntityId = g.Key,
+					FinancialEntityName = financialEntities.FirstOrDefault(fe => fe.FinancialEntityId == g.Key)?.FinancialEntityName,
+					CurrencyAmounts = g
+						.GroupBy(trx => trx.CurrencyId.Value)
+						.Select(cg => new BankTrxSpendSummaryCurrencyAmount { CurrencyId = cg.Key, Amount = cg.Sum(trx => (double)trx.OriginalAmount.Value) })
+						.Where(ca => ca.Amount != 0)
+						.ToList()
+				})
+				.Where(bank => bank.CurrencyAmounts.Count > 0)
+				.ToList();
+			if (banks.Count == 0)
+			{
+				return new BankTrxRawAmountSummaryResponse();
+			}
+
+			var currencyIds = banks.SelectMany(b => b.CurrencyAmounts.Select(ca => ca.CurrencyId)).Distinct().ToList();
+			var allCurrencies = await unitOfWork.CurrenciesRepository.GetCurrenciesAsync();
+			var currencies = allCurrencies.Where(c => currencyIds.Contains(c.CurrencyId)).ToList();
+
+			return new BankTrxRawAmountSummaryResponse
+			{
+				Currencies = currencies,
+				Banks = banks
+			};
+		}
+
+		private async Task<double> GetConversionRateAsync(
+			int sourceCurrencyId,
+			int destinationCurrencyId,
+			int? financialEntityId,
+			Dictionary<(int SourceCurrencyId, int DestinationCurrencyId, int? FinancialEntityId), double> cache)
+		{
+			if (sourceCurrencyId == destinationCurrencyId)
+			{
+				return 1;
+			}
+
+			var cacheKey = (sourceCurrencyId, destinationCurrencyId, financialEntityId);
+			if (cache.TryGetValue(cacheKey, out var cachedRate))
+			{
+				return cachedRate;
+			}
+
+			var methodId = await unitOfWork.CurrenciesRepository.GetCurrencyConverterMethodIdAsync(sourceCurrencyId, destinationCurrencyId, financialEntityId)
+				?? throw new CurrencyConversionNotSupportedException(sourceCurrencyId, destinationCurrencyId);
+			var exchangeRateResult = await trxExchangeService.GetExchangeRateResultAsync(methodId, DateTime.UtcNow, isIncome: false, accountCurrencyId: destinationCurrencyId, amountCurrencyId: sourceCurrencyId);
+			if (exchangeRateResult == null || !exchangeRateResult.Success || exchangeRateResult.Denominator == 0)
+			{
+				throw new CurrencyConversionNotSupportedException(sourceCurrencyId, destinationCurrencyId);
+			}
+
+			var rate = exchangeRateResult.Numerator / exchangeRateResult.Denominator;
+			cache[cacheKey] = rate;
+			return rate;
+		}
+
+		/// <summary>
+		/// Walks the (old, recursive) AccountInclude graph outward from each of <paramref name="startAccountIds"/>:
+		/// for account b, b.AccountIncludeAccount rows point (via AccountIncludeId) to the account(s) b's spends also
+		/// roll up into. Returns, per start account, the BFS-ordered list of all reachable ancestors (nearest first).
+		/// </summary>
+		private async Task<Dictionary<int, List<int>>> GetAccountAncestorChainsAsync(IReadOnlyCollection<int> startAccountIds)
+		{
+			const int maxDepth = 10;
+			var directParents = new Dictionary<int, List<int>>();
+			var visited = new HashSet<int>(startAccountIds);
+			var frontier = new HashSet<int>(startAccountIds);
+
+			for (var depth = 0; depth < maxDepth && frontier.Count > 0; depth++)
+			{
+				var edges = await unitOfWork.AccountRepository.GetAccountIncludeEdgesAsync(frontier);
+				if (edges.Count == 0) break;
+
+				var nextFrontier = new HashSet<int>();
+				foreach (var edge in edges)
+				{
+					if (!directParents.TryGetValue(edge.AccountId, out var parents))
+					{
+						parents = [];
+						directParents[edge.AccountId] = parents;
+					}
+					if (!parents.Contains(edge.AccountIncludeId))
+					{
+						parents.Add(edge.AccountIncludeId);
+					}
+
+					if (visited.Add(edge.AccountIncludeId))
+					{
+						nextFrontier.Add(edge.AccountIncludeId);
+					}
+				}
+
+				frontier = nextFrontier;
+			}
+
+			var chains = new Dictionary<int, List<int>>();
+			foreach (var startId in startAccountIds)
+			{
+				var chain = new List<int>();
+				var seen = new HashSet<int> { startId };
+				var queue = new Queue<int>([startId]);
+				while (queue.Count > 0)
+				{
+					var current = queue.Dequeue();
+					if (!directParents.TryGetValue(current, out var parents)) continue;
+					foreach (var parent in parents)
+					{
+						if (seen.Add(parent))
+						{
+							chain.Add(parent);
+							queue.Enqueue(parent);
+						}
+					}
+				}
+
+				chains[startId] = chain;
+			}
+
+			return chains;
+		}
+
+		private static int? ResolveBankAccountId(int accountId, HashSet<int> bankAccountIds, Dictionary<int, List<int>> ancestorChains)
+		{
+			if (bankAccountIds.Contains(accountId))
+			{
+				return accountId;
+			}
+
+			if (ancestorChains.TryGetValue(accountId, out var chain))
+			{
+				foreach (var ancestorId in chain)
+				{
+					if (bankAccountIds.Contains(ancestorId))
+					{
+						return ancestorId;
+					}
+				}
+			}
+
+			return null;
 		}
 
 		private async Task<IEnumerable<SpendItemModified>> ProcessMultipleTransactionsAsync(IReadOnlyCollection<BankItemRequest> bankItemRequests, string userId)
