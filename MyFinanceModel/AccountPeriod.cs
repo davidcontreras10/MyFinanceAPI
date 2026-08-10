@@ -63,5 +63,18 @@ namespace MyFinanceModel
 		public string FinancialEntityName { get; set; }
 	}
 
+    public class BankFlaggedAccountBasicInfo : AccountBasicInfo
+	{
+		public int CurrencyId { get; set; }
+		public int? FinancialEntityId { get; set; }
+		public string FinancialEntityName { get; set; }
+	}
+
+    public class AccountIncludeEdge
+	{
+		public int AccountId { get; set; }
+		public int AccountIncludeId { get; set; }
+	}
+
     public record AccountPeriodIdReqResp(int AccountPeriodIdReq, int? AccountPeriodResp) { }
 }

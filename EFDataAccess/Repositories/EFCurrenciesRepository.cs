@@ -37,5 +37,30 @@ namespace EFDataAccess.Repositories
 				})
 				.ToListAsync();
 		}
+
+		public async Task<int?> GetCurrencyConverterMethodIdAsync(int sourceCurrencyId, int destinationCurrencyId, int? financialEntityId)
+		{
+			var applicableCcms = await Context.CurrencyConverterMethod.AsNoTracking()
+				.Include(ccm => ccm.CurrencyConverter)
+				.Where(ccm => ccm.CurrencyConverter.CurrencyIdOne == sourceCurrencyId
+						   && ccm.CurrencyConverter.CurrencyIdTwo == destinationCurrencyId)
+				.ToListAsync();
+
+			if (applicableCcms.Count == 0)
+			{
+				return null;
+			}
+
+			if (financialEntityId.HasValue)
+			{
+				var scopedCcm = applicableCcms.FirstOrDefault(ccm => ccm.FinancialEntityId == financialEntityId.Value);
+				if (scopedCcm != null)
+				{
+					return scopedCcm.CurrencyConverterMethodId;
+				}
+			}
+
+			return applicableCcms.First().CurrencyConverterMethodId;
+		}
 	}
 }

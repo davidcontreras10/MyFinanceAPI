@@ -796,6 +796,16 @@ namespace MyFinanceBackend.Data
 			throw new NotImplementedException();
 		}
 
+		public Task<IReadOnlyCollection<BankFlaggedAccountBasicInfo>> GetBankFlaggedAccountsBasicInfoAsync(string userId, IEnumerable<int> accountIds)
+		{
+			throw new NotImplementedException();
+		}
+
+		public Task<IReadOnlyCollection<AccountIncludeEdge>> GetAccountIncludeEdgesAsync(IEnumerable<int> accountIds)
+		{
+			throw new NotImplementedException();
+		}
+
 		#endregion
 
 		#region Internal classes
