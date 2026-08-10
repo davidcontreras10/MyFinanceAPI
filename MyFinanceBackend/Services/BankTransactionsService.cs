@@ -259,6 +259,55 @@ namespace MyFinanceBackend.Services
 			};
 		}
 
+		public async Task<BankTrxRawAmountSummaryResponse> GetBankTrxRawAmountSummaryAsync(IReadOnlyCollection<BankTrxId> bankTrxIds)
+		{
+			if (bankTrxIds == null || bankTrxIds.Count == 0)
+			{
+				return new BankTrxRawAmountSummaryResponse();
+			}
+
+			// Unlike GetBankTrxSpendSummaryAsync, this covers bank transactions of any status: it reports the raw
+			// file amount/currency straight off BasicBankTransactionDto, with no Spend/Account involved.
+			var bankTrxs = await unitOfWork.BankTransactionsRepository.GetBasicBankTransactionByIdsAsync(bankTrxIds);
+			var validBankTrxs = bankTrxs.Where(trx => trx.CurrencyId.HasValue && trx.OriginalAmount.HasValue).ToList();
+			if (validBankTrxs.Count == 0)
+			{
+				return new BankTrxRawAmountSummaryResponse();
+			}
+
+			var financialEntityIds = validBankTrxs.Select(trx => trx.FinancialEntityId).Distinct().ToList();
+			var financialEntities = await unitOfWork.FinancialEntitiesRepository.GetByIdsAsync(financialEntityIds);
+
+			var banks = validBankTrxs
+				.GroupBy(trx => trx.FinancialEntityId)
+				.Select(g => new BankTrxRawAmountSummaryBank
+				{
+					FinancialEntityId = g.Key,
+					FinancialEntityName = financialEntities.FirstOrDefault(fe => fe.FinancialEntityId == g.Key)?.FinancialEntityName,
+					CurrencyAmounts = g
+						.GroupBy(trx => trx.CurrencyId.Value)
+						.Select(cg => new BankTrxSpendSummaryCurrencyAmount { CurrencyId = cg.Key, Amount = cg.Sum(trx => (double)trx.OriginalAmount.Value) })
+						.Where(ca => ca.Amount != 0)
+						.ToList()
+				})
+				.Where(bank => bank.CurrencyAmounts.Count > 0)
+				.ToList();
+			if (banks.Count == 0)
+			{
+				return new BankTrxRawAmountSummaryResponse();
+			}
+
+			var currencyIds = banks.SelectMany(b => b.CurrencyAmounts.Select(ca => ca.CurrencyId)).Distinct().ToList();
+			var allCurrencies = await unitOfWork.CurrenciesRepository.GetCurrenciesAsync();
+			var currencies = allCurrencies.Where(c => currencyIds.Contains(c.CurrencyId)).ToList();
+
+			return new BankTrxRawAmountSummaryResponse
+			{
+				Currencies = currencies,
+				Banks = banks
+			};
+		}
+
 		private async Task<double> GetConversionRateAsync(
 			int sourceCurrencyId,
 			int destinationCurrencyId,

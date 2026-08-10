@@ -187,5 +187,15 @@ namespace MyFinanceWebApiCore.Controllers
 			var result = await _bankTransactionsService.GetBankTrxSpendSummaryAsync(userId, bankTrxIds);
 			return Ok(result);
 		}
+
+		[HttpPost("raw-summary")]
+		public async Task<ActionResult<BankTrxRawAmountSummaryResponse>> GetBankTrxRawAmountSummary(ClientBankTrxSpendSummaryRequest request)
+		{
+			var bankTrxIds = (request?.Transactions ?? Array.Empty<ClientBankTrxSpendSummaryRequestItem>())
+				.Select(item => new BankTrxId(item.FinancialEntityId, item.TransactionId))
+				.ToList();
+			var result = await _bankTransactionsService.GetBankTrxRawAmountSummaryAsync(bankTrxIds);
+			return Ok(result);
+		}
 	}
 }

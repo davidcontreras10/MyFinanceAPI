@@ -15,5 +15,6 @@ namespace MyFinanceBackend.Services
 		Task<UserProcessingResponse> ProcessUserBankTrxAsync(string userId, IReadOnlyCollection<BankItemRequest> bankItemRequests);
 		Task<BankTrxReqResp> InsertAndGetFileBankTransactionState(IReadOnlyCollection<FileBankTransaction> fileBankTransactions, FinancialEntityFile financialEntityFile, string userId);
 		Task<BankTrxSpendSummaryResponse> GetBankTrxSpendSummaryAsync(string userId, IReadOnlyCollection<BankTrxId> bankTrxIds);
+		Task<BankTrxRawAmountSummaryResponse> GetBankTrxRawAmountSummaryAsync(IReadOnlyCollection<BankTrxId> bankTrxIds);
 	}
 }
