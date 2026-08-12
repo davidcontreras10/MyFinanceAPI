@@ -130,6 +130,19 @@ namespace EFDataAccess.Repositories
 				throw new ArgumentException("Invalid parameters", nameof(model));
 			}
 
+			var modifyList = model.ModifyList.ToList();
+			if (modifyList.Contains(ClientEditScheduledTask.ScheduledTaskField.FrequencyType)
+				&& !modifyList.Contains(ClientEditScheduledTask.ScheduledTaskField.Days))
+			{
+				throw new ServiceException("Days must be provided when modifying FrequencyType", HttpStatusCode.BadRequest);
+			}
+
+			if (modifyList.Contains(ClientEditScheduledTask.ScheduledTaskField.Days)
+				&& (model.Days == null || !model.Days.Any()))
+			{
+				throw new ServiceException("Days cannot be empty", HttpStatusCode.BadRequest);
+			}
+
 			var taskGuid = new Guid(model.TaskId);
 			var automaticTask = await Context.AutomaticTask.FirstOrDefaultAsync(x => x.AutomaticTaskId == taskGuid);
 			if (automaticTask == null)
@@ -137,7 +150,7 @@ namespace EFDataAccess.Repositories
 				throw new ServiceException($"ScheduledTask {model.TaskId} not found", HttpStatusCode.NotFound);
 			}
 
-			foreach (var field in model.ModifyList)
+			foreach (var field in modifyList)
 			{
 				switch (field)
 				{
@@ -152,6 +165,12 @@ namespace EFDataAccess.Repositories
 						break;
 					case ClientEditScheduledTask.ScheduledTaskField.Description:
 						automaticTask.TaskDescription = model.Description;
+						break;
+					case ClientEditScheduledTask.ScheduledTaskField.FrequencyType:
+						automaticTask.PeriodTypeId = (int)model.FrequencyType;
+						break;
+					case ClientEditScheduledTask.ScheduledTaskField.Days:
+						automaticTask.Days = ToStringCharSeparated(model.Days);
 						break;
 					case ClientEditScheduledTask.ScheduledTaskField.Invalid:
 					default:
@@ -242,7 +261,7 @@ namespace EFDataAccess.Repositories
 				AutomaticTaskId = id,
 				CurrencyId = clientScheduledTask.CurrencyId,
 				Days = ToStringCharSeparated(clientScheduledTask.Days),
-				PeriodTypeId = clientScheduledTask.FrequencyType,
+				PeriodTypeId = (int)clientScheduledTask.FrequencyType,
 				SpendTypeId = clientScheduledTask.SpendTypeId,
 				UserId = userId,
 				TaskDescription = clientScheduledTask.Description,

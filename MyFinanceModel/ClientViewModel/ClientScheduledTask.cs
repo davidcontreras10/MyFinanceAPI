@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using MyFinanceModel.ViewModel;
 
 namespace MyFinanceModel.ClientViewModel
 {
@@ -25,8 +26,8 @@ namespace MyFinanceModel.ClientViewModel
 
 		[Range(1, 3)]
 		[Required]
-		public int FrequencyType { get; set; }
-		
+		public ScheduledTaskFrequencyType FrequencyType { get; set; }
+
 		[Required]
 		public IEnumerable<int> Days { get; set; }
 
@@ -57,6 +58,11 @@ namespace MyFinanceModel.ClientViewModel
 
 		public string Description { get; set; }
 
+		[Range(1, 3)]
+		public ScheduledTaskFrequencyType FrequencyType { get; set; }
+
+		public IEnumerable<int> Days { get; set; }
+
 		[Required]
 		public IEnumerable<ScheduledTaskField> ModifyList { get; set; }
 
@@ -66,7 +72,9 @@ namespace MyFinanceModel.ClientViewModel
 			Amount = 1,
 			SpendTypeId = 2,
 			IsPending = 3,
-			Description = 4
+			Description = 4,
+			FrequencyType = 5,
+			Days = 6
 		}
 	}
 }

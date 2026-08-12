@@ -90,7 +90,7 @@ namespace MyFinanceBackend.Data
 				new SqlParameter(DatabaseConstants.PAR_DESCRIPTION, clientScheduledTask.Description),
 				new SqlParameter(DatabaseConstants.PAR_ACCOUNT_ID, clientScheduledTask.AccountId),
 				new SqlParameter(DatabaseConstants.PAR_IS_SPEND_TRX, clientScheduledTask.IsSpendTrx),
-				new SqlParameter(DatabaseConstants.PAR_PERIOD_TYPE_ID, clientScheduledTask.FrequencyType),
+				new SqlParameter(DatabaseConstants.PAR_PERIOD_TYPE_ID, (int)clientScheduledTask.FrequencyType),
 				new SqlParameter(DatabaseConstants.PAR_DAYS, sqlDays)
 			};
 
@@ -112,7 +112,7 @@ namespace MyFinanceBackend.Data
 				new SqlParameter(DatabaseConstants.PAR_DESCRIPTION, clientScheduledTask.Description),
 				new SqlParameter(DatabaseConstants.PAR_ACCOUNT_ID, clientScheduledTask.AccountId),
 				new SqlParameter(DatabaseConstants.PAR_TO_ACCOUNT_ID, clientScheduledTask.ToAccountId),
-				new SqlParameter(DatabaseConstants.PAR_PERIOD_TYPE_ID, clientScheduledTask.FrequencyType),
+				new SqlParameter(DatabaseConstants.PAR_PERIOD_TYPE_ID, (int)clientScheduledTask.FrequencyType),
 				new SqlParameter(DatabaseConstants.PAR_DAYS, sqlDays)
 			};
 
