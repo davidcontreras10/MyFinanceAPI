@@ -38,6 +38,13 @@ namespace MyFinanceBackend.Data
 			await ExecuteStoredProcedureAsync(DatabaseConstants.SP_AUTO_TASK_DELETE, taskIdPar);
 		}
 
+		public Task EditScheduledTaskAsync(ClientEditScheduledTask model)
+		{
+			// Legacy ADO.NET implementation, superseded by EFAutomaticTaskRepository (the only
+			// implementation registered in Startup.cs). No stored procedure backs this path.
+			throw new NotImplementedException();
+		}
+
 		public async Task<IReadOnlyCollection<BaseScheduledTaskVm>> GetScheduledTasksAsync()
 		{
 			return await GetScheduledByParameterAsync();

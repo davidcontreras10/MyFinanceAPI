@@ -25,5 +25,6 @@ namespace MyFinanceBackend.Data
 		Task<IReadOnlyCollection<BaseScheduledTaskVm>> GetScheduledByTaskIdAsync(string taskId);
 		Task RecordClientExecutedTaskAsync(ClientExecutedTask clientExecutedTask);
 		Task<IReadOnlyCollection<BaseScheduledTaskVm>> GetScheduledTasksAsync();
+		Task EditScheduledTaskAsync(ClientEditScheduledTask model);
 	}
 }

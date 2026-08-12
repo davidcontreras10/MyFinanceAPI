@@ -44,4 +44,29 @@ namespace MyFinanceModel.ClientViewModel
 			public int ToAccountId { get; set; }
 		}
 	}
+
+	public class ClientEditScheduledTask
+	{
+		public string TaskId { get; set; }
+
+		public float Amount { get; set; }
+
+		public int SpendTypeId { get; set; }
+
+		public bool IsPending { get; set; }
+
+		public string Description { get; set; }
+
+		[Required]
+		public IEnumerable<ScheduledTaskField> ModifyList { get; set; }
+
+		public enum ScheduledTaskField
+		{
+			Invalid = 0,
+			Amount = 1,
+			SpendTypeId = 2,
+			IsPending = 3,
+			Description = 4
+		}
+	}
 }
