@@ -35,6 +35,7 @@ namespace MyFinanceBackend.Services
 
 		Task<IReadOnlyCollection<BaseScheduledTaskVm>> GetScheduledTasksAsync();
 		Task<IReadOnlyCollection<BaseScheduledTaskVm>> GetTodayScheduledTaskAsync();
+		Task EditScheduledTaskAsync(ClientEditScheduledTask model);
 	}
 
 	public class ScheduledTasksService : IScheduledTasksService
@@ -146,6 +147,11 @@ namespace MyFinanceBackend.Services
 		public async Task DeleteByIdAsync(string taskId)
 		{
 			await _automaticTaskRepository.DeleteByIdAsync(taskId);
+		}
+
+		public async Task EditScheduledTaskAsync(ClientEditScheduledTask model)
+		{
+			await _automaticTaskRepository.EditScheduledTaskAsync(model);
 		}
 
 		private bool IsTaskForToday(BaseScheduledTaskVm baseScheduledTaskVm, DateTime today)

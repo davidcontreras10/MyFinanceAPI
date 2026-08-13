@@ -65,6 +65,11 @@ namespace MyFinanceWebApiCore
 			services.AddSwaggerGen();
 			services.AddSwaggerGen(c =>
 			{
+				// Default schemaId is just type.Name, which collides whenever two nested
+				// types share a name (e.g. ClientEditSpendModel.Field vs some other .Field).
+				// Qualify with the full namespace to make collisions structurally impossible.
+				c.CustomSchemaIds(type => type.FullName.Replace("+", "."));
+
 				c.SwaggerDoc("v1", new OpenApiInfo
 				{
 					Version = "v1",

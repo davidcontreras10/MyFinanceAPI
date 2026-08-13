@@ -4,6 +4,7 @@ using MyFinanceModel.ClientViewModel;
 using MyFinanceModel.ViewModel;
 using MyFinanceModel;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using System;
 using MyFinanceWebApiCore.Authentication;
@@ -66,6 +67,27 @@ namespace MyFinanceWebApiCore.Controllers
 		public async Task DeleteScheduledTaskAsync(string taskId)
 		{
 			await _scheduledTasksService.DeleteByIdAsync(taskId);
+		}
+
+		[HttpPatch]
+		[Route("{taskId}")]
+		public async Task EditScheduledTaskAsync(string taskId, ClientEditScheduledTask model)
+		{
+			ArgumentNullException.ThrowIfNull(model);
+			var userId = GetUserId();
+			await EnsureTaskBelongsToUserAsync(taskId, userId);
+			model.TaskId = taskId;
+			await _scheduledTasksService.EditScheduledTaskAsync(model);
+		}
+
+		private async Task EnsureTaskBelongsToUserAsync(string taskId, string userId)
+		{
+			var userTasks = await _scheduledTasksService.GetScheduledTasksByUserIdAsync(userId);
+			var belongsToUser = userTasks.Any(t => string.Equals(t.Id.ToString(), taskId, StringComparison.OrdinalIgnoreCase));
+			if (!belongsToUser)
+			{
+				throw new UnauthorizedAccessException($"ScheduledTask {taskId} does not belong to the current user");
+			}
 		}
 
 		[HttpPost]

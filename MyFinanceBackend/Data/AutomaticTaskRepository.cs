@@ -38,6 +38,13 @@ namespace MyFinanceBackend.Data
 			await ExecuteStoredProcedureAsync(DatabaseConstants.SP_AUTO_TASK_DELETE, taskIdPar);
 		}
 
+		public Task EditScheduledTaskAsync(ClientEditScheduledTask model)
+		{
+			// Legacy ADO.NET implementation, superseded by EFAutomaticTaskRepository (the only
+			// implementation registered in Startup.cs). No stored procedure backs this path.
+			throw new NotImplementedException();
+		}
+
 		public async Task<IReadOnlyCollection<BaseScheduledTaskVm>> GetScheduledTasksAsync()
 		{
 			return await GetScheduledByParameterAsync();
@@ -83,7 +90,7 @@ namespace MyFinanceBackend.Data
 				new SqlParameter(DatabaseConstants.PAR_DESCRIPTION, clientScheduledTask.Description),
 				new SqlParameter(DatabaseConstants.PAR_ACCOUNT_ID, clientScheduledTask.AccountId),
 				new SqlParameter(DatabaseConstants.PAR_IS_SPEND_TRX, clientScheduledTask.IsSpendTrx),
-				new SqlParameter(DatabaseConstants.PAR_PERIOD_TYPE_ID, clientScheduledTask.FrequencyType),
+				new SqlParameter(DatabaseConstants.PAR_PERIOD_TYPE_ID, (int)clientScheduledTask.FrequencyType),
 				new SqlParameter(DatabaseConstants.PAR_DAYS, sqlDays)
 			};
 
@@ -105,7 +112,7 @@ namespace MyFinanceBackend.Data
 				new SqlParameter(DatabaseConstants.PAR_DESCRIPTION, clientScheduledTask.Description),
 				new SqlParameter(DatabaseConstants.PAR_ACCOUNT_ID, clientScheduledTask.AccountId),
 				new SqlParameter(DatabaseConstants.PAR_TO_ACCOUNT_ID, clientScheduledTask.ToAccountId),
-				new SqlParameter(DatabaseConstants.PAR_PERIOD_TYPE_ID, clientScheduledTask.FrequencyType),
+				new SqlParameter(DatabaseConstants.PAR_PERIOD_TYPE_ID, (int)clientScheduledTask.FrequencyType),
 				new SqlParameter(DatabaseConstants.PAR_DAYS, sqlDays)
 			};
 

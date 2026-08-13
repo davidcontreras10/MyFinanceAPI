@@ -4,6 +4,7 @@ using EFDataAccess.Models.Customs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using MyFinanceBackend.Data;
+using MyFinanceModel;
 using MyFinanceModel.ClientViewModel;
 using MyFinanceModel.ViewModel;
 using System;
@@ -11,6 +12,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -58,7 +60,7 @@ namespace EFDataAccess.Repositories
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "Error on DeleteByIdAsync");
-				throw ex;
+				throw;
 			}
 		}
 
@@ -118,6 +120,64 @@ namespace EFDataAccess.Repositories
 			};
 
 			await Context.TransferTrxDef.AddAsync(transferTrxDef);
+			await Context.SaveChangesAsync();
+		}
+
+		public async Task EditScheduledTaskAsync(ClientEditScheduledTask model)
+		{
+			if (model == null || string.IsNullOrEmpty(model.TaskId) || model.ModifyList == null || !model.ModifyList.Any())
+			{
+				throw new ArgumentException("Invalid parameters", nameof(model));
+			}
+
+			var modifyList = model.ModifyList.ToList();
+			var changingFrequencyType = modifyList.Contains(ClientEditScheduledTask.ScheduledTaskField.FrequencyType);
+			var changingDays = modifyList.Contains(ClientEditScheduledTask.ScheduledTaskField.Days);
+			if (changingFrequencyType && model.FrequencyType != ScheduledTaskFrequencyType.Manual && !changingDays)
+			{
+				throw new ServiceException("Days must be provided when modifying FrequencyType to Monthly or Weekly", HttpStatusCode.BadRequest);
+			}
+
+			if (changingDays && (model.Days == null || !model.Days.Any()))
+			{
+				throw new ServiceException("Days cannot be empty", HttpStatusCode.BadRequest);
+			}
+
+			var taskGuid = new Guid(model.TaskId);
+			var automaticTask = await Context.AutomaticTask.FirstOrDefaultAsync(x => x.AutomaticTaskId == taskGuid);
+			if (automaticTask == null)
+			{
+				throw new ServiceException($"ScheduledTask {model.TaskId} not found", HttpStatusCode.NotFound);
+			}
+
+			foreach (var field in modifyList)
+			{
+				switch (field)
+				{
+					case ClientEditScheduledTask.ScheduledTaskField.Amount:
+						automaticTask.Amount = model.Amount;
+						break;
+					case ClientEditScheduledTask.ScheduledTaskField.SpendTypeId:
+						automaticTask.SpendTypeId = model.SpendTypeId;
+						break;
+					case ClientEditScheduledTask.ScheduledTaskField.IsPending:
+						automaticTask.IsPending = model.IsPending;
+						break;
+					case ClientEditScheduledTask.ScheduledTaskField.Description:
+						automaticTask.TaskDescription = model.Description;
+						break;
+					case ClientEditScheduledTask.ScheduledTaskField.FrequencyType:
+						automaticTask.PeriodTypeId = (int)model.FrequencyType;
+						break;
+					case ClientEditScheduledTask.ScheduledTaskField.Days:
+						automaticTask.Days = ToStringCharSeparated(model.Days);
+						break;
+					case ClientEditScheduledTask.ScheduledTaskField.Invalid:
+					default:
+						throw new ArgumentException($"Invalid field {field}", nameof(model));
+				}
+			}
+
 			await Context.SaveChangesAsync();
 		}
 
@@ -201,7 +261,7 @@ namespace EFDataAccess.Repositories
 				AutomaticTaskId = id,
 				CurrencyId = clientScheduledTask.CurrencyId,
 				Days = ToStringCharSeparated(clientScheduledTask.Days),
-				PeriodTypeId = clientScheduledTask.FrequencyType,
+				PeriodTypeId = (int)clientScheduledTask.FrequencyType,
 				SpendTypeId = clientScheduledTask.SpendTypeId,
 				UserId = userId,
 				TaskDescription = clientScheduledTask.Description,
