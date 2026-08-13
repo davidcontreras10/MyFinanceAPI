@@ -60,7 +60,7 @@ namespace EFDataAccess.Repositories
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "Error on DeleteByIdAsync");
-				throw ex;
+				throw;
 			}
 		}
 
@@ -131,14 +131,14 @@ namespace EFDataAccess.Repositories
 			}
 
 			var modifyList = model.ModifyList.ToList();
-			if (modifyList.Contains(ClientEditScheduledTask.ScheduledTaskField.FrequencyType)
-				&& !modifyList.Contains(ClientEditScheduledTask.ScheduledTaskField.Days))
+			var changingFrequencyType = modifyList.Contains(ClientEditScheduledTask.ScheduledTaskField.FrequencyType);
+			var changingDays = modifyList.Contains(ClientEditScheduledTask.ScheduledTaskField.Days);
+			if (changingFrequencyType && model.FrequencyType != ScheduledTaskFrequencyType.Manual && !changingDays)
 			{
-				throw new ServiceException("Days must be provided when modifying FrequencyType", HttpStatusCode.BadRequest);
+				throw new ServiceException("Days must be provided when modifying FrequencyType to Monthly or Weekly", HttpStatusCode.BadRequest);
 			}
 
-			if (modifyList.Contains(ClientEditScheduledTask.ScheduledTaskField.Days)
-				&& (model.Days == null || !model.Days.Any()))
+			if (changingDays && (model.Days == null || !model.Days.Any()))
 			{
 				throw new ServiceException("Days cannot be empty", HttpStatusCode.BadRequest);
 			}
