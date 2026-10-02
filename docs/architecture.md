@@ -28,6 +28,29 @@ repositories and exposes explicit transaction control: `StartTransactionAsync` /
 manually (see `DebtRequestService` for the reference pattern: start transaction → mutate through multiple
 repos → commit, with rollback on failure). Simpler services just call a repository and `SaveAsync`.
 
+## Account hierarchy (main accounts and sub-accounts)
+
+The product concept is **main account → sub-accounts**, but it is stored as `AccountInclude` rows on the
+*child*: `AccountId` = the sub-account, `AccountIncludeId` = its main account (the name reads backwards),
+plus a `CurrencyConverterMethodId` for when the two currencies differ. Rules, enforced by
+`AccountHierarchyValidator` when an account is added or its `accountIncludes` are edited:
+
+- At most **one** main account per account (`accountIncludes` is still an array in the API, but a
+  request with more than one entry is rejected with 400).
+- **Two levels only**: a main account can't be a sub-account, and an account with sub-accounts can't become one.
+- The main account must belong to the same user.
+- Account groups are independent of the hierarchy: a sub-account can be in a different group than its main account.
+
+Adding a spend to a sub-account writes one `Spend` and one `SpendOnPeriod` per account involved (the
+sub-account, flagged `IsOriginal`, and its main account), converting currency per link. These rows are
+created when the spend is added, so changing the hierarchy later does not rewrite history.
+
+`GET /api/Accounts/{accountGroupId}` and the edit view model return `parentAccountId`, `parentAccountName`
+and `subAccounts` (each with its own `accountGroupId`, since they may not be in the requested group).
+Parent candidates (`accountIncludeViewModels`) carry `hasParent`, so the UI can leave out accounts that are
+already sub-accounts. Deleting a main account removes its links, which turns its sub-accounts into top-level
+accounts; the UI warns about this using `subAccounts`.
+
 ## Sub-services
 
 Cross-cutting logic that's reused by more than one top-level service lives in a "sub-service"

@@ -256,6 +256,9 @@ namespace MyFinanceModel.ViewModel
 		public bool IsCurrentSelection { get; set; }
 		public SpendAmount Amount { get; set; }
 
+		/// <summary>True when this account is itself a sub-account, so it can't be chosen as a main account.</summary>
+		public bool HasParent { get; set; }
+
 		public int Id => AccountId;
 		public string Name => AccountName;
 	}

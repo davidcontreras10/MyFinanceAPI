@@ -47,6 +47,11 @@ Roughly one per controller in `MyFinanceWebApiCore/Controllers`:
 
 ## Glossary
 
+- **Main account / sub-account** — accounts form a two-level tree. A sub-account (e.g. a savings bucket)
+  rolls up into one main account (e.g. the real bank account). A transaction entered in the sub-account is
+  also posted to its main account, converting currency when they differ. See
+  [architecture.md](architecture.md#account-hierarchy-main-accounts-and-sub-accounts).
+
 - **Spend** (`Spend`, `SpendType`, `SpendOnPeriod`, `ISpendsService`, …) — a historical name. It means
   *any* transaction that affects an account balance, expense **or** income. Check `AmountType` for
   direction. Don't rename to "Transaction" unless asked.

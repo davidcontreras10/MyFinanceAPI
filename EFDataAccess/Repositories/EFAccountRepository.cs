@@ -218,7 +218,22 @@ namespace EFDataAccess.Repositories
 					BaseBudget = acc.BaseBudget ?? 0,
 					GlobalOrder = acc.Position ?? 0,
 					DefaultCurrencyId = acc.DefaultSelectCurrencyId,
-					IsDefaultPending = acc.DefaultSelectIsPending
+					IsDefaultPending = acc.DefaultSelectIsPending,
+					ParentAccountId = acc.AccountIncludeAccount
+						.Select(ai => (int?)ai.AccountIncludeId)
+						.FirstOrDefault(),
+					ParentAccountName = acc.AccountIncludeAccount
+						.Select(ai => ai.AccountIncludeNavigation.Name)
+						.FirstOrDefault(),
+					SubAccounts = acc.AccountIncludeAccountIncludeNavigation
+						.OrderBy(ai => ai.Account.Position)
+						.Select(ai => new SubAccountViewModel
+						{
+							AccountId = ai.AccountId,
+							AccountName = ai.Account.Name,
+							AccountGroupId = ai.Account.AccountGroupId ?? 0
+						})
+						.ToList()
 				});
 
 			var accountGroupViewModels = Context.AccountGroup
@@ -262,6 +277,12 @@ namespace EFDataAccess.Repositories
 			});
 
 			var userAccounts = Context.Account.Where(acc => acc.UserId == userGuid);
+			var userAccountList = userAccounts.ToList();
+			var hierarchyEdges = Context.AccountInclude.AsNoTracking()
+				.Where(ai => ai.Account.UserId == userGuid)
+				.Select(ai => new AccountIncludeEdge { AccountId = ai.AccountId, AccountIncludeId = ai.AccountIncludeId })
+				.ToList();
+			var accountIdsWithParent = hierarchyEdges.Select(e => e.AccountId).ToHashSet();
 			var queryAccounts = Context.Account
 				.Where(acc => accountIds.Contains(acc.AccountId))
 				.Include(acc => acc.AccountIncludeAccount)
@@ -291,7 +312,22 @@ namespace EFDataAccess.Repositories
 					FinancialEntityName = f.Name,
 					IsDefault = f.FinancialEntityId == acc.FinancialEntityId
 				}),
-				AccountIncludeViewModels = GetPossibleAccountIncludes(acc.AccountIncludeAccount.ToList(), userAccounts.ToList(), currencyConverters, acc),
+				AccountIncludeViewModels = MarkAccountsWithParent(
+					GetPossibleAccountIncludes(acc.AccountIncludeAccount.ToList(), userAccountList, currencyConverters, acc),
+					accountIdsWithParent),
+				ParentAccountId = hierarchyEdges.FirstOrDefault(e => e.AccountId == acc.AccountId)?.AccountIncludeId,
+				ParentAccountName = userAccountList
+					.FirstOrDefault(a => a.AccountId == hierarchyEdges.FirstOrDefault(e => e.AccountId == acc.AccountId)?.AccountIncludeId)?.Name,
+				SubAccounts = userAccountList
+					.Where(a => hierarchyEdges.Any(e => e.AccountId == a.AccountId && e.AccountIncludeId == acc.AccountId))
+					.OrderBy(a => a.Position)
+					.Select(a => new SubAccountViewModel
+					{
+						AccountId = a.AccountId,
+						AccountName = a.Name,
+						AccountGroupId = a.AccountGroupId ?? 0
+					})
+					.ToList(),
 				CurrencyViewModels = efCurrencies.Select(c => new CurrencyViewModel
 				{
 					CurrencyId = c.CurrencyId,
@@ -321,6 +357,11 @@ namespace EFDataAccess.Repositories
 		{
 			var userGuid = new Guid(userId);
 			var userAccounts = Context.Account.Where(acc => acc.UserId == userGuid);
+			var accountIdsWithParent = Context.AccountInclude.AsNoTracking()
+				.Where(ai => ai.Account.UserId == userGuid)
+				.Select(ai => ai.AccountId)
+				.Distinct()
+				.ToHashSet();
 			var currencyConverterMethods = Context.CurrencyConverterMethod.Include(c => c.CurrencyConverter).Include(c => c.FinancialEntity);
 			var applicable = new List<AccountIncludeViewModel>();
 			foreach (var account in userAccounts)
@@ -331,6 +372,7 @@ namespace EFDataAccess.Repositories
 				{
 					AccountId = account.AccountId,
 					AccountName = account.Name,
+					HasParent = accountIdsWithParent.Contains(account.AccountId),
 					MethodIds = ccMethods.Select(ccm => new MethodId
 					{
 						Id = ccm.CurrencyConverterMethodId,
@@ -662,6 +704,31 @@ namespace EFDataAccess.Repositories
 				.ToListAsync();
 		}
 
+		public async Task<AccountHierarchyInfo> GetAccountHierarchyInfoAsync(string userId, int? accountId, IReadOnlyCollection<int> requestedParentIds)
+		{
+			var userGuid = new Guid(userId);
+			var parentIds = requestedParentIds?.Distinct().ToList() ?? [];
+			var ownedAccountIds = await Context.Account.AsNoTracking()
+				.Where(acc => acc.UserId == userGuid && parentIds.Contains(acc.AccountId))
+				.Select(acc => acc.AccountId)
+				.ToListAsync();
+			var accountIdsWithParent = await Context.AccountInclude.AsNoTracking()
+				.Where(ai => parentIds.Contains(ai.AccountId))
+				.Select(ai => ai.AccountId)
+				.Distinct()
+				.ToListAsync();
+			var subAccountsCount = accountId.HasValue
+				? await Context.AccountInclude.AsNoTracking().CountAsync(ai => ai.AccountIncludeId == accountId.Value)
+				: 0;
+
+			return new AccountHierarchyInfo
+			{
+				OwnedAccountIds = ownedAccountIds.ToHashSet(),
+				AccountIdsWithParent = accountIdsWithParent.ToHashSet(),
+				SubAccountsCount = subAccountsCount
+			};
+		}
+
 		public async Task<IEnumerable<AccountViewModel>> GetOrderedAccountViewModelListAsync(IEnumerable<int> accountIds, string userId)
 		{
 			var userGuid = new Guid(userId);
@@ -908,6 +975,15 @@ namespace EFDataAccess.Repositories
 					? new[] { currentAccountPeriod }
 					: Array.Empty<AccountPeriod>();
 			}
+		}
+
+		private static IReadOnlyCollection<AccountIncludeViewModel> MarkAccountsWithParent(
+			IEnumerable<AccountIncludeViewModel> accountIncludes,
+			ISet<int> accountIdsWithParent)
+		{
+			var items = accountIncludes.ToList();
+			items.ForEach(item => item.HasParent = accountIdsWithParent.Contains(item.AccountId));
+			return items;
 		}
 
 		private static IEnumerable<AccountIncludeViewModel> GetPossibleAccountIncludes(

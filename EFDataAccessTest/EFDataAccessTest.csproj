@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\EFDataAccess\EFDataAccess.csproj" />
+    <ProjectReference Include="..\MyFinanceBackend\MyFinanceBackend.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using MyFinanceModel.ViewModel;
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using MyFinanceBackend.Data;
 using MyFinanceModel;
@@ -57,6 +58,7 @@ namespace MyFinanceBackend.Services
 
         public async Task AddAccountAsync(string userId, ClientAddAccount clientAddAccount)
         {
+	        await ValidateParentAccountsAsync(userId, null, clientAddAccount.AccountIncludes);
 	        await _accountRepository.AddAccountAsync(userId, clientAddAccount);
         }
 
@@ -78,6 +80,11 @@ namespace MyFinanceBackend.Services
 
 		public async Task UpdateAccountAsync(string userId, ClientEditAccount clientEditAccount)
 		{
+			if (clientEditAccount.EditAccountFields?.Contains(AccountFiedlds.AccountIncludes) == true)
+			{
+				await ValidateParentAccountsAsync(userId, clientEditAccount.AccountId, clientEditAccount.AccountIncludes);
+			}
+
 			await _accountRepository.UpdateAccountAsync(userId, clientEditAccount);
 		}
 
@@ -94,6 +101,28 @@ namespace MyFinanceBackend.Services
 		public async Task<AccountNotes> UpdateNotes(AccountNotes accountNotes, int accountId)
 		{
 			return await _accountRepository.UpdateNotes(accountNotes, accountId);
+		}
+
+		#endregion
+
+		#region Private methods
+
+		private async Task ValidateParentAccountsAsync(string userId, int? accountId, IEnumerable<ClientAccountInclude> accountIncludes)
+		{
+			var requestedParentIds = accountIncludes?.Select(x => x.AccountIncludeId).ToList() ?? [];
+			if (requestedParentIds.Count == 0)
+			{
+				return;
+			}
+
+			// Fail fast on the cheapest rule before touching the database.
+			if (requestedParentIds.Count > 1)
+			{
+				AccountHierarchyValidator.ValidateParents(accountId, requestedParentIds, new HashSet<int>(), new HashSet<int>(), 0);
+			}
+
+			var info = await _accountRepository.GetAccountHierarchyInfoAsync(userId, accountId, requestedParentIds);
+			AccountHierarchyValidator.ValidateParents(accountId, requestedParentIds, info.OwnedAccountIds, info.AccountIdsWithParent, info.SubAccountsCount);
 		}
 
 		#endregion
