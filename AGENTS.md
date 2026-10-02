@@ -1,0 +1,66 @@
+# AGENTS.md
+
+Instructions for AI coding tools (Claude Code, Codex, Copilot, …) working in this repository. This is the
+canonical file; tool-specific files (`CLAUDE.md`, `.github/copilot-instructions.md`) only point here.
+
+## Keeping this documentation up to date
+
+If you learn something a future session would need (a new feature, a domain rule, a convention, a gotcha,
+a changed command), record it in the repository docs — this file or a file under `docs/` — not in a
+tool-specific file (`CLAUDE.md`, `.github/copilot-instructions.md`, a tool's memory, etc.). Those files
+only point here. Keep additions short and durable; skip anything obvious from the code or likely to go
+stale. Put product/domain facts in `docs/product.md` and structure/technical facts in
+`docs/architecture.md`. The same applies to the sibling repository's docs when the fact belongs there.
+
+## What this is
+
+MyFinanceAPI — a .NET 8 backend for a personal finance app (accounts and sub-accounts reconciled against
+one real bank account, transactions, bank statement import, transfers, loans, debt requests, currency
+conversion, AI-assisted expense classification). Solo, non-commercial project.
+
+## Read first
+
+- [docs/product.md](docs/product.md) — what the app is for, features, glossary (note: "Spend" means any
+  transaction, expense or income).
+- [docs/architecture.md](docs/architecture.md) — project layout, UoW/repository pattern, sub-services,
+  GPT classification, file import, configuration, exceptions, CI.
+- Other files in [docs/](docs/) are specs for individual features.
+
+## Related repository
+
+The frontend is a separate repo: `myfinance-ui` (Angular 16), deployed as an Azure Static Web App
+(`icy-sea-0f0fb8a10.2.azurestaticapps.net`). It is allow-listed in CORS in `MyFinanceWebApiCore/Startup.cs`,
+along with `localhost:4350` for local frontend dev. Changing an API contract (routes, DTOs in
+`MyFinanceModel`) usually means a matching UI change. API JSON responses are camelCase.
+
+## Commands
+
+Solution: `MyFinanceWebApi.sln`. All projects target `net8.0`.
+
+```bash
+dotnet build
+dotnet run --project MyFinanceWebApiCore            # Swagger UI at /swagger
+dotnet test
+dotnet test --filter "FullyQualifiedName~PeriodCreatorHelperTest"   # single NUnit test
+
+# Apply EF Core migrations locally
+dotnet ef database update --project MyFinanceWebApiCore --context EFDataAccess.Models.MyFinanceContext
+
+# Add a migration
+dotnet ef migrations add <Name> --project EFDataAccess --startup-project MyFinanceWebApiCore --context EFDataAccess.Models.MyFinanceContext
+```
+
+The only test project is `EFDataAccessTest` (NUnit), covering just the EF data-access helpers. There is
+no test coverage for services or controllers — don't assume behavior is pinned by tests; check call sites
+when changing service logic.
+
+## Conventions
+
+- Services in `MyFinanceBackend` use repository interfaces and `IUnitOfWork` only — never EF or Mongo types.
+- Register new services/repositories in `MyFinanceWebApiCore/Startup.cs` (`Scoped`).
+- Throw typed exceptions (`MyFinanceBackend/Exceptions`) from services; controllers don't catch — a filter
+  maps them to HTTP responses.
+- Prefer extending an existing sub-service over duplicating logic.
+- Real config values live in `appsettings.local.json` (gitignored) or environment variables; never commit
+  secrets.
+- Branching: work on `develop`; `master` deploys to Azure.
