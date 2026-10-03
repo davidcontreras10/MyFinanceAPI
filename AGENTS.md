@@ -82,6 +82,8 @@ tests — don't assume their behavior is pinned; check call sites when changing 
   change another's data.
 - Real config values live in `appsettings.local.json` (gitignored) or environment variables; never commit
   secrets.
+- Ask before every `git commit`, push or pull request, even when you were asked to do the work: say what would be
+  committed (files, one-line message, branch) and wait for a yes. A yes covers only that one commit.
 - Branching: work on `develop`; `master` deploys to Azure. **Production is the only environment** (no dev or
   staging): a push to `master` runs the EF migrations on the Azure database and then deploys. See
   `docs/architecture.md` ("CI / deployment").
