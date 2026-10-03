@@ -112,7 +112,22 @@ The stored procedures themselves live in the database, not in this repo.
 
 ## CI / deployment
 
-`.github/workflows/` builds on push to `develop` and deploys to Azure Web Apps on `master`
-(`dotnet-build.yml`, `master_myfinancewebapicore*.yml`). `EF_migrations.yml` is a manual
-(`workflow_dispatch`) job that runs `dotnet ef database update` against the Azure SQL instance —
-migrations aren't applied automatically on every push.
+**Production is the only environment.** There is no dev or staging server for the API or the UI; a push to
+`master` is a production release.
+
+- Push to `develop`: `dotnet-build.yml` only builds.
+- Push to `master`: `master_myfinancewebapicore_ef.yml` builds, runs `dotnet ef database update` against the
+  Azure SQL database, then publishes and deploys (the deploy job waits for the build job, which includes the
+  migration). So **migrations in a release are applied automatically before the new code is deployed.**
+- `master_myfinancewebapicore.yml` also triggers on push to `master` and deploys without migrating.
+  `EF_migrations.yml` is a manual (`workflow_dispatch`) migration job.
+
+A local database (LocalDB, configured in the gitignored `appsettings.local.json`) is only for trying things
+out; it is a copy and lags behind production's migrations.
+
+## Migrations
+
+Never write or edit a migration by hand. Change the model (entities, and the Fluent API in `MyFinanceContext`
+for anything the migration must carry, such as defaults or constraints), then generate the migration with
+the command (see `AGENTS.md`). First run `dotnet ef migrations has-pending-model-changes` so the generated
+migration contains only your change. Applying it to production is the release workflow's job.

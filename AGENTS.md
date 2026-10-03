@@ -46,9 +46,15 @@ dotnet test --filter "FullyQualifiedName~PeriodCreatorHelperTest"   # single NUn
 # Apply EF Core migrations locally
 dotnet ef database update --project MyFinanceWebApiCore --context EFDataAccess.Models.MyFinanceContext
 
-# Add a migration
+# Check first that the model has no unrelated pending changes, then add a migration
+dotnet ef migrations has-pending-model-changes --project EFDataAccess --startup-project MyFinanceWebApiCore --context EFDataAccess.Models.MyFinanceContext
 dotnet ef migrations add <Name> --project EFDataAccess --startup-project MyFinanceWebApiCore --context EFDataAccess.Models.MyFinanceContext
 ```
+
+**Migrations: never write or edit one by hand.** Generate it with the command above, and put anything it must
+carry (defaults, constraints) in the Fluent API in `MyFinanceContext`. If the API is running (Visual Studio or
+IIS Express locks the Debug DLLs), add `--configuration Release` to the `dotnet ef` commands. Don't create a
+migration unless asked.
 
 The only test project is `EFDataAccessTest` (NUnit). It covers the EF period helpers and the account
 hierarchy rules (`AccountHierarchyValidator`, `AccountLinkRules`). Other services and controllers have no
@@ -65,4 +71,6 @@ tests — don't assume their behavior is pinned; check call sites when changing 
 - Prefer extending an existing sub-service over duplicating logic.
 - Real config values live in `appsettings.local.json` (gitignored) or environment variables; never commit
   secrets.
-- Branching: work on `develop`; `master` deploys to Azure.
+- Branching: work on `develop`; `master` deploys to Azure. **Production is the only environment** (no dev or
+  staging): a push to `master` runs the EF migrations on the Azure database and then deploys. See
+  `docs/architecture.md` ("CI / deployment").

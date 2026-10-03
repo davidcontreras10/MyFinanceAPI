@@ -24,6 +24,7 @@ namespace MyFinanceBackend.Data
 		Task<IReadOnlyCollection<BankFlaggedAccountBasicInfo>> GetBankFlaggedAccountsBasicInfoAsync(string userId, IEnumerable<int> accountIds);
 		Task<IReadOnlyCollection<AccountIncludeEdge>> GetAccountIncludeEdgesAsync(IEnumerable<int> accountIds);
 		Task<AccountLinkContext> GetAccountLinkContextAsync(int parentAccountId);
+		Task<AccountTypeUsage> GetAccountTypeUsageAsync(int accountTypeId, int? accountId);
 		Task<AccountHierarchyInfo> GetAccountHierarchyInfoAsync(string userId, int? accountId, IReadOnlyCollection<int> requestedParentIds);
 		Task<IEnumerable<AccountViewModel>> GetOrderedAccountViewModelListAsync(IEnumerable<int> accountIds, string userId);
 		IEnumerable<AccountPeriodBasicInfo> GetAccountPeriodBasicInfo(IEnumerable<int> accountPeriodIds);

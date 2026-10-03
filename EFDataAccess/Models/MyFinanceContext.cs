@@ -263,6 +263,9 @@ namespace EFDataAccess.Models
 					.IsRequired()
 					.HasMaxLength(500)
 					.IsUnicode(false);
+
+				entity.Property(e => e.IsActive)
+					.HasDefaultValue(true);
 			});
 
 			modelBuilder.Entity<AmountType>(entity =>

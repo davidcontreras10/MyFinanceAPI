@@ -296,7 +296,8 @@ namespace EFDataAccess.Repositories
 				SpendTypeViewModels = Context.UserSpendType.Where(ust => ust.UserId == userGuid || (acc.DefaultSpendTypeId != null && acc.DefaultSpendTypeId == ust.SpendTypeId))
 					.Include(x => x.SpendType)
 					.Select(x => x.SpendType.ToSpendTypeViewModel(acc.DefaultSpendTypeId ?? 1)),
-				AccountTypeViewModels = efAccountTypes.Select(acct => new AccountTypeViewModel
+				// Inactive types are hidden, except the one this account already has, so it still displays and saves.
+				AccountTypeViewModels = efAccountTypes.Where(acct => acct.IsActive || acct.AccountTypeId == acc.AccountTypeId).Select(acct => new AccountTypeViewModel
 				{
 					AccountTypeId = acct.AccountTypeId,
 					AccountTypeName = acct.AccountTypeName,
@@ -549,7 +550,7 @@ namespace EFDataAccess.Repositories
 		public async Task<AddAccountViewModel> GetAddAccountViewModelAsync(string userId)
 		{
 			var userGuid = new Guid(userId);
-			var accountTypeViewModels = await Context.AccountType.Select(acct => new AccountTypeViewModel
+			var accountTypeViewModels = await Context.AccountType.Where(acct => acct.IsActive).Select(acct => new AccountTypeViewModel
 			{
 				AccountTypeId = acct.AccountTypeId,
 				AccountTypeName = acct.AccountTypeName
@@ -686,6 +687,24 @@ namespace EFDataAccess.Repositories
 				.Where(ai => accountIdsList.Contains(ai.AccountId))
 				.Select(ai => new AccountIncludeEdge { AccountId = ai.AccountId, AccountIncludeId = ai.AccountIncludeId })
 				.ToListAsync();
+		}
+
+		public async Task<AccountTypeUsage> GetAccountTypeUsageAsync(int accountTypeId, int? accountId)
+		{
+			var type = await Context.AccountType.AsNoTracking()
+				.Where(t => t.AccountTypeId == accountTypeId)
+				.Select(t => new { t.IsActive })
+				.FirstOrDefaultAsync();
+			var accountHasIt = accountId.HasValue
+				&& await Context.Account.AsNoTracking()
+					.AnyAsync(a => a.AccountId == accountId.Value && a.AccountTypeId == accountTypeId);
+
+			return new AccountTypeUsage
+			{
+				Exists = type != null,
+				IsActive = type?.IsActive ?? false,
+				AccountHasIt = accountHasIt
+			};
 		}
 
 		public async Task<AccountLinkContext> GetAccountLinkContextAsync(int parentAccountId)

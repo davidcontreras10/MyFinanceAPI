@@ -86,12 +86,21 @@ Roughly one per controller in `MyFinanceWebApiCore/Controllers`:
   payments/transfers set up at the bank and splits salary across sub-accounts on payday.
 - **Users and authentication** — JWT-based.
 
+## Account types
+
+Checking, Saving and Bank only change what the account summary shows. A type can be **inactive**
+(`AccountType.IsActive`): it is no longer offered for new accounts, and an account can't be switched to it,
+but accounts that already have it keep it and still show it. The add form lists only active types; the edit
+form lists the active ones plus the account's current type. The API enforces this too (400 for a new account
+or a type change to an inactive type). The flag is changed directly in the database.
+
 ## Planned work
 
 - Fix the existing sub-account links whose financial entity differs from their main account's (rule 8 above),
   then apply the entity and exchange-method rules on edit as well as on create.
-- Remove the **Checking** account type. It no longer adds anything, but 10 accounts still use it, so first
-  decide what they become, then clean up the type lists in the API and the UI.
+- Retire the **Checking** account type. It no longer adds anything, but 10 accounts still use it. Account types
+  have an `IsActive` flag; the owner sets Checking to inactive in production once this ships (see "Account
+  types" above). Nothing else needs to change for those accounts.
 
 ## Glossary
 

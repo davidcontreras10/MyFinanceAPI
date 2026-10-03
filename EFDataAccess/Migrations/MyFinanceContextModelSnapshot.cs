@@ -199,6 +199,11 @@ namespace EFDataAccess.Migrations
                         .IsUnicode(false)
                         .HasColumnType("varchar(500)");
 
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
                     b.HasKey("AccountTypeId");
 
                     b.ToTable("AccountType");

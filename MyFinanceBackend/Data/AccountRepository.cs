@@ -811,6 +811,11 @@ namespace MyFinanceBackend.Data
 			throw new NotImplementedException();
 		}
 
+		public Task<AccountTypeUsage> GetAccountTypeUsageAsync(int accountTypeId, int? accountId)
+		{
+			throw new NotImplementedException();
+		}
+
 		public Task<AccountHierarchyInfo> GetAccountHierarchyInfoAsync(string userId, int? accountId, IReadOnlyCollection<int> requestedParentIds)
 		{
 			throw new NotImplementedException();

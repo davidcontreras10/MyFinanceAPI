@@ -58,6 +58,7 @@ namespace MyFinanceBackend.Services
 
         public async Task AddAccountAsync(string userId, ClientAddAccount clientAddAccount)
         {
+	        await ValidateAccountTypeAsync(null, (int)clientAddAccount.AccountTypeId);
 	        await ValidateParentAccountsAsync(userId, null, clientAddAccount.AccountIncludes);
 	        await ApplyMainAccountRulesAsync(clientAddAccount);
 	        await _accountRepository.AddAccountAsync(userId, clientAddAccount);
@@ -81,6 +82,11 @@ namespace MyFinanceBackend.Services
 
 		public async Task UpdateAccountAsync(string userId, ClientEditAccount clientEditAccount)
 		{
+			if (clientEditAccount.EditAccountFields?.Contains(AccountFiedlds.AccountTypeId) == true)
+			{
+				await ValidateAccountTypeAsync(clientEditAccount.AccountId, (int)clientEditAccount.AccountTypeId);
+			}
+
 			if (clientEditAccount.EditAccountFields?.Contains(AccountFiedlds.AccountIncludes) == true)
 			{
 				await ValidateParentAccountsAsync(userId, clientEditAccount.AccountId, clientEditAccount.AccountIncludes);
@@ -136,6 +142,12 @@ namespace MyFinanceBackend.Services
 				context.ParentFinancialEntityId,
 				requestedMethodId,
 				context.Methods);
+		}
+
+		private async Task ValidateAccountTypeAsync(int? accountId, int accountTypeId)
+		{
+			var usage = await _accountRepository.GetAccountTypeUsageAsync(accountTypeId, accountId);
+			AccountTypeRules.ValidateSelectable(usage);
 		}
 
 		private async Task ValidateParentAccountsAsync(string userId, int? accountId, IEnumerable<ClientAccountInclude> accountIncludes)
