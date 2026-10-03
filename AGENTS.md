@@ -84,6 +84,7 @@ tests — don't assume their behavior is pinned; check call sites when changing 
   secrets.
 - Ask before every `git commit`, push or pull request, even when you were asked to do the work: say what would be
   committed (files, one-line message, branch) and wait for a yes. A yes covers only that one commit.
-- Branching: work on `develop`; `master` deploys to Azure. **Production is the only environment** (no dev or
-  staging): a push to `master` runs the EF migrations on the Azure database and then deploys. See
-  `docs/architecture.md` ("CI / deployment").
+- Branching: **`develop` is the working branch** — start new work, branches, worktrees and new sessions from it
+  (the git default branch is `master`, so tools often start from `master` by mistake; switch to `develop` first).
+  **`master` is production**, and **production is the only environment** (no dev or staging): a push to `master`
+  runs the EF migrations on the Azure database and then deploys. See `docs/architecture.md` ("CI / deployment").
