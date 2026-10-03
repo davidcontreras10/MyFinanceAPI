@@ -208,7 +208,8 @@ namespace EFDataAccess.Repositories
 			var guidUserId = new Guid(userId);
 			var accountDetailsViewModels = Context.Account.
 				Where(acc =>
-				accountGroupIds.Contains(acc.AccountGroupId.Value)
+				acc.UserId == guidUserId
+				&& accountGroupIds.Contains(acc.AccountGroupId.Value)
 				).Select(acc => new AccountDetailsViewModel
 				{
 					AccountGroupId = acc.AccountGroupId ?? 0,
@@ -286,7 +287,7 @@ namespace EFDataAccess.Repositories
 				.Include(acc => acc.AccountIncludeAccount)
 				.ToList();
 			var efCurrencies = Context.Currency.ToList();
-			var efAccountGroups = Context.AccountGroup.ToList();
+			var efAccountGroups = Context.AccountGroup.Where(accg => accg.UserId == userGuid).ToList();
 			var acc = queryAccounts.Select(acc => new AccountDetailsInfoViewModel
 			{
 				AccountName = acc.Name,
@@ -600,7 +601,7 @@ namespace EFDataAccess.Repositories
 				)
 				.ToListAsync();
 
-			var accountGroupViewModels = Context.AccountGroup.Select(accg => new AccountGroupViewModel
+			var accountGroupViewModels = Context.AccountGroup.Where(accg => accg.UserId == userGuid).Select(accg => new AccountGroupViewModel
 			{
 				AccountGroupDisplayValue = accg.DisplayValue,
 				AccountGroupId = accg.AccountGroupId,
@@ -953,7 +954,7 @@ namespace EFDataAccess.Repositories
 			}
 
 			return await Context.AccountGroup
-				.Where(accg => accg.AccountGroupId == accountGroupId)
+				.Where(accg => accg.AccountGroupId == accountGroupId && accg.UserId == userGuid)
 				.ToListAsync();
 		}
 
