@@ -66,7 +66,7 @@ been initialized". On Windows `Local` matches `appsettings.local.json`. In Power
 
 The only test project is `EFDataAccessTest` (NUnit). It covers the EF period helpers, account
 hierarchy rules (`AccountHierarchyValidator`, `AccountLinkRules`), GPT classification response/error handling,
-and classification cache behavior for digital-service IVA.
+classification cache behavior for digital-service IVA, and model-comparison request/usage/cost handling.
 Other services and controllers have no tests — don't assume their behavior is pinned; check call sites when
 changing service logic.
 

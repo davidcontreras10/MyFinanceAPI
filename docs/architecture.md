@@ -77,6 +77,15 @@ currency/account ownership, so previously-seen expenses skip the GPT call on sub
 touching this flow, be aware there are two distinct outputs: cached lookups vs. fresh GPT classification,
 merged before being returned to the caller.
 
+Fresh classification calls use `OpenAI:Model`, defaulting to `gpt-6-luna` with reasoning disabled.
+To switch to the supported alternative, set `"Model": "gpt-4o-mini"` under `OpenAI` in
+`appsettings.local.json`, or set the environment variable `OpenAI__Model=gpt-4o-mini`, then restart the API.
+Use `gpt-6-luna` to switch back. Model selection is explicit, with no automatic fallback or second paid
+call. Both models use standard service tier, JSON mode, temperature 0.2 and a 4096-token completion limit;
+the reasoning parameter is omitted for GPT-4o mini. Unsupported model settings fail before calling OpenAI.
+Changing this setting does not invalidate existing cached classifications; use the comparison endpoint
+for fresh calls to both models without cache writes.
+
 The GPT repository requests JSON mode (`response_format: json_object`) with an `expenses` array inside
 the response object; parsing also accepts the older bare-array fixture in `FakeOpenAIResponse.json`.
 It checks completion/refusal status, transaction IDs, allowed category/account IDs and confidence values
@@ -88,6 +97,21 @@ the field path and line/position; warnings include those details without logging
 `GET /api/Tests/classify-expenses` uses fixed Scotiabank reference numbers to load pending bank transactions.
 Categories, account hints and recent classification history come from the database for the authenticated user.
 It can return an empty list when those references are no longer pending, or skip OpenAI when all results are cached.
+
+`POST /api/Tests/classify-expenses/compare?financialEntityId=6&sampleSize=10` compares `gpt-4o-mini`
+with `gpt-6-luna` (`reasoning_effort: none`). It replays up to 25 processed, user-owned transactions from
+the last three months, loading categories, hinted accounts and history once. Both calls share identical
+messages, JSON mode, temperature and a 4096-token output limit, use standard service tier, and run sequentially
+without retries. It does not read or write the classification cache or modify transactions; each invocation
+does make two paid OpenAI calls. It does not change the configured default model.
+The response includes inputs and each model's classifications, elapsed HTTP-call time, returned model,
+request ID, input/output/cached/cache-write/reasoning token counts, and estimated USD cost. A model failure
+does not suppress the other result, and reported usage is retained even when classification validation fails.
+Cost uses standard public rates dated `PricingAsOf`, not an invoice: uncached input, cached input and cache
+writes are charged separately; completion tokens already include reasoning tokens, so those are not added
+again. Missing usage or a nonstandard returned service tier leaves cost unknown rather than reporting zero.
+Rates must be reviewed when pricing changes. Single-run latency and cost are observations, not benchmarks
+or guarantees, and classification accuracy is not scored.
 
 Account eligibility comes from `Account.AiClassificationHint`: only the current user's accounts with a
 nonblank hint are offered to GPT. A hint describes which transactions belong in that account, with useful

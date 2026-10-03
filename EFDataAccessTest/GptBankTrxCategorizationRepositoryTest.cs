@@ -186,6 +186,42 @@ namespace EFDataAccessTest
 		}
 
 		[Test]
+		public async Task DefaultsToLunaWithReasoningDisabledAndStandardBoundedRequest()
+		{
+			Assert.That(new OpenAISettings().Model, Is.EqualTo("gpt-6-luna"));
+			var handler = new ResponseHandler(Completion(new JArray(Result).ToString()));
+			using var client = new HttpClient(handler);
+			await Repository(client).ClassifyExpensesWithGptAsync(Inputs, Categories, Accounts, []);
+			var request = JObject.Parse(handler.RequestBody);
+			Assert.That((string)request["model"], Is.EqualTo("gpt-6-luna"));
+			Assert.That((string)request["reasoning_effort"], Is.EqualTo("none"));
+			Assert.That((string)request["service_tier"], Is.EqualTo("default"));
+			Assert.That((int)request["max_completion_tokens"], Is.EqualTo(4096));
+			Assert.That((bool)request["store"], Is.False);
+		}
+
+		[Test]
+		public async Task SwitchesToMiniThroughSettingsWithoutSendingReasoningParameter()
+		{
+			var handler = new ResponseHandler(Completion(new JArray(Result).ToString()));
+			using var client = new HttpClient(handler);
+			await Repository(client, "gpt-4o-mini").ClassifyExpensesWithGptAsync(Inputs, Categories, Accounts, []);
+			var request = JObject.Parse(handler.RequestBody);
+			Assert.That((string)request["model"], Is.EqualTo("gpt-4o-mini"));
+			Assert.That(request["reasoning_effort"], Is.Null);
+		}
+
+		[TestCase("")]
+		[TestCase("gpt-6-astra")]
+		public void RejectsUnsupportedModelWithoutMakingPaidCall(string model)
+		{
+			var handler = new ResponseHandler("unused");
+			using var client = new HttpClient(handler);
+			Assert.ThrowsAsync<ServiceException>(() => Repository(client, model).ClassifyExpensesWithGptAsync(Inputs, Categories, Accounts, []));
+			Assert.That(handler.RequestBody, Is.Null);
+		}
+
+		[Test]
 		public async Task RequestsJsonModeAndStringIds()
 		{
 			var handler = new ResponseHandler(Completion(new JObject { ["expenses"] = new JArray(Result) }.ToString()));
@@ -214,6 +250,61 @@ namespace EFDataAccessTest
 			Assert.That(inputs[0]["matchingHistoricalCategories"], Has.Count.EqualTo(1));
 			Assert.That(inputs[0]["matchingHistoricalCategories"][0]["categoryId"].Value<int>(), Is.EqualTo(2));
 			Assert.That(prompt, Does.Not.Contain("Old account"));
+		}
+
+		[Test]
+		public async Task ComparisonUsesIdenticalPromptsAndReportsUsageBasedCosts()
+		{
+			var envelope = JObject.Parse(Completion(new JArray(Result).ToString()));
+			envelope["model"] = "returned-snapshot";
+			envelope["service_tier"] = "default";
+			envelope["usage"] = JObject.Parse("{\"prompt_tokens\":1000,\"completion_tokens\":200,\"prompt_tokens_details\":{\"cached_tokens\":200,\"cache_write_tokens\":100},\"completion_tokens_details\":{\"reasoning_tokens\":0}}");
+			var handler = new ComparisonHandler(envelope.ToString(), envelope.ToString());
+			using var client = new HttpClient(handler);
+			var comparison = await Repository(client).CompareModelsAsync(Inputs, Categories, Accounts, []);
+			Assert.That(handler.Requests, Has.Count.EqualTo(2));
+			Assert.That(JToken.DeepEquals(handler.Requests[0]["messages"], handler.Requests[1]["messages"]), Is.True);
+			Assert.That((string)handler.Requests[0]["model"], Is.EqualTo("gpt-4o-mini"));
+			Assert.That(handler.Requests[0]["reasoning_effort"], Is.Null);
+			Assert.That((string)handler.Requests[1]["model"], Is.EqualTo("gpt-6-luna"));
+			Assert.That((string)handler.Requests[1]["reasoning_effort"], Is.EqualTo("none"));
+			Assert.That(handler.Requests.All(r => (string)r["service_tier"] == "default" && (int)r["max_completion_tokens"] == 4096 && !(bool)r["store"]), Is.True);
+			var runs = comparison.Runs.ToArray();
+			Assert.That(runs.All(r => r.Succeeded && r.Results.Count == 1 && r.RequestId == "req_compare"), Is.True);
+			Assert.That(runs[0].EstimatedCostUsd, Is.EqualTo(0.000255m));
+			Assert.That(runs[1].EstimatedCostUsd, Is.EqualTo(0.0001845m));
+			Assert.That(runs[1].ReasoningTokens, Is.Zero);
+		}
+
+		[Test]
+		public async Task ComparisonKeepsPaidUsageWhenValidationFailsAndStillRunsSecondModel()
+		{
+			var invalid = Result;
+			invalid["accountId"] = 999;
+			var envelope = JObject.Parse(Completion(new JArray(invalid).ToString()));
+			envelope["usage"] = JObject.Parse("{\"prompt_tokens\":1000,\"completion_tokens\":200,\"completion_tokens_details\":{\"reasoning_tokens\":50}}");
+			var handler = new ComparisonHandler(envelope.ToString(), Completion(new JArray(Result).ToString()));
+			using var client = new HttpClient(handler);
+			var runs = (await Repository(client).CompareModelsAsync(Inputs, Categories, Accounts, [])).Runs.ToArray();
+			Assert.That(runs[0].Succeeded, Is.False);
+			Assert.That(runs[0].EstimatedCostUsd, Is.EqualTo(0.00027m));
+			Assert.That(runs[0].OutputTokens, Is.EqualTo(200));
+			Assert.That(runs[0].ReasoningTokens, Is.EqualTo(50));
+			Assert.That(runs[0].Error, Does.Contain("999"));
+			Assert.That(runs[1].Succeeded, Is.True);
+			Assert.That(runs[1].EstimatedCostUsd, Is.Null);
+			Assert.That(handler.Requests, Has.Count.EqualTo(2));
+		}
+
+		[TestCase(0)]
+		[TestCase(26)]
+		public void ComparisonRejectsUnboundedOrEmptyBatchesBeforeCallingOpenAI(int count)
+		{
+			var handler = new ResponseHandler("unused");
+			using var client = new HttpClient(handler);
+			var inputs = Enumerable.Range(0, count).Select(i => new ExpenseToClassify { Id = i.ToString() }).ToList();
+			Assert.ThrowsAsync<ServiceException>(() => Repository(client).CompareModelsAsync(inputs, Categories, Accounts, []));
+			Assert.That(handler.RequestBody, Is.Null);
 		}
 
 		[Test]
@@ -250,11 +341,12 @@ namespace EFDataAccessTest
 		}
 
 		private static GptBankTrxCategorizationRepository Repository(HttpClient client) => new(new ClientFactory(client), new Settings());
+		private static GptBankTrxCategorizationRepository Repository(HttpClient client, string model) => new(new ClientFactory(client), new Settings(model));
 
-		private class Settings : IBackendSettings
+		private class Settings(string model = "gpt-6-luna") : IBackendSettings
 		{
 			public string CurrencyServiceUrl => "";
-			public OpenAISettings OpenAISettings => new() { ApiKey = "test-key", ChatUrl = "https://api.openai.com/v1/chat/completions" };
+			public OpenAISettings OpenAISettings => new() { ApiKey = "test-key", ChatUrl = "https://api.openai.com/v1/chat/completions", Model = model };
 		}
 
 		private class ClientFactory(HttpClient client) : IHttpClientFactory
@@ -279,6 +371,18 @@ namespace EFDataAccessTest
 		{
 			protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
 				throw (timeout ? new TaskCanceledException() : new HttpRequestException(HttpRequestError.ConnectionError, "Connection failed"));
+		}
+
+		private class ComparisonHandler(params string[] bodies) : HttpMessageHandler
+		{
+			public List<JObject> Requests { get; } = [];
+			protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+			{
+				Requests.Add(JObject.Parse(await request.Content.ReadAsStringAsync(cancellationToken)));
+				var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(bodies[Requests.Count - 1]) };
+				response.Headers.Add("x-request-id", "req_compare");
+				return response;
+			}
 		}
 	}
 }

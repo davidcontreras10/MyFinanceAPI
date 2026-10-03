@@ -1,5 +1,6 @@
 ﻿using MyFinanceBackend.Data;
 using MyFinanceBackend.Utils;
+using MyFinanceModel;
 using MyFinanceModel.BankTrxCategorization;
 using MyFinanceModel.GptClassifiedExpenseCache;
 using MyFinanceModel.Mappers;
@@ -7,6 +8,7 @@ using MyFinanceModel.Records;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 
 namespace MyFinanceBackend.Services
@@ -18,6 +20,28 @@ namespace MyFinanceBackend.Services
 	{
 		private const int LastHistoricalMonths = 3;
 		private const int ScotiabankFinancialEntityId = 6;
+
+		public async Task<ClassificationComparison> CompareClassificationModelsAsync(int financialEntityId, int sampleSize, string userId)
+		{
+			if (sampleSize is < 1 or > 25 || financialEntityId <= 0)
+				throw new ServiceException("Choose a financial entity and a sample size between 1 and 25.", HttpStatusCode.BadRequest);
+			var rows = await unitOfWork.BankTransactionsRepository.GetClassifiedBankTransactionsAsync(
+				financialEntityId, userId, DateTime.UtcNow.AddMonths(-LastHistoricalMonths));
+			var inputs = rows.OrderBy(r => r.trxDescription, StringComparer.Ordinal).ThenBy(r => r.OriginalAmount)
+				.Take(sampleSize).Select((r, i) => new ExpenseToClassify
+				{
+					Id = $"replay-{i + 1}", Description = r.trxDescription, Amount = r.OriginalAmount, Currency = r.CurrencyCode
+				}).ToList();
+			if (inputs.Count == 0)
+				throw new ServiceException("No recorded transactions found for this user and financial entity in the last three months. No OpenAI requests were made.", HttpStatusCode.BadRequest);
+			var history = ExpenseDataCleanup<InHisotricClassfiedExpense>.Clean(rows.Select(BankTrxCategorizationMapper.ToInHisotricClassfiedExpense).ToList());
+			var spendTypes = await unitOfWork.SpendTypeRepository.GetSpendTypesAsync(userId, false);
+			var categories = spendTypes.Where(c => !string.IsNullOrWhiteSpace(c.SpendTypeName)).Select(BankTrxCategorizationMapper.ToGptCategory).ToList();
+			var accounts = await unitOfWork.AccountRepository.GetAiClassifiableAccountsAsync(userId);
+			var hints = accounts.Where(a => !string.IsNullOrWhiteSpace(a.AiClassificationHint) && !string.IsNullOrWhiteSpace(a.AccountName))
+				.Select(BankTrxCategorizationMapper.ToGptAccount).ToList();
+			return await bankTrxCategorizationRepository.CompareModelsAsync(inputs, categories, hints, history.ToList());
+		}
 
 		public async Task<IReadOnlyCollection<ClassifiedBankTrx>> GetClassifiedBankTransactionsAsync(string userId)
 		{

@@ -38,6 +38,37 @@ namespace EFDataAccessTest
 		}
 
 		[Test]
+		public async Task ComparisonLoadsOnlyCurrentUserDataOnceAndNeverUsesCache()
+		{
+			var historyCalls = 0;
+			var bank = Stub<IBankTransactionsRepository>((method, args) =>
+			{
+				Assert.That(method.Name, Is.EqualTo(nameof(IBankTransactionsRepository.GetClassifiedBankTransactionsAsync)));
+				Assert.That(args[1], Is.EqualTo(UserId));
+				historyCalls++;
+				return Task.FromResult<IReadOnlyCollection<ClassifiedBankTrx>>([
+					new(20m, "USD", "OPENAI", "Old account", "Varios"),
+					new(15m, "USD", "AZURE", "Old account", "Varios")]);
+			});
+			var normalUnit = Unit([]);
+			var unit = Stub<IUnitOfWork>((method, args) => method.Name switch
+			{
+				"get_BankTransactionsRepository" => bank,
+				"get_AccountRepository" => normalUnit.AccountRepository,
+				"get_SpendTypeRepository" => normalUnit.SpendTypeRepository,
+				_ => throw new InvalidOperationException(method.Name)
+			});
+			var cache = new Cache([]);
+			var service = new ExpensesClassificationSubService(cache, unit, new Classifier());
+			var comparison = await service.CompareClassificationModelsAsync(6, 2, UserId);
+			Assert.That(historyCalls, Is.EqualTo(1));
+			Assert.That(comparison.Inputs.Select(i => i.Description), Is.EqualTo(new[] { "AZURE", "OPENAI" }));
+			Assert.That(comparison.Inputs.Select(i => i.Id).Distinct().Count(), Is.EqualTo(2));
+			Assert.That(cache.ReadCalls, Is.Zero);
+			Assert.That(cache.WrittenItems, Is.Empty);
+		}
+
+		[Test]
 		public async Task NonTaxCachedPurchaseStillSkipsGpt()
 		{
 			ToClassifyBankTrx[] rows = [new(new(6, "purchase"), "MICROSOFT AZURE HOSTING", 15m, "USD")];
@@ -108,6 +139,9 @@ namespace EFDataAccessTest
 
 		private class Classifier : IBankTrxCategorizationRepository
 		{
+			public Task<ClassificationComparison> CompareModelsAsync(List<ExpenseToClassify> inputs, List<Gpt.Category> categories,
+				List<Gpt.Account> accounts, List<InHisotricClassfiedExpense> history) =>
+				Task.FromResult(new ClassificationComparison { Inputs = inputs, Runs = [] });
 			public List<ExpenseToClassify> Inputs { get; private set; }
 			public Task<IReadOnlyCollection<OutGptClassifiedExpense>> ClassifyExpensesWithGptAsync(List<ExpenseToClassify> inputExpenses, List<Gpt.Category> categories, List<Gpt.Account> accounts, List<InHisotricClassfiedExpense> history)
 			{
