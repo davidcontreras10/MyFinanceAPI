@@ -130,4 +130,6 @@ out; it is a copy and lags behind production's migrations.
 Never write or edit a migration by hand. Change the model (entities, and the Fluent API in `MyFinanceContext`
 for anything the migration must carry, such as defaults or constraints), then generate the migration with
 the command (see `AGENTS.md`). First run `dotnet ef migrations has-pending-model-changes` so the generated
-migration contains only your change. Applying it to production is the release workflow's job.
+migration contains only your change. Applying it to production is the release workflow's job. To apply it to
+a local database, set `ASPNETCORE_ENVIRONMENT=Local` so the design-time factory reads `appsettings.local.json`
+(see `AGENTS.md`).

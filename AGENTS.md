@@ -43,8 +43,8 @@ dotnet run --project MyFinanceWebApiCore            # Swagger UI at /swagger
 dotnet test
 dotnet test --filter "FullyQualifiedName~PeriodCreatorHelperTest"   # single NUnit test
 
-# Apply EF Core migrations locally
-dotnet ef database update --project MyFinanceWebApiCore --context EFDataAccess.Models.MyFinanceContext
+# Apply EF Core migrations to the local database (needs ASPNETCORE_ENVIRONMENT=Local, see below)
+ASPNETCORE_ENVIRONMENT=Local dotnet ef database update --project EFDataAccess --startup-project MyFinanceWebApiCore --context EFDataAccess.Models.MyFinanceContext
 
 # Check first that the model has no unrelated pending changes, then add a migration
 dotnet ef migrations has-pending-model-changes --project EFDataAccess --startup-project MyFinanceWebApiCore --context EFDataAccess.Models.MyFinanceContext
@@ -55,6 +55,14 @@ dotnet ef migrations add <Name> --project EFDataAccess --startup-project MyFinan
 carry (defaults, constraints) in the Fluent API in `MyFinanceContext`. If the API is running (Visual Studio or
 IIS Express locks the Debug DLLs), add `--configuration Release` to the `dotnet ef` commands. Don't create a
 migration unless asked.
+
+**Commands that connect to the database need `ASPNETCORE_ENVIRONMENT=Local`** (`database update`,
+`migrations list`). The design-time factory (`MyFinanceWebApiCore/Models/MyFinanceContextFactory.cs`) reads only
+`appsettings.json` (secrets empty), `appsettings.{ASPNETCORE_ENVIRONMENT}.json` and environment variables — not
+`appsettings.local.json` on its own — so without the variable you get "The ConnectionString property has not
+been initialized". On Windows `Local` matches `appsettings.local.json`. In PowerShell:
+`$env:ASPNETCORE_ENVIRONMENT = "Local"` (clear it afterwards with `Remove-Item Env:ASPNETCORE_ENVIRONMENT`).
+`migrations add` and `has-pending-model-changes` don't connect, so they don't need it.
 
 The only test project is `EFDataAccessTest` (NUnit). It covers the EF period helpers and the account
 hierarchy rules (`AccountHierarchyValidator`, `AccountLinkRules`). Other services and controllers have no
