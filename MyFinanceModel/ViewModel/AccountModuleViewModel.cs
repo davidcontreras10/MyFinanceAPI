@@ -50,7 +50,13 @@ namespace MyFinanceModel.ViewModel
         public IEnumerable<FinancialEntityViewModel> FinancialEntityViewModels { get; set; }
         public IEnumerable<AccountIncludeViewModel> AccountIncludeViewModels { get; set; }
         public IEnumerable<CurrencyViewModel> CurrencyViewModels { get; set; }
-        public IEnumerable<AccountGroupViewModel> AccountGroupViewModels { get; set; } 
+        public IEnumerable<AccountGroupViewModel> AccountGroupViewModels { get; set; }
+
+        /// <summary>Account type suggested for a new main account (not a sub-account); null if there is none.</summary>
+        public int? SuggestedAccountTypeIdForMainAccount { get; set; }
+
+        /// <summary>Account type suggested for a new sub-account; null if there is none.</summary>
+        public int? SuggestedAccountTypeIdForSubAccount { get; set; }
     }
 
     public class AccountDetailsInfoViewModel : AccountDetailsViewModel //edit

@@ -569,6 +569,9 @@ namespace EFDataAccess.Models
 			{
 				entity.Property(e => e.CuttingDate).HasMaxLength(500);
 
+				entity.Property(e => e.IsDefault)
+					.HasDefaultValue(false);
+
 				entity.HasOne(d => d.PeriodType)
 					.WithMany(p => p.PeriodDefinition)
 					.HasForeignKey(d => d.PeriodTypeId)

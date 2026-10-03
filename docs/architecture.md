@@ -125,6 +125,18 @@ The stored procedures themselves live in the database, not in this repo.
 A local database (LocalDB, configured in the gitignored `appsettings.local.json`) is only for trying things
 out; it is a copy and lags behind production's migrations.
 
+## Defaults for new accounts
+
+`GetAddAccountViewModelAsync` marks the `PeriodDefinition` with `IsDefault` as the selected period type, and
+returns `suggestedAccountTypeIdForMainAccount` / `suggestedAccountTypeIdForSubAccount` from
+`AccountTypeSuggestions` (null when that type isn't active). The UI applies them; see `docs/product.md`
+("Defaults when creating an account").
+
+Note: the code already treats `PeriodDefinitionId == 2` as the basic monthly period in a few places
+(`IsBasicMontly` in `EFAccountRepository`, `PeriodTypeId == 2` in `PeriodCreatorHelper`,
+`PeriodTypeViewModel.IsFriendlyMonthlyName`). The add form's default period does not depend on that: it uses
+the `PeriodDefinition.IsDefault` flag.
+
 ## Migrations
 
 Never write or edit a migration by hand. Change the model (entities, and the Fluent API in `MyFinanceContext`

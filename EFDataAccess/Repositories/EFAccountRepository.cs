@@ -596,7 +596,9 @@ namespace EFDataAccess.Repositories
 						CuttingDate = pd.CuttingDate,
 						PeriodDefinitionId = pd.PeriodDefinitionId,
 						PeriodTypeId = pd.PeriodTypeId,
-						PeriodTypeName = pd.PeriodType.Name
+						PeriodTypeName = pd.PeriodType.Name,
+						Repetition = pd.Repetition ?? 0,
+						IsDefault = pd.IsDefault
 					}
 				)
 				.ToListAsync();
@@ -619,7 +621,9 @@ namespace EFDataAccess.Repositories
 				CurrencyViewModels = currencyViewModels,
 				FinancialEntityViewModels = financialEntityViewModels,
 				PeriodTypeViewModels = periodTypeViewModels,
-				SpendTypeViewModels = spendTypeViewModels
+				SpendTypeViewModels = spendTypeViewModels,
+				SuggestedAccountTypeIdForMainAccount = AccountTypeSuggestions.ForMainAccount(accountTypeViewModels.Select(t => t.AccountTypeId)),
+				SuggestedAccountTypeIdForSubAccount = AccountTypeSuggestions.ForSubAccount(accountTypeViewModels.Select(t => t.AccountTypeId))
 			};
 
 		}

@@ -94,6 +94,20 @@ but accounts that already have it keep it and still show it. The add form lists 
 form lists the active ones plus the account's current type. The API enforces this too (400 for a new account
 or a type change to an inactive type). The flag is changed directly in the database.
 
+## Defaults when creating an account
+
+The add account form fills two fields with **suggestions**, which the user can always change. Both are kept
+under a collapsed "Advanced settings" section (in the add and edit forms), together with the default transactions
+currency and the "pending by default" switch; the section opens by itself if
+one of them has no value.
+
+- **Period type:** the `PeriodDefinition` row flagged `IsDefault` is preselected. The flag is set directly in
+  the database (on one row); if none is flagged, nothing is preselected. The edit form ignores it and shows
+  the account's own period.
+- **Account type:** a new main account suggests **Bank** and a new sub-account suggests **Saving**
+  (`AccountTypeSuggestions`, using the account type codes of the `AccountType` enum). The suggestion follows
+  whether a main account is chosen, until the user picks a type themselves. An inactive type is never suggested.
+
 ## Planned work
 
 - Fix the existing sub-account links whose financial entity differs from their main account's (rule 8 above),
