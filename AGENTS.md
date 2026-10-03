@@ -84,7 +84,8 @@ tests — don't assume their behavior is pinned; check call sites when changing 
   secrets.
 - Ask before every `git commit`, push or pull request, even when you were asked to do the work: say what would be
   committed (files, one-line message, branch) and wait for a yes. A yes covers only that one commit.
-- Branching: **`develop` is the working branch** — start new work, branches, worktrees and new sessions from it
-  (the git default branch is `master`, so tools often start from `master` by mistake; switch to `develop` first).
+- Branching: work on `develop` or a feature branch (for example, `feature/ImproveAIConnectivity`). Continue on
+  the current feature branch when it is relevant to the task; do not switch to `develop` just to start a session.
+  Base new feature branches and worktrees on `develop` unless the user specifies another base.
   **`master` is production**, and **production is the only environment** (no dev or staging): a push to `master`
   runs the EF migrations on the Azure database and then deploys. See `docs/architecture.md` ("CI / deployment").
