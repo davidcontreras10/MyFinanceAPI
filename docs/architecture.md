@@ -145,3 +145,7 @@ the command (see `AGENTS.md`). First run `dotnet ef migrations has-pending-model
 migration contains only your change. Applying it to production is the release workflow's job. To apply it to
 a local database, set `ASPNETCORE_ENVIRONMENT=Local` so the design-time factory reads `appsettings.local.json`
 (see `AGENTS.md`).
+
+Gotcha with boolean flags that default to true (such as `AccountType.IsActive`): EF treats `false`, the CLR
+default, as "not set" when it inserts a row, and stores the database default (true) instead. Rows of these lookup
+tables aren't inserted through EF, so change such flags with SQL (`UPDATE ... SET IsActive = 0 ...`).

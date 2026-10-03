@@ -108,6 +108,9 @@ one of them has no value.
   (`AccountTypeSuggestions`, using the account type codes of the `AccountType` enum). The suggestion follows
   whether a main account is chosen, until the user picks a type themselves. An inactive type is never suggested.
 
+The form no longer asks for a **base budget** when creating an account: new accounts always start at 0. The field
+is only shown when editing, so existing budgets can still be changed.
+
 ## Planned work
 
 - Fix the existing sub-account links whose financial entity differs from their main account's (rule 8 above),

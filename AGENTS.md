@@ -77,6 +77,9 @@ tests — don't assume their behavior is pinned; check call sites when changing 
 - The non-EF repositories in `MyFinanceBackend/Data` (`AccountRepository`, `SpendsRepository`, …) are unused
   legacy code. The real implementations are the `EF*Repository` classes in `EFDataAccess`.
 - Prefer extending an existing sub-service over duplicating logic.
+- Scope every query over user-owned data (accounts, account groups, spends, …) to the current user (`UserId`), and
+  never trust an id sent by the client: check it belongs to the user. Loading by id alone lets one user read or
+  change another's data.
 - Real config values live in `appsettings.local.json` (gitignored) or environment variables; never commit
   secrets.
 - Branching: work on `develop`; `master` deploys to Azure. **Production is the only environment** (no dev or
