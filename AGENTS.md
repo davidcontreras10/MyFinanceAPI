@@ -64,9 +64,11 @@ been initialized". On Windows `Local` matches `appsettings.local.json`. In Power
 `$env:ASPNETCORE_ENVIRONMENT = "Local"` (clear it afterwards with `Remove-Item Env:ASPNETCORE_ENVIRONMENT`).
 `migrations add` and `has-pending-model-changes` don't connect, so they don't need it.
 
-The only test project is `EFDataAccessTest` (NUnit). It covers the EF period helpers and the account
-hierarchy rules (`AccountHierarchyValidator`, `AccountLinkRules`). Other services and controllers have no
-tests — don't assume their behavior is pinned; check call sites when changing service logic.
+The only test project is `EFDataAccessTest` (NUnit). It covers the EF period helpers, account
+hierarchy rules (`AccountHierarchyValidator`, `AccountLinkRules`), GPT classification response/error handling,
+and classification cache behavior for digital-service IVA.
+Other services and controllers have no tests — don't assume their behavior is pinned; check call sites when
+changing service logic.
 
 ## Conventions
 

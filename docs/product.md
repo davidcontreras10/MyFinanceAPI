@@ -86,6 +86,15 @@ Roughly one per controller in `MyFinanceWebApiCore/Controllers`:
   payments/transfers set up at the bank and splits salary across sub-accounts on payday.
 - **Users and authentication** — JWT-based.
 
+## AI classification account rules
+
+In the owner's workflow, `Ingresos Ahorros` is used for AI subscriptions despite its name. Other digital
+services, such as Azure hosting, belong to `General Bac`. The bank charges digital-service IVA separately
+at 13% of the underlying purchase; this tax belongs in the same account as that purchase, not a generic
+bank-fee account. For example, a USD 15 Azure charge and its USD 1.95 IVA both go to `General Bac`, while
+an AI subscription and its IVA both go to `Ingresos Ahorros`. A generic IVA description alone does not
+identify the account: use the associated purchase and amount/currency context.
+
 ## Account types
 
 Checking, Saving and Bank only change what the account summary shows. A type can be **inactive**

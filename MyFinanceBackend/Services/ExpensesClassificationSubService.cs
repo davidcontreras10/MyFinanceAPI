@@ -31,7 +31,10 @@ namespace MyFinanceBackend.Services
 		{
 			var toClassifyData = await unitOfWork.BankTransactionsRepository.GetToClassifyBankTransactionsAsync(financialEntityId, refNumbers);
 			var expensesToClassify = toClassifyData.Select(BankTrxCategorizationMapper.ToExpenseToClassify).ToList();
-			var cacheSearchResults = await GetCachedClassifiedExpensesAsync(expensesToClassify, userId);
+			// IVA routing depends on the purchase, including purchases that would otherwise be cached.
+			var cacheSearchResults = expensesToClassify.Any(e => IsDigitalServiceIva(e.Description))
+				? new CacheSearchResults([], expensesToClassify)
+				: await GetCachedClassifiedExpensesAsync(expensesToClassify, userId);
 			if (cacheSearchResults.NotCachedItems.Count == 0)
 			{
 				return cacheSearchResults.CachedItems;
@@ -58,11 +61,15 @@ namespace MyFinanceBackend.Services
 				[.. historicalExamples]);
 
 			var toCacheItems = aiClassificationResults
+				.Where(e => !IsDigitalServiceIva(e.Description))
 				.Select(BankTrxCategorizationMapper.ToInGptClassifiedExpenseCache)
 				.ToList();
 
 			toCacheItems.ApplyDescriptionNormalizations();
-			await classifiedExpensesCacheRepository.UpsertMultipleAsync(toCacheItems);
+			if (toCacheItems.Count > 0)
+			{
+				await classifiedExpensesCacheRepository.UpsertMultipleAsync(toCacheItems);
+			}
 			var cachedItemsResult = cacheSearchResults.CachedItems;
 			if (cachedItemsResult == null)
 			{
@@ -71,6 +78,9 @@ namespace MyFinanceBackend.Services
 			var allResults = cachedItemsResult.Concat(aiClassificationResults).ToList();
 			return allResults;
 		}
+
+		private static bool IsDigitalServiceIva(string description) =>
+			description?.Trim().StartsWith("IVA Servicio Digital", StringComparison.OrdinalIgnoreCase) == true;
 
 		private async Task<CacheSearchResults> GetCachedClassifiedExpensesAsync(List<ExpenseToClassify> expenseToClassify, string userId)
 		{

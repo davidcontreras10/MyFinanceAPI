@@ -77,6 +77,33 @@ currency/account ownership, so previously-seen expenses skip the GPT call on sub
 touching this flow, be aware there are two distinct outputs: cached lookups vs. fresh GPT classification,
 merged before being returned to the caller.
 
+The GPT repository requests JSON mode (`response_format: json_object`) with an `expenses` array inside
+the response object; parsing also accepts the older bare-array fixture in `FakeOpenAIResponse.json`.
+It checks completion/refusal status, transaction IDs, allowed category/account IDs and confidence values
+before returning results for caching. Original descriptions, amounts and currencies come from the bank data.
+OpenAI failures become `ServiceException` responses (502, or 504 for timeouts), with the upstream status,
+request ID, error code/type, finish reason and failure stage in `dataObject`. JSON parsing errors also include
+the field path and line/position; warnings include those details without logging transaction payloads or API keys.
+
+`GET /api/Tests/classify-expenses` uses fixed Scotiabank reference numbers to load pending bank transactions.
+Categories, account hints and recent classification history come from the database for the authenticated user.
+It can return an empty list when those references are no longer pending, or skip OpenAI when all results are cached.
+
+Account eligibility comes from `Account.AiClassificationHint`: only the current user's accounts with a
+nonblank hint are offered to GPT. A hint describes which transactions belong in that account, with useful
+merchant examples and exclusions. Spend categories come separately from the user's spend types; account
+notes and default spend categories do not substitute for a hint. The current account API does not expose
+the hint field for creating or editing accounts, so hints currently have to be populated in the database.
+Current account hints take precedence over historical examples. Identical descriptions, such as digital-service
+IVA, can route to different accounts depending on the associated purchase's amount and currency.
+Prompts serialize categories, accounts and inputs as separate JSON lists; historical examples provide category
+guidance while current hints govern account routing.
+Each input also carries allowed historical category IDs matching its normalized description and currency.
+These are prompt evidence, not a server-side override; conflicting historical categories still require judgment.
+Digital-service IVA batches bypass cache lookups so GPT sees the accompanying purchases, including those
+already cached. IVA results themselves are not cached: description/amount/currency alone cannot identify
+which purchase's account to use. Other results in the batch are still cached.
+
 ## Financial-entity file import
 
 Bank statement files (Excel) are parsed per financial institution via
