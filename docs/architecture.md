@@ -30,35 +30,24 @@ repos → commit, with rollback on failure). Simpler services just call a reposi
 
 ## Account hierarchy (main accounts and sub-accounts)
 
+The rules are in [product.md](product.md#account-hierarchy-rules); this section is how they are implemented.
+
 The product concept is **main account → sub-accounts**, but it is stored as `AccountInclude` rows on the
 *child*: `AccountId` = the sub-account, `AccountIncludeId` = its main account (the name reads backwards),
-plus a `CurrencyConverterMethodId` for when the two currencies differ. Rules, enforced by
-`AccountHierarchyValidator` when an account is added or its `accountIncludes` are edited:
+plus a `CurrencyConverterMethodId` for when the two currencies differ.
 
-- At most **one** main account per account (`accountIncludes` is still an array in the API, but a
-  request with more than one entry is rejected with 400).
-- **Two levels only**: a main account can't be a sub-account, and an account with sub-accounts can't become one.
-- The main account must belong to the same user.
-- Account groups are independent of the hierarchy: a sub-account can be in a different group than its main account.
-
-When a **new** sub-account is created (`AccountLinkRules`, applied in `AccountService.AddAccountAsync`;
-existing accounts are not re-checked on edit yet), the main account's financial entity and the currencies
-decide the conversion method. The server picks it and ignores the method the client sends, except in the last row:
-
-| Main account has an entity? | Currencies | Sub-account entity | Method stored |
-|---|---|---|---|
-| Yes | same | must equal the main account's | the default method (x1) |
-| Yes | different | must equal the main account's | the one method for (child currency -> main account currency, that entity) |
-| No | same | free | the default method |
-| No | different | free | the user chooses among the methods for (child currency -> main account currency) |
+- The structure rules (1–3) are enforced on create and edit by `AccountHierarchyValidator`.
+  `accountIncludes` is still an array in the API, but a request with more than one entry is rejected with 400.
+- The entity, currency and exchange-method rules (5–7) are enforced by `AccountLinkRules`, applied in
+  `AccountService.AddAccountAsync` (create only). The server stores the method it decides and ignores the
+  client's value unless the user has to choose. A violation is a 400 with a readable message.
 
 Direction matters: `CurrencyConverter.CurrencyIdOne` is the source (the sub-account's currency) and
 `CurrencyIdTwo` the target (the main account's). Default methods carry a placeholder entity id, so "same
-currency" is handled before looking up by entity. A violation is a 400 with a readable message. The parent
-candidate list (`accountIncludeViewModels`) already applies the same rules: `methodIds` has only the valid
-methods (one, pre-selected, when determined), `requiresMethodChoice` says the user must pick, and
-`requiredFinancialEntityId` is the entity a sub-account of that main account must have. Some older links
-(30 of 80 when this was written) have a different entity than their main account; a one-time data fix is planned.
+currency" is handled before looking up by entity. The parent candidate list (`accountIncludeViewModels`)
+already applies the same rules: `methodIds` has only the valid methods (one, pre-selected, when
+determined), `requiresMethodChoice` says the user must pick, and `requiredFinancialEntityId` is the entity
+a sub-account of that main account must have.
 
 Adding a spend to a sub-account writes one `Spend` and one `SpendOnPeriod` per account involved (the
 sub-account, flagged `IsOriginal`, and its main account), converting currency per link. These rows are

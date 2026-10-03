@@ -22,6 +22,47 @@ sub-accounts. At any time the sum of the app's sub-accounts must **reconcile** a
 balance. That is why balance and transaction correctness matters so much: the numbers have to tie back
 to a real bank balance.
 
+## Account hierarchy rules
+
+**Structure** (checked on create and edit)
+1. An account has at most one main account. Accounts form two levels: a main account can't be a
+   sub-account, and an account with sub-accounts can't become one.
+2. The main account must belong to the same user.
+3. Account groups are independent of the hierarchy: a sub-account can be in a different group than its
+   main account.
+4. The rules don't depend on the account type (Checking, Saving or Bank). The type only changes what the
+   account summary shows.
+
+**Financial entity and currency** (checked on create only, for now)
+
+5. If the main account has a financial entity, the sub-account must have the same one.
+6. If the main account has no entity, the sub-account's entity is free.
+7. The sub-account may be in a different currency than its main account. Then an exchange method from the
+   sub-account's currency to the main account's currency is needed.
+
+**Exchange method** (the server decides and ignores what the client sends, except in the last case)
+
+| Main account has an entity? | Currencies | Method |
+|---|---|---|
+| Yes | same | the default method (×1) |
+| Yes | different | the one method for (sub-account currency → main account currency, that entity). If none exists, the request is rejected. |
+| No | same | the default method |
+| No | different | the user picks. If only one method exists, it's selected automatically. If none exists, the request is rejected. |
+
+**Existing data and deletion**
+
+8. Existing accounts aren't re-checked on edit. 30 of 80 existing links have a different entity from their
+   main account. A one-time script will fix them, and after that rules 5–7 will apply on edit too.
+9. Deleting a main account doesn't delete its sub-accounts. They become top-level accounts, and the UI
+   warns first.
+
+**Possible future change**
+
+10. A future account type may allow different entities or several main accounts, for a budget spread
+    across banks. The rules would then become per account type.
+
+How these are implemented: [architecture.md](architecture.md#account-hierarchy-main-accounts-and-sub-accounts).
+
 ## Features
 
 Roughly one per controller in `MyFinanceWebApiCore/Controllers`:
