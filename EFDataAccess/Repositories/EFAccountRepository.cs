@@ -22,6 +22,26 @@ namespace EFDataAccess.Repositories
 {
 	public class EFAccountRepository(MyFinanceContext context, ILogger<EFAccountRepository> logger) : BaseEFRepository(context), IAccountRepository
 	{
+		public async Task<AiClassifiableAccount> GetAiClassificationHintAsync(string userId, int accountId)
+		{
+			var userGuid = Guid.Parse(userId);
+			return await Context.Account.AsNoTracking()
+				.Where(acc => acc.AccountId == accountId && acc.UserId == userGuid)
+				.Select(acc => new AiClassifiableAccount(acc.AccountId, acc.Name, acc.AiClassificationHint))
+				.SingleOrDefaultAsync();
+		}
+
+		public async Task<AiClassifiableAccount> UpdateAiClassificationHintAsync(string userId, int accountId, string hint)
+		{
+			var userGuid = Guid.Parse(userId);
+			var account = await Context.Account.SingleOrDefaultAsync(acc => acc.AccountId == accountId && acc.UserId == userGuid);
+			if (account == null)
+				return null;
+			account.AiClassificationHint = hint;
+			await Context.SaveChangesAsync();
+			return new AiClassifiableAccount(account.AccountId, account.Name, account.AiClassificationHint);
+		}
+
 		public async Task<IReadOnlyCollection<int>> GetMatchedAccountIdsByUserIdAsync(string userId, IEnumerable<int> accountIds)
 		{
 			var userGuid = new Guid(userId);

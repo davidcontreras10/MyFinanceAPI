@@ -116,8 +116,12 @@ or guarantees, and classification accuracy is not scored.
 Account eligibility comes from `Account.AiClassificationHint`: only the current user's accounts with a
 nonblank hint are offered to GPT. A hint describes which transactions belong in that account, with useful
 merchant examples and exclusions. Spend categories come separately from the user's spend types; account
-notes and default spend categories do not substitute for a hint. The current account API does not expose
-the hint field for creating or editing accounts, so hints currently have to be populated in the database.
+notes and default spend categories do not substitute for a hint. The dedicated account endpoint
+`PUT /api/Accounts/{accountId}/ai-classification-hint` sets or clears this field for the authenticated
+owner; GET on the same route reads the hint, including accounts with no hint.
+Normal account create/edit DTOs remain unchanged. See [account-ai-hints.md](account-ai-hints.md)
+for the request contract. Clearing a hint removes the account from fresh AI candidate lists, not from
+existing classifications or cached results.
 Current account hints take precedence over historical examples. Identical descriptions, such as digital-service
 IVA, can route to different accounts depending on the associated purchase's amount and currency.
 Prompts serialize categories, accounts and inputs as separate JSON lists; historical examples provide category

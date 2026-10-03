@@ -95,6 +95,9 @@ bank-fee account. For example, a USD 15 Azure charge and its USD 1.95 IVA both g
 an AI subscription and its IVA both go to `Ingresos Ahorros`. A generic IVA description alone does not
 identify the account: use the associated purchase and amount/currency context.
 
+An account is offered to fresh AI classification only when it has a nonblank classification hint.
+The owner can set or clear that hint through the accounts API; clearing it does not alter earlier results.
+
 ## Account types
 
 Checking, Saving and Bank only change what the account summary shows. A type can be **inactive**

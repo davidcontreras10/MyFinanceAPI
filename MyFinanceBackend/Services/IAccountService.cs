@@ -9,6 +9,8 @@ namespace MyFinanceBackend.Services
 {
     public interface IAccountService
     {
+		Task<AiClassifiableAccount> GetAiClassificationHintAsync(string userId, int accountId);
+		Task<AiClassifiableAccount> UpdateAiClassificationHintAsync(string userId, int accountId, ClientAccountAiClassificationHint request);
 		Task<IReadOnlyCollection<AccountsByCurrencyViewModel>> GetAccountsByCurrenciesAsync(IEnumerable<int> sourceCurrencyIds, string userId);
 		Task<IReadOnlyCollection<AccountDetailsPeriodViewModel>> GetAccountDetailsPeriodViewModelAsync(
 		    string userId,

@@ -2,6 +2,7 @@
 using MyFinanceModel.ViewModel;
 using System;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using MyFinanceBackend.Data;
 using MyFinanceModel;
@@ -27,6 +28,29 @@ namespace MyFinanceBackend.Services
 		#endregion
 
 		#region Public methods
+
+		public async Task<AiClassifiableAccount> GetAiClassificationHintAsync(string userId, int accountId)
+		{
+			if (!Guid.TryParse(userId, out _))
+				throw new ServiceException("Authentication is required.", HttpStatusCode.Unauthorized);
+			if (accountId <= 0)
+				throw new ServiceException("A valid account ID is required.", HttpStatusCode.BadRequest);
+			return await _accountRepository.GetAiClassificationHintAsync(userId, accountId)
+				?? throw new ServiceException("Account not found.", HttpStatusCode.NotFound);
+		}
+
+		public async Task<AiClassifiableAccount> UpdateAiClassificationHintAsync(string userId, int accountId, ClientAccountAiClassificationHint request)
+		{
+			if (!Guid.TryParse(userId, out _))
+				throw new ServiceException("Authentication is required.", HttpStatusCode.Unauthorized);
+			if (accountId <= 0 || request == null)
+				throw new ServiceException("A valid account ID and hint request are required.", HttpStatusCode.BadRequest);
+			if (request.AiClassificationHint?.Length > ClientAccountAiClassificationHint.MaxHintLength)
+				throw new ServiceException($"The AI classification hint must not exceed {ClientAccountAiClassificationHint.MaxHintLength} characters.", HttpStatusCode.BadRequest);
+			var hint = string.IsNullOrWhiteSpace(request.AiClassificationHint) ? null : request.AiClassificationHint.Trim();
+			return await _accountRepository.UpdateAiClassificationHintAsync(userId, accountId, hint)
+				?? throw new ServiceException("Account not found.", HttpStatusCode.NotFound);
+		}
 
 		public async Task<IReadOnlyCollection<AccountsByCurrencyViewModel>> GetAccountsByCurrenciesAsync(IEnumerable<int> sourceCurrencyIds, string userId)
 		{
