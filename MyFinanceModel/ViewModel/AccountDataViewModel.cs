@@ -259,6 +259,18 @@ namespace MyFinanceModel.ViewModel
 		/// <summary>True when this account is itself a sub-account, so it can't be chosen as a main account.</summary>
 		public bool HasParent { get; set; }
 
+		/// <summary>
+		/// When set, a new sub-account of this account must have this financial entity
+		/// (the entity of this main account). Null when the main account has no entity.
+		/// </summary>
+		public int? RequiredFinancialEntityId { get; set; }
+
+		/// <summary>
+		/// True when the user has to pick the exchange method from <see cref="MethodIds"/>.
+		/// Otherwise <see cref="MethodIds"/> has the one method the server will use, already selected.
+		/// </summary>
+		public bool RequiresMethodChoice { get; set; }
+
 		public int Id => AccountId;
 		public string Name => AccountName;
 	}

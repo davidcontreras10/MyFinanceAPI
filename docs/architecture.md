@@ -41,6 +41,25 @@ plus a `CurrencyConverterMethodId` for when the two currencies differ. Rules, en
 - The main account must belong to the same user.
 - Account groups are independent of the hierarchy: a sub-account can be in a different group than its main account.
 
+When a **new** sub-account is created (`AccountLinkRules`, applied in `AccountService.AddAccountAsync`;
+existing accounts are not re-checked on edit yet), the main account's financial entity and the currencies
+decide the conversion method. The server picks it and ignores the method the client sends, except in the last row:
+
+| Main account has an entity? | Currencies | Sub-account entity | Method stored |
+|---|---|---|---|
+| Yes | same | must equal the main account's | the default method (x1) |
+| Yes | different | must equal the main account's | the one method for (child currency -> main account currency, that entity) |
+| No | same | free | the default method |
+| No | different | free | the user chooses among the methods for (child currency -> main account currency) |
+
+Direction matters: `CurrencyConverter.CurrencyIdOne` is the source (the sub-account's currency) and
+`CurrencyIdTwo` the target (the main account's). Default methods carry a placeholder entity id, so "same
+currency" is handled before looking up by entity. A violation is a 400 with a readable message. The parent
+candidate list (`accountIncludeViewModels`) already applies the same rules: `methodIds` has only the valid
+methods (one, pre-selected, when determined), `requiresMethodChoice` says the user must pick, and
+`requiredFinancialEntityId` is the entity a sub-account of that main account must have. Some older links
+(30 of 80 when this was written) have a different entity than their main account; a one-time data fix is planned.
+
 Adding a spend to a sub-account writes one `Spend` and one `SpendOnPeriod` per account involved (the
 sub-account, flagged `IsOriginal`, and its main account), converting currency per link. These rows are
 created when the spend is added, so changing the hierarchy later does not rewrite history.

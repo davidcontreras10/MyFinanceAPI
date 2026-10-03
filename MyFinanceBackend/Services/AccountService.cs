@@ -59,6 +59,7 @@ namespace MyFinanceBackend.Services
         public async Task AddAccountAsync(string userId, ClientAddAccount clientAddAccount)
         {
 	        await ValidateParentAccountsAsync(userId, null, clientAddAccount.AccountIncludes);
+	        await ApplyMainAccountRulesAsync(clientAddAccount);
 	        await _accountRepository.AddAccountAsync(userId, clientAddAccount);
         }
 
@@ -106,6 +107,36 @@ namespace MyFinanceBackend.Services
 		#endregion
 
 		#region Private methods
+
+		/// <summary>
+		/// A new sub-account must follow <see cref="AccountLinkRules"/>: same financial entity as its main
+		/// account and the right conversion method, which the server decides (see ResolveMethodId).
+		/// Only applied when creating accounts; existing accounts are not re-checked on edit.
+		/// </summary>
+		private async Task ApplyMainAccountRulesAsync(ClientAddAccount clientAddAccount)
+		{
+			var link = clientAddAccount.AccountIncludes?.SingleOrDefault();
+			if (link == null)
+			{
+				return;
+			}
+
+			var context = await _accountRepository.GetAccountLinkContextAsync(link.AccountIncludeId);
+			if (context.ParentCurrencyId == null)
+			{
+				throw new ServiceException("The main account has no currency.", System.Net.HttpStatusCode.BadRequest);
+			}
+
+			int? childFinancialEntityId = clientAddAccount.FinancialEntityId > 0 ? clientAddAccount.FinancialEntityId : null;
+			int? requestedMethodId = link.CurrencyConverterMethodId > 0 ? link.CurrencyConverterMethodId : null;
+			link.CurrencyConverterMethodId = AccountLinkRules.ResolveMethodId(
+				clientAddAccount.CurrencyId,
+				childFinancialEntityId,
+				context.ParentCurrencyId.Value,
+				context.ParentFinancialEntityId,
+				requestedMethodId,
+				context.Methods);
+		}
 
 		private async Task ValidateParentAccountsAsync(string userId, int? accountId, IEnumerable<ClientAccountInclude> accountIncludes)
 		{
