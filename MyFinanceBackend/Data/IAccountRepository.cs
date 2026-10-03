@@ -1,4 +1,5 @@
 ﻿using System;
+using MyFinanceBackend.Services;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using MyFinanceModel;
@@ -22,6 +23,9 @@ namespace MyFinanceBackend.Data
 		Task<IEnumerable<BankAccountPeriodBasicId>> GetBankSummaryAccountsPeriodByUserIdAsync(string userId, DateTime? dateTime);
 		Task<IReadOnlyCollection<BankFlaggedAccountBasicInfo>> GetBankFlaggedAccountsBasicInfoAsync(string userId, IEnumerable<int> accountIds);
 		Task<IReadOnlyCollection<AccountIncludeEdge>> GetAccountIncludeEdgesAsync(IEnumerable<int> accountIds);
+		Task<AccountLinkContext> GetAccountLinkContextAsync(int parentAccountId);
+		Task<AccountTypeUsage> GetAccountTypeUsageAsync(int accountTypeId, int? accountId);
+		Task<AccountHierarchyInfo> GetAccountHierarchyInfoAsync(string userId, int? accountId, IReadOnlyCollection<int> requestedParentIds);
 		Task<IEnumerable<AccountViewModel>> GetOrderedAccountViewModelListAsync(IEnumerable<int> accountIds, string userId);
 		IEnumerable<AccountPeriodBasicInfo> GetAccountPeriodBasicInfo(IEnumerable<int> accountPeriodIds);
 		AccountPeriodBasicInfo GetAccountPeriodInfoByAccountIdDateTime(int accountId, DateTime dateTime);

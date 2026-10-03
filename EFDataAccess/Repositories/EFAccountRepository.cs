@@ -4,6 +4,7 @@ using EFDataAccess.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using MyFinanceBackend.Data;
+using MyFinanceBackend.Services;
 using MyFinanceModel;
 using MyFinanceModel.ClientViewModel;
 using MyFinanceModel.Records;
@@ -207,7 +208,8 @@ namespace EFDataAccess.Repositories
 			var guidUserId = new Guid(userId);
 			var accountDetailsViewModels = Context.Account.
 				Where(acc =>
-				accountGroupIds.Contains(acc.AccountGroupId.Value)
+				acc.UserId == guidUserId
+				&& accountGroupIds.Contains(acc.AccountGroupId.Value)
 				).Select(acc => new AccountDetailsViewModel
 				{
 					AccountGroupId = acc.AccountGroupId ?? 0,
@@ -218,7 +220,22 @@ namespace EFDataAccess.Repositories
 					BaseBudget = acc.BaseBudget ?? 0,
 					GlobalOrder = acc.Position ?? 0,
 					DefaultCurrencyId = acc.DefaultSelectCurrencyId,
-					IsDefaultPending = acc.DefaultSelectIsPending
+					IsDefaultPending = acc.DefaultSelectIsPending,
+					ParentAccountId = acc.AccountIncludeAccount
+						.Select(ai => (int?)ai.AccountIncludeId)
+						.FirstOrDefault(),
+					ParentAccountName = acc.AccountIncludeAccount
+						.Select(ai => ai.AccountIncludeNavigation.Name)
+						.FirstOrDefault(),
+					SubAccounts = acc.AccountIncludeAccountIncludeNavigation
+						.OrderBy(ai => ai.Account.Position)
+						.Select(ai => new SubAccountViewModel
+						{
+							AccountId = ai.AccountId,
+							AccountName = ai.Account.Name,
+							AccountGroupId = ai.Account.AccountGroupId ?? 0
+						})
+						.ToList()
 				});
 
 			var accountGroupViewModels = Context.AccountGroup
@@ -245,10 +262,7 @@ namespace EFDataAccess.Repositories
 			var efFinancialEntityViewModels = Context.FinancialEntity.AsNoTracking()
 				.Where(f => !EF.Functions.Like(f.Name, "%default%"))
 				.ToList();
-			var currencyConverters = Context.CurrencyConverter.AsNoTracking()
-				.Include(c => c.CurrencyConverterMethod)
-					.ThenInclude(x => x.FinancialEntity)
-				.ToList();
+			var methodCatalog = MethodCatalogQuery().ToList();
 			var periodTypeViewModels = Context.PeriodDefinition.AsNoTracking()
 				.Include(pd => pd.PeriodType)
 				.Where(pd => pd.PeriodType != null).Select(pd =>
@@ -262,12 +276,18 @@ namespace EFDataAccess.Repositories
 			});
 
 			var userAccounts = Context.Account.Where(acc => acc.UserId == userGuid);
+			var userAccountList = userAccounts.ToList();
+			var hierarchyEdges = Context.AccountInclude.AsNoTracking()
+				.Where(ai => ai.Account.UserId == userGuid)
+				.Select(ai => new AccountIncludeEdge { AccountId = ai.AccountId, AccountIncludeId = ai.AccountIncludeId })
+				.ToList();
+			var accountIdsWithParent = hierarchyEdges.Select(e => e.AccountId).ToHashSet();
 			var queryAccounts = Context.Account
 				.Where(acc => accountIds.Contains(acc.AccountId))
 				.Include(acc => acc.AccountIncludeAccount)
 				.ToList();
 			var efCurrencies = Context.Currency.ToList();
-			var efAccountGroups = Context.AccountGroup.ToList();
+			var efAccountGroups = Context.AccountGroup.Where(accg => accg.UserId == userGuid).ToList();
 			var acc = queryAccounts.Select(acc => new AccountDetailsInfoViewModel
 			{
 				AccountName = acc.Name,
@@ -277,7 +297,8 @@ namespace EFDataAccess.Repositories
 				SpendTypeViewModels = Context.UserSpendType.Where(ust => ust.UserId == userGuid || (acc.DefaultSpendTypeId != null && acc.DefaultSpendTypeId == ust.SpendTypeId))
 					.Include(x => x.SpendType)
 					.Select(x => x.SpendType.ToSpendTypeViewModel(acc.DefaultSpendTypeId ?? 1)),
-				AccountTypeViewModels = efAccountTypes.Select(acct => new AccountTypeViewModel
+				// Inactive types are hidden, except the one this account already has, so it still displays and saves.
+				AccountTypeViewModels = efAccountTypes.Where(acct => acct.IsActive || acct.AccountTypeId == acc.AccountTypeId).Select(acct => new AccountTypeViewModel
 				{
 					AccountTypeId = acct.AccountTypeId,
 					AccountTypeName = acct.AccountTypeName,
@@ -291,7 +312,22 @@ namespace EFDataAccess.Repositories
 					FinancialEntityName = f.Name,
 					IsDefault = f.FinancialEntityId == acc.FinancialEntityId
 				}),
-				AccountIncludeViewModels = GetPossibleAccountIncludes(acc.AccountIncludeAccount.ToList(), userAccounts.ToList(), currencyConverters, acc),
+				AccountIncludeViewModels = MarkAccountsWithParent(
+					GetPossibleAccountIncludes(acc.AccountIncludeAccount.ToList(), userAccountList, methodCatalog, acc),
+					accountIdsWithParent),
+				ParentAccountId = hierarchyEdges.FirstOrDefault(e => e.AccountId == acc.AccountId)?.AccountIncludeId,
+				ParentAccountName = userAccountList
+					.FirstOrDefault(a => a.AccountId == hierarchyEdges.FirstOrDefault(e => e.AccountId == acc.AccountId)?.AccountIncludeId)?.Name,
+				SubAccounts = userAccountList
+					.Where(a => hierarchyEdges.Any(e => e.AccountId == a.AccountId && e.AccountIncludeId == acc.AccountId))
+					.OrderBy(a => a.Position)
+					.Select(a => new SubAccountViewModel
+					{
+						AccountId = a.AccountId,
+						AccountName = a.Name,
+						AccountGroupId = a.AccountGroupId ?? 0
+					})
+					.ToList(),
 				CurrencyViewModels = efCurrencies.Select(c => new CurrencyViewModel
 				{
 					CurrencyId = c.CurrencyId,
@@ -321,25 +357,17 @@ namespace EFDataAccess.Repositories
 		{
 			var userGuid = new Guid(userId);
 			var userAccounts = Context.Account.Where(acc => acc.UserId == userGuid);
-			var currencyConverterMethods = Context.CurrencyConverterMethod.Include(c => c.CurrencyConverter).Include(c => c.FinancialEntity);
+			var accountIdsWithParent = Context.AccountInclude.AsNoTracking()
+				.Where(ai => ai.Account.UserId == userGuid)
+				.Select(ai => ai.AccountId)
+				.Distinct()
+				.ToHashSet();
+			var methodCatalog = MethodCatalogQuery().ToList();
 			var applicable = new List<AccountIncludeViewModel>();
 			foreach (var account in userAccounts)
 			{
-				var ccMethods = currencyConverterMethods.Where(ccm =>
-					ccm.CurrencyConverter.CurrencyIdOne == currencyId && ccm.CurrencyConverter.CurrencyIdTwo == account.CurrencyId);
-				var acci = new AccountIncludeViewModel
-				{
-					AccountId = account.AccountId,
-					AccountName = account.Name,
-					MethodIds = ccMethods.Select(ccm => new MethodId
-					{
-						Id = ccm.CurrencyConverterMethodId,
-						Name = ccm.Name,
-						IsDefault = ccm.IsDefault ?? false,
-						IsSelected = (financialEntityId != null && ccm.FinancialEntityId == financialEntityId) || (ccm.IsDefault ?? false)
-					})
-				};
-
+				var acci = CreateAccountIncludeViewModel(account, currencyId, methodCatalog, null);
+				acci.HasParent = accountIdsWithParent.Contains(account.AccountId);
 				applicable.Add(acci);
 			}
 
@@ -523,7 +551,7 @@ namespace EFDataAccess.Repositories
 		public async Task<AddAccountViewModel> GetAddAccountViewModelAsync(string userId)
 		{
 			var userGuid = new Guid(userId);
-			var accountTypeViewModels = await Context.AccountType.Select(acct => new AccountTypeViewModel
+			var accountTypeViewModels = await Context.AccountType.Where(acct => acct.IsActive).Select(acct => new AccountTypeViewModel
 			{
 				AccountTypeId = acct.AccountTypeId,
 				AccountTypeName = acct.AccountTypeName
@@ -568,12 +596,14 @@ namespace EFDataAccess.Repositories
 						CuttingDate = pd.CuttingDate,
 						PeriodDefinitionId = pd.PeriodDefinitionId,
 						PeriodTypeId = pd.PeriodTypeId,
-						PeriodTypeName = pd.PeriodType.Name
+						PeriodTypeName = pd.PeriodType.Name,
+						Repetition = pd.Repetition ?? 0,
+						IsDefault = pd.IsDefault
 					}
 				)
 				.ToListAsync();
 
-			var accountGroupViewModels = Context.AccountGroup.Select(accg => new AccountGroupViewModel
+			var accountGroupViewModels = Context.AccountGroup.Where(accg => accg.UserId == userGuid).Select(accg => new AccountGroupViewModel
 			{
 				AccountGroupDisplayValue = accg.DisplayValue,
 				AccountGroupId = accg.AccountGroupId,
@@ -591,7 +621,9 @@ namespace EFDataAccess.Repositories
 				CurrencyViewModels = currencyViewModels,
 				FinancialEntityViewModels = financialEntityViewModels,
 				PeriodTypeViewModels = periodTypeViewModels,
-				SpendTypeViewModels = spendTypeViewModels
+				SpendTypeViewModels = spendTypeViewModels,
+				SuggestedAccountTypeIdForMainAccount = AccountTypeSuggestions.ForMainAccount(accountTypeViewModels.Select(t => t.AccountTypeId)),
+				SuggestedAccountTypeIdForSubAccount = AccountTypeSuggestions.ForSubAccount(accountTypeViewModels.Select(t => t.AccountTypeId))
 			};
 
 		}
@@ -660,6 +692,64 @@ namespace EFDataAccess.Repositories
 				.Where(ai => accountIdsList.Contains(ai.AccountId))
 				.Select(ai => new AccountIncludeEdge { AccountId = ai.AccountId, AccountIncludeId = ai.AccountIncludeId })
 				.ToListAsync();
+		}
+
+		public async Task<AccountTypeUsage> GetAccountTypeUsageAsync(int accountTypeId, int? accountId)
+		{
+			var type = await Context.AccountType.AsNoTracking()
+				.Where(t => t.AccountTypeId == accountTypeId)
+				.Select(t => new { t.IsActive })
+				.FirstOrDefaultAsync();
+			var accountHasIt = accountId.HasValue
+				&& await Context.Account.AsNoTracking()
+					.AnyAsync(a => a.AccountId == accountId.Value && a.AccountTypeId == accountTypeId);
+
+			return new AccountTypeUsage
+			{
+				Exists = type != null,
+				IsActive = type?.IsActive ?? false,
+				AccountHasIt = accountHasIt
+			};
+		}
+
+		public async Task<AccountLinkContext> GetAccountLinkContextAsync(int parentAccountId)
+		{
+			var parent = await Context.Account.AsNoTracking()
+				.Where(acc => acc.AccountId == parentAccountId)
+				.Select(acc => new { acc.CurrencyId, acc.FinancialEntityId })
+				.FirstOrDefaultAsync();
+
+			return new AccountLinkContext
+			{
+				ParentCurrencyId = parent?.CurrencyId,
+				ParentFinancialEntityId = parent?.FinancialEntityId,
+				Methods = await MethodCatalogQuery().ToListAsync()
+			};
+		}
+
+		public async Task<AccountHierarchyInfo> GetAccountHierarchyInfoAsync(string userId, int? accountId, IReadOnlyCollection<int> requestedParentIds)
+		{
+			var userGuid = new Guid(userId);
+			var parentIds = requestedParentIds?.Distinct().ToList() ?? [];
+			var ownedAccountIds = await Context.Account.AsNoTracking()
+				.Where(acc => acc.UserId == userGuid && parentIds.Contains(acc.AccountId))
+				.Select(acc => acc.AccountId)
+				.ToListAsync();
+			var accountIdsWithParent = await Context.AccountInclude.AsNoTracking()
+				.Where(ai => parentIds.Contains(ai.AccountId))
+				.Select(ai => ai.AccountId)
+				.Distinct()
+				.ToListAsync();
+			var subAccountsCount = accountId.HasValue
+				? await Context.AccountInclude.AsNoTracking().CountAsync(ai => ai.AccountIncludeId == accountId.Value)
+				: 0;
+
+			return new AccountHierarchyInfo
+			{
+				OwnedAccountIds = ownedAccountIds.ToHashSet(),
+				AccountIdsWithParent = accountIdsWithParent.ToHashSet(),
+				SubAccountsCount = subAccountsCount
+			};
 		}
 
 		public async Task<IEnumerable<AccountViewModel>> GetOrderedAccountViewModelListAsync(IEnumerable<int> accountIds, string userId)
@@ -868,7 +958,7 @@ namespace EFDataAccess.Repositories
 			}
 
 			return await Context.AccountGroup
-				.Where(accg => accg.AccountGroupId == accountGroupId)
+				.Where(accg => accg.AccountGroupId == accountGroupId && accg.UserId == userGuid)
 				.ToListAsync();
 		}
 
@@ -910,10 +1000,19 @@ namespace EFDataAccess.Repositories
 			}
 		}
 
+		private static IReadOnlyCollection<AccountIncludeViewModel> MarkAccountsWithParent(
+			IEnumerable<AccountIncludeViewModel> accountIncludes,
+			ISet<int> accountIdsWithParent)
+		{
+			var items = accountIncludes.ToList();
+			items.ForEach(item => item.HasParent = accountIdsWithParent.Contains(item.AccountId));
+			return items;
+		}
+
 		private static IEnumerable<AccountIncludeViewModel> GetPossibleAccountIncludes(
-			IReadOnlyCollection<AccountInclude> defaultAccountIncludes,
+			IReadOnlyCollection<AccountInclude> currentLinks,
 			IReadOnlyCollection<Account> userAccounts,
-			IReadOnlyCollection<CurrencyConverter> currencyConverters,
+			IReadOnlyCollection<ConverterMethodInfo> methodCatalog,
 			Account currentAccount
 			)
 		{
@@ -922,72 +1021,70 @@ namespace EFDataAccess.Repositories
 				: userAccounts;
 			var currentCurrencyId = currentAccount?.CurrencyId != null ? currentAccount.CurrencyId.Value : 1;
 
-			return GetPossibleAccountIncludes(defaultAccountIncludes, currencyConverters, applicableUserAccounts, currentCurrencyId, currentAccount.FinancialEntityId);
+			return applicableUserAccounts
+				.Select(appAccount => CreateAccountIncludeViewModel(
+					appAccount,
+					currentCurrencyId,
+					methodCatalog,
+					currentLinks?.FirstOrDefault(d => d.AccountIncludeId == appAccount.AccountId)))
+				.ToList();
 		}
 
-		private static IEnumerable<AccountIncludeViewModel> GetPossibleAccountIncludes(
-			IReadOnlyCollection<AccountInclude> defaultAccountIncludes,
-			IReadOnlyCollection<CurrencyConverter> currencyConverters,
-			IReadOnlyCollection<Account> applicableUserAccounts,
-			int currentCurrencyId,
-			int? currentFinancialEntitytId
-		)
-		{
-			var accountIncludes = new List<AccountIncludeViewModel>();
-			foreach (var appAccount in applicableUserAccounts)
-			{
-				var appCurrencyConverters = currencyConverters
-					.Where(cc => cc.CurrencyIdOne == currentCurrencyId && cc.CurrencyIdTwo == appAccount.CurrencyId).ToList();
-				var accountIncludeViewModel = CreateAccountIncludeViewModel(appAccount, appCurrencyConverters, defaultAccountIncludes, currentFinancialEntitytId);
-				accountIncludes.Add(accountIncludeViewModel);
-			}
-
-			return accountIncludes;
-		}
-
-
+		/// <summary>
+		/// Describes <paramref name="candidate"/> as a possible main account for an account in
+		/// <paramref name="childCurrencyId"/>: which exchange methods are valid (see <see cref="AccountLinkRules"/>),
+		/// which one is selected, and which financial entity the sub-account must have.
+		/// </summary>
 		private static AccountIncludeViewModel CreateAccountIncludeViewModel(
-			Account includeAccount
-			, IReadOnlyCollection<CurrencyConverter> currencyConverters
-			, IReadOnlyCollection<AccountInclude> defaultAccountIncludes
-			, int? financialEntityId
-			)
+			Account candidate,
+			int childCurrencyId,
+			IReadOnlyCollection<ConverterMethodInfo> methodCatalog,
+			AccountInclude currentLink)
 		{
-			var defaultAccountInclude = defaultAccountIncludes?.FirstOrDefault(d => d.AccountIncludeId == includeAccount.AccountId);
-			var methodIds = new List<MethodId>();
-			foreach (var currencyConverter in currencyConverters)
-			{
-				foreach (var currencyConverterMethod in currencyConverter.CurrencyConverterMethod)
+			var options = AccountLinkRules.GetOptions(childCurrencyId, candidate.CurrencyId ?? 0, candidate.FinancialEntityId, methodCatalog);
+			var storedMethodId = currentLink?.CurrencyConverterMethodId;
+			var methodIds = options.Methods
+				.Select(m => new MethodId
 				{
-					bool isSelected;
-					if (defaultAccountInclude != null)
-					{
-						isSelected = defaultAccountInclude.CurrencyConverterMethodId == currencyConverterMethod.CurrencyConverterMethodId;
-					}
-					else if (financialEntityId != null)
-					{
-						isSelected = currencyConverterMethod.FinancialEntityId == financialEntityId;
-					}
-					else
-					{
-						isSelected = false;
-					}
-					methodIds.Add(new MethodId
-					{
-						Id = currencyConverterMethod.CurrencyConverterMethodId,
-						IsDefault = currencyConverterMethod.IsDefault ?? false,
-						Name = currencyConverterMethod.Name,
-						IsSelected = isSelected,
-					});
+					Id = m.Id,
+					Name = m.Name,
+					IsDefault = m.IsDefault,
+					IsSelected = !options.RequiresChoice || m.Id == storedMethodId
+				})
+				.ToList();
+
+			// Links created before these rules may store a method the rules no longer list: keep it visible and selected.
+			if (storedMethodId.HasValue && methodIds.All(m => m.Id != storedMethodId.Value))
+			{
+				var stored = methodCatalog.FirstOrDefault(m => m.Id == storedMethodId.Value);
+				if (stored != null)
+				{
+					methodIds.ForEach(m => m.IsSelected = false);
+					methodIds.Add(new MethodId { Id = stored.Id, Name = stored.Name, IsDefault = stored.IsDefault, IsSelected = true });
 				}
 			}
+
 			return new AccountIncludeViewModel
 			{
-				AccountId = includeAccount.AccountId,
-				AccountName = includeAccount.Name,
+				AccountId = candidate.AccountId,
+				AccountName = candidate.Name,
 				MethodIds = methodIds,
-				IsSelected = defaultAccountInclude != null
+				IsSelected = currentLink != null,
+				RequiredFinancialEntityId = candidate.FinancialEntityId,
+				RequiresMethodChoice = options.RequiresChoice
 			};
+		}
+
+		private IQueryable<ConverterMethodInfo> MethodCatalogQuery()
+		{
+			return Context.CurrencyConverterMethod.AsNoTracking()
+				.Select(m => new ConverterMethodInfo(
+					m.CurrencyConverterMethodId,
+					m.Name,
+					m.CurrencyConverter.CurrencyIdOne,
+					m.CurrencyConverter.CurrencyIdTwo,
+					m.FinancialEntityId,
+					m.IsDefault ?? false));
 		}
 
 		private static FrontStyleData CreateFrontStyleData(string json)

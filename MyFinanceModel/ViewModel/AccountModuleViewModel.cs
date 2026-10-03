@@ -16,6 +16,21 @@ namespace MyFinanceModel.ViewModel
 	    public float BaseBudget { get; set; }
 		public int? DefaultCurrencyId { get; set; }
 		public bool IsDefaultPending { get; set; }
+
+		/// <summary>The main account this account is a sub-account of; null for a top-level account.</summary>
+		public int? ParentAccountId { get; set; }
+		public string ParentAccountName { get; set; }
+
+		/// <summary>
+		/// Sub-accounts of this account. They can live in a different account group than this account,
+		/// so they are not necessarily part of the same list response.
+		/// </summary>
+		public IReadOnlyCollection<SubAccountViewModel> SubAccounts { get; set; } = [];
+	}
+
+	public class SubAccountViewModel : AccountBasicInfo
+	{
+		public int AccountGroupId { get; set; }
 	}
 
     public class AccountDetailsPeriodViewModel : AccountDetailsViewModel
@@ -35,7 +50,13 @@ namespace MyFinanceModel.ViewModel
         public IEnumerable<FinancialEntityViewModel> FinancialEntityViewModels { get; set; }
         public IEnumerable<AccountIncludeViewModel> AccountIncludeViewModels { get; set; }
         public IEnumerable<CurrencyViewModel> CurrencyViewModels { get; set; }
-        public IEnumerable<AccountGroupViewModel> AccountGroupViewModels { get; set; } 
+        public IEnumerable<AccountGroupViewModel> AccountGroupViewModels { get; set; }
+
+        /// <summary>Account type suggested for a new main account (not a sub-account); null if there is none.</summary>
+        public int? SuggestedAccountTypeIdForMainAccount { get; set; }
+
+        /// <summary>Account type suggested for a new sub-account; null if there is none.</summary>
+        public int? SuggestedAccountTypeIdForSubAccount { get; set; }
     }
 
     public class AccountDetailsInfoViewModel : AccountDetailsViewModel //edit

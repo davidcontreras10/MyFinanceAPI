@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace MyFinanceModel
 {
@@ -74,6 +75,19 @@ namespace MyFinanceModel
 	{
 		public int AccountId { get; set; }
 		public int AccountIncludeId { get; set; }
+	}
+
+	/// <summary>Facts about the account tree needed to validate a requested main account.</summary>
+	public class AccountHierarchyInfo
+	{
+		/// <summary>Of the requested main accounts, the ones owned by the user.</summary>
+		public HashSet<int> OwnedAccountIds { get; set; } = new HashSet<int>();
+
+		/// <summary>Of the requested main accounts, the ones that are already sub-accounts.</summary>
+		public HashSet<int> AccountIdsWithParent { get; set; } = new HashSet<int>();
+
+		/// <summary>How many sub-accounts the account being saved currently has (0 for a new account).</summary>
+		public int SubAccountsCount { get; set; }
 	}
 
     public record AccountPeriodIdReqResp(int AccountPeriodIdReq, int? AccountPeriodResp) { }
