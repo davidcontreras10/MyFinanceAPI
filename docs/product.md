@@ -86,6 +86,13 @@ Roughly one per controller in `MyFinanceWebApiCore/Controllers`:
   payments/transfers set up at the bank and splits salary across sub-accounts on payday.
 - **Users and authentication** — JWT-based.
 
+## Planned work
+
+- Fix the existing sub-account links whose financial entity differs from their main account's (rule 8 above),
+  then apply the entity and exchange-method rules on edit as well as on create.
+- Remove the **Checking** account type. It no longer adds anything, but 10 accounts still use it, so first
+  decide what they become, then clean up the type lists in the API and the UI.
+
 ## Glossary
 
 - **Main account / sub-account** — accounts form a two-level tree. A sub-account (e.g. a savings bucket)

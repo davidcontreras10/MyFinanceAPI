@@ -96,8 +96,19 @@ registering it in that dictionary — follow `ScotiabankFileReader` as the templ
 
 Controllers don't catch exceptions individually — `HttpResponseExceptionFilter`
 (`MyFinanceWebApiCore/FilterAttributes`) centrally maps thrown `ServiceException`/custom exceptions
-(`MyFinanceBackend/Exceptions`) to HTTP responses. Throw a typed exception from a service rather than
+(`MyFinanceModel/Exceptions.cs`) to HTTP responses. Throw a typed exception from a service rather than
 returning error codes or handling HTTP concerns in services.
+
+## Legacy code
+
+`MyFinanceBackend/Data` also holds ten non-EF repository classes (`AccountRepository`, `SpendsRepository`,
+`AccountGroupRepository`, `AutomaticTaskRepository`, `LoanRepository`, `TransferRepository`, `UserRepository`,
+`SpendTypeRepository`, `ResourceAccessRepository`, `AuthorizationDataRepository`) that call SQL Server
+stored procedures. They predate the EF repositories, are not registered in `Startup.cs` and nothing
+instantiates them, so they are dead code. Don't edit them to change behavior; edit the matching
+`EF*Repository` in `EFDataAccess`. They still implement the repository interfaces, so adding a member to an
+interface means adding a `throw new NotImplementedException()` stub to the legacy class so the project compiles.
+The stored procedures themselves live in the database, not in this repo.
 
 ## CI / deployment
 

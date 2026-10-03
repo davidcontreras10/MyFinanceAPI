@@ -50,16 +50,18 @@ dotnet ef database update --project MyFinanceWebApiCore --context EFDataAccess.M
 dotnet ef migrations add <Name> --project EFDataAccess --startup-project MyFinanceWebApiCore --context EFDataAccess.Models.MyFinanceContext
 ```
 
-The only test project is `EFDataAccessTest` (NUnit), covering just the EF data-access helpers. There is
-no test coverage for services or controllers — don't assume behavior is pinned by tests; check call sites
-when changing service logic.
+The only test project is `EFDataAccessTest` (NUnit). It covers the EF period helpers and the account
+hierarchy rules (`AccountHierarchyValidator`, `AccountLinkRules`). Other services and controllers have no
+tests — don't assume their behavior is pinned; check call sites when changing service logic.
 
 ## Conventions
 
 - Services in `MyFinanceBackend` use repository interfaces and `IUnitOfWork` only — never EF or Mongo types.
 - Register new services/repositories in `MyFinanceWebApiCore/Startup.cs` (`Scoped`).
-- Throw typed exceptions (`MyFinanceBackend/Exceptions`) from services; controllers don't catch — a filter
-  maps them to HTTP responses.
+- Throw typed exceptions (`ServiceException` in `MyFinanceModel/Exceptions.cs`, with an HTTP status) from
+  services; controllers don't catch — a filter maps them to HTTP responses.
+- The non-EF repositories in `MyFinanceBackend/Data` (`AccountRepository`, `SpendsRepository`, …) are unused
+  legacy code. The real implementations are the `EF*Repository` classes in `EFDataAccess`.
 - Prefer extending an existing sub-service over duplicating logic.
 - Real config values live in `appsettings.local.json` (gitignored) or environment variables; never commit
   secrets.
