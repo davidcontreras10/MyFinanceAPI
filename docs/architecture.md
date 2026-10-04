@@ -81,13 +81,20 @@ Fresh classification calls use `OpenAI:Model`, defaulting to `gpt-6-luna` with r
 To switch to the supported alternative, set `"Model": "gpt-4o-mini"` under `OpenAI` in
 `appsettings.local.json`, or set the environment variable `OpenAI__Model=gpt-4o-mini`, then restart the API.
 Use `gpt-6-luna` to switch back. Model selection is explicit, with no automatic fallback or second paid
-call. Both models use standard service tier, JSON mode, temperature 0.2 and a 4096-token completion limit;
+call. Both models use standard service tier, the configured output format, temperature 0.2 and a 4096-token completion limit;
 the reasoning parameter is omitted for GPT-4o mini. Unsupported model settings fail before calling OpenAI.
 Changing this setting does not invalidate existing cached classifications; use the comparison endpoint
 for fresh calls to both models without cache writes.
 
-The GPT repository requests JSON mode (`response_format: json_object`) with an `expenses` array inside
-the response object; parsing also accepts the older bare-array fixture in `FakeOpenAIResponse.json`.
+The GPT repository defaults to Structured Outputs (`response_format: json_schema`, `strict: true`)
+with an `expenses` array inside the response object. Its fixed schema requires the five compact fields,
+string transaction IDs, integer catalog IDs and High/Medium/Low confidence enums; additional properties
+are forbidden. Catalog membership and one-result-per-input checks remain server-side, as do refusal and
+truncation handling. Parsing also accepts the older bare-array fixture in `FakeOpenAIResponse.json`.
+Set `OpenAI:UseStructuredOutputs` to `false` in local configuration, or set
+`OpenAI__UseStructuredOutputs=false` and restart, to request JSON mode (`json_object`) instead.
+The setting applies to normal and comparison calls; schema rejection never triggers an automatic retry
+or fallback paid call. Schemas add input overhead; see [ai-prompt-comparison.md](ai-prompt-comparison.md).
 It checks completion/refusal status, transaction IDs, allowed category/account IDs and confidence values
 before returning results for caching. Original descriptions, amounts and currencies come from the bank data.
 The model is asked to return only `id`, `categoryId`, `categoryConfidence`, `accountId` and
@@ -96,7 +103,16 @@ amounts and currencies are populated from the input. Public API results and cach
 fields, and older model responses containing descriptions or names remain accepted and overwritten.
 OpenAI failures become `ServiceException` responses (502, or 504 for timeouts), with the upstream status,
 request ID, error code/type, finish reason and failure stage in `dataObject`. JSON parsing errors also include
-the field path and line/position; warnings include those details without logging transaction payloads or API keys.
+the field path and line/position. Warning logs retain failure stage, request ID, upstream status, finish
+reason and JSON line/position, but omit message text, error codes and field paths that could contain payload data.
+
+Each normal or comparison call emits an Information-level usage event with requested/returned model,
+request ID, upstream status, outcome, elapsed milliseconds and input/output/cached/cache-write/reasoning
+token counts. Usage is retained for logging even if response validation fails; absent or malformed counts
+are null, not assumed zero. Normal-call time includes parsing; comparison time retains the existing
+HTTP-call measurement. Logs contain no transaction IDs, descriptions, hints, request/response payloads
+or API keys. Logging failures cannot interrupt classification or mask its original exception. No new
+database storage or external telemetry service is introduced; events use the existing logging providers.
 
 `GET /api/Tests/classify-expenses` uses fixed Scotiabank reference numbers to load pending bank transactions.
 Categories, account hints and recent classification history come from the database for the authenticated user.
@@ -105,7 +121,7 @@ It can return an empty list when those references are no longer pending, or skip
 `POST /api/Tests/classify-expenses/compare?financialEntityId=6&sampleSize=10` compares `gpt-4o-mini`
 with `gpt-6-luna` (`reasoning_effort: none`). It replays up to 25 processed, user-owned transactions from
 the last three months, loading categories, hinted accounts and history once. Both calls share identical
-messages, JSON mode, temperature and a 4096-token output limit, use standard service tier, and run sequentially
+messages, configured output format, temperature and a 4096-token output limit, use standard service tier, and run sequentially
 without retries. It does not read or write the classification cache or modify transactions; each invocation
 does make two paid OpenAI calls. It does not change the configured default model.
 The response includes inputs and each model's classifications, elapsed HTTP-call time, returned model,

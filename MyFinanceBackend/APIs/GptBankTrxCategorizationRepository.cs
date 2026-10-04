@@ -42,11 +42,28 @@ namespace MyFinanceBackend.APIs
 			}
 			var request = CreateClassificationRequest(inputExpenses, categories, accountDescriptions, historicalExamples);
 			ConfigureModel(request, _openAISettings.Model);
-			var response = await CallOpenAIAsync(request.ToString(Formatting.None));
-			var classifiedExpenses = ParseClassifications(response, inputExpenses, categories, accountDescriptions);
-			CompleteClassifiedExpenseResults(inputExpenses, classifiedExpenses);
-			_logger.LogInformation("OpenAI classified {Count} expenses. Request ID: {RequestId}", classifiedExpenses.Count, response.RequestId);
-			return classifiedExpenses;
+			OpenAIResponse response = null;
+			ServiceException failure = null;
+			var succeeded = false;
+			var timer = Stopwatch.StartNew();
+			try
+			{
+				response = await CallOpenAIAsync(request.ToString(Formatting.None));
+				var classifiedExpenses = ParseClassifications(response, inputExpenses, categories, accountDescriptions);
+				CompleteClassifiedExpenseResults(inputExpenses, classifiedExpenses);
+				succeeded = true;
+				return classifiedExpenses;
+			}
+			catch (ServiceException ex)
+			{
+				failure = ex;
+				throw;
+			}
+			finally
+			{
+				timer.Stop();
+				LogUsage(_openAISettings.Model, response, failure, succeeded, timer.ElapsedMilliseconds);
+			}
 		}
 
 		public async Task<ClassificationComparison> CompareModelsAsync(
@@ -72,9 +89,11 @@ namespace MyFinanceBackend.APIs
 				var request = (JObject)template.DeepClone();
 				ConfigureModel(request, model);
 				var timer = Stopwatch.StartNew();
+				OpenAIResponse response = null;
+				ServiceException failure = null;
 				try
 				{
-					var response = await CallOpenAIAsync(request.ToString(Formatting.None));
+					response = await CallOpenAIAsync(request.ToString(Formatting.None));
 					timer.Stop();
 					run.RequestId = response.RequestId;
 					try
@@ -107,6 +126,7 @@ namespace MyFinanceBackend.APIs
 				}
 				catch (ServiceException ex)
 				{
+					failure = ex;
 					run.Error = ex.Message;
 					run.ErrorDetails = ex.DataObject;
 				}
@@ -114,6 +134,7 @@ namespace MyFinanceBackend.APIs
 				{
 					timer.Stop();
 					run.ElapsedMilliseconds = timer.ElapsedMilliseconds;
+					LogUsage(model, response, failure, run.Succeeded, timer.ElapsedMilliseconds);
 				}
 				runs.Add(run);
 			}
@@ -134,7 +155,7 @@ namespace MyFinanceBackend.APIs
 				request.Remove("reasoning_effort");
 		}
 
-		private static JObject CreateClassificationRequest(List<ExpenseToClassify> inputExpenses,
+		private JObject CreateClassificationRequest(List<ExpenseToClassify> inputExpenses,
 			List<Gpt.Category> categories, List<Gpt.Account> accountDescriptions,
 			List<InHisotricClassfiedExpense> historicalExamples)
 		{
@@ -220,10 +241,83 @@ Use these examples as secondary guidance for category selection:
 					new { role = "user", content = fullPrompt }
 				},
 				temperature = 0.2,
-				response_format = new { type = "json_object" }
+				response_format = CreateResponseFormat()
 			};
 
 			return JObject.FromObject(requestBody);
+		}
+
+		private JObject CreateResponseFormat()
+		{
+			if (!_openAISettings.UseStructuredOutputs)
+				return new JObject { ["type"] = "json_object" };
+			return JObject.FromObject(new
+			{
+				type = "json_schema",
+				json_schema = new
+				{
+					name = "expense_classification", strict = true,
+					schema = new
+					{
+						type = "object", additionalProperties = false, required = new[] { "expenses" },
+						properties = new
+						{
+							expenses = new
+							{
+								type = "array",
+								items = new
+								{
+									type = "object", additionalProperties = false,
+									required = new[] { "id", "categoryId", "categoryConfidence", "accountId", "accountConfidence" },
+									properties = new
+									{
+										id = new { type = "string" }, categoryId = new { type = "integer" },
+										categoryConfidence = new { type = "string", @enum = new[] { "High", "Medium", "Low" } },
+										accountId = new { type = "integer" },
+										accountConfidence = new { type = "string", @enum = new[] { "High", "Medium", "Low" } }
+									}
+								}
+							}
+						}
+					}
+				}
+			});
+		}
+
+		private void LogUsage(string requestedModel, OpenAIResponse response, ServiceException failure, bool succeeded, long elapsedMilliseconds)
+		{
+			SafeLog(() =>
+			{
+				JObject envelope = null;
+				try
+				{
+					if (response != null) envelope = JObject.Parse(response.Body);
+				}
+				catch (JsonException) { }
+				var details = failure?.DataObject == null ? null : JObject.FromObject(failure.DataObject);
+				var usage = envelope?["usage"] as JObject;
+				var inputDetails = usage?["prompt_tokens_details"] as JObject;
+				var outputDetails = usage?["completion_tokens_details"] as JObject;
+				_logger.LogInformation("OpenAI classification usage: requested model {RequestedModel}; returned model {ReturnedModel}; request ID {RequestId}; upstream status {Status}; outcome {Outcome}; elapsed ms {ElapsedMilliseconds}; input tokens {InputTokens}; output tokens {OutputTokens}; cached input tokens {CachedInputTokens}; cache-write tokens {CacheWriteTokens}; reasoning tokens {ReasoningTokens}",
+					requestedModel, envelope?["model"]?.Type == JTokenType.String ? (string)envelope["model"] : null,
+					response?.RequestId ?? (string)details?["RequestId"], response?.StatusCode ?? (int?)details?["UpstreamStatusCode"],
+					succeeded ? "Success" : (string)details?["Stage"] ?? "Failed", elapsedMilliseconds,
+					ReadTokenCount(usage?["prompt_tokens"]), ReadTokenCount(usage?["completion_tokens"]),
+					ReadTokenCount(inputDetails?["cached_tokens"]), ReadTokenCount(inputDetails?["cache_write_tokens"]),
+					ReadTokenCount(outputDetails?["reasoning_tokens"]));
+			});
+		}
+
+		private static int? ReadTokenCount(JToken token) => token?.Type == JTokenType.Integer
+			&& int.TryParse(token.ToString(), out var value) && value >= 0 ? value : null;
+
+		private static void SafeLog(Action write)
+		{
+			try { write(); }
+			catch (Exception)
+			{
+				// Observability must not change classification results or mask the original error.
+			}
 		}
 
 		private IReadOnlyCollection<OutGptClassifiedExpense> ParseClassifications(
@@ -401,8 +495,8 @@ Use these examples as secondary guidance for category selection:
 				JsonSerializationException serialization => (serialization.Path, (int?)serialization.LineNumber, (int?)serialization.LinePosition),
 				_ => (null, (int?)null, (int?)null)
 			};
-			_logger.LogWarning("AI classification failed at {Stage}: {Message} Request ID: {RequestId}; upstream status: {Status}; finish reason: {FinishReason}; error code: {ErrorCode}; JSON path: {JsonPath}; line: {JsonLine}; position: {JsonPosition}",
-				stage, message, response?.RequestId, response?.StatusCode, finishReason, error?.Code, jsonPath, jsonLine, jsonPosition);
+			SafeLog(() => _logger.LogWarning("AI classification failed at {Stage}. Request ID: {RequestId}; upstream status: {Status}; finish reason: {FinishReason}; JSON line: {JsonLine}; position: {JsonPosition}",
+				stage, response?.RequestId, response?.StatusCode, finishReason, jsonLine, jsonPosition));
 			return new ServiceException(message, status)
 			{
 				DataObject = new

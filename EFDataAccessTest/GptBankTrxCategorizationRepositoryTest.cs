@@ -13,6 +13,7 @@ using MyFinanceModel.BankTrxCategorization;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
+using Microsoft.Extensions.Logging;
 
 namespace EFDataAccessTest
 {
@@ -261,15 +262,154 @@ namespace EFDataAccessTest
 			Assert.That(handler.RequestBody, Is.Null);
 		}
 
-		[Test]
-		public async Task RequestsJsonModeAndStringIds()
+		[TestCase("gpt-6-luna")]
+		[TestCase("gpt-4o-mini")]
+		public async Task RequestsStrictSchemaAndStringIds(string model)
 		{
 			var handler = new ResponseHandler(Completion(new JObject { ["expenses"] = new JArray(Result) }.ToString()));
 			using var client = new HttpClient(handler);
-			await Repository(client).ClassifyExpensesWithGptAsync(Inputs, Categories, Accounts, []);
+			await Repository(client, model).ClassifyExpensesWithGptAsync(Inputs, Categories, Accounts, []);
 			var request = JObject.Parse(handler.RequestBody);
-			Assert.That((string)request["response_format"]["type"], Is.EqualTo("json_object"));
+			Assert.That((string)request["response_format"]["type"], Is.EqualTo("json_schema"));
+			var format = request["response_format"]["json_schema"];
+			Assert.That((bool)format["strict"], Is.True);
+			var schema = format["schema"];
+			Assert.That((string)schema["type"], Is.EqualTo("object"));
+			Assert.That((bool)schema["additionalProperties"], Is.False);
+			Assert.That(schema["required"].Values<string>(), Is.EqualTo(new[] { "expenses" }));
+			Assert.That((string)schema["properties"]["expenses"]["type"], Is.EqualTo("array"));
+			var item = schema["properties"]["expenses"]["items"];
+			Assert.That((bool)item["additionalProperties"], Is.False);
+			var fields = new[] { "id", "categoryId", "categoryConfidence", "accountId", "accountConfidence" };
+			Assert.That(item["required"].Values<string>(), Is.EqualTo(fields));
+			Assert.That(((JObject)item["properties"]).Properties().Select(p => p.Name), Is.EqualTo(fields));
+			Assert.That((string)item["properties"]["id"]["type"], Is.EqualTo("string"));
+			foreach (var field in new[] { "categoryId", "accountId" })
+				Assert.That((string)item["properties"][field]["type"], Is.EqualTo("integer"));
+			foreach (var field in new[] { "categoryConfidence", "accountConfidence" })
+			{
+				Assert.That((string)item["properties"][field]["type"], Is.EqualTo("string"));
+				Assert.That(item["properties"][field]["enum"].Values<string>(), Is.EqualTo(new[] { "High", "Medium", "Low" }));
+			}
 			Assert.That((string)request["messages"][1]["content"], Does.Contain("\"00123\""));
+		}
+
+		[Test]
+		public async Task JsonModeSwitchMakesOneRequestWithoutAutomaticFallback()
+		{
+			var handler = new ComparisonHandler(Completion(new JArray(CompactResult).ToString()));
+			using var client = new HttpClient(handler);
+			var repository = new GptBankTrxCategorizationRepository(new ClientFactory(client), new Settings(structured: false));
+			await repository.ClassifyExpensesWithGptAsync(Inputs, Categories, Accounts, []);
+			Assert.That(handler.Requests, Has.Count.EqualTo(1));
+			Assert.That(JToken.DeepEquals(handler.Requests[0]["response_format"], JObject.Parse("{\"type\":\"json_object\"}")), Is.True);
+		}
+
+		[Test]
+		public void SchemaRejectionDoesNotRetry()
+		{
+			var handler = new ResponseHandler("{\"error\":{\"message\":\"Unsupported schema\"}}", HttpStatusCode.BadRequest);
+			using var client = new HttpClient(handler);
+			Assert.ThrowsAsync<ServiceException>(() => Repository(client).ClassifyExpensesWithGptAsync(Inputs, Categories, Accounts, []));
+			Assert.That(handler.RequestCount, Is.EqualTo(1));
+		}
+
+		[Test]
+		public async Task SchemaDoesNotChangeWithCatalogs()
+		{
+			var handler = new ComparisonHandler(Completion(new JArray(CompactResult).ToString()), Completion(new JArray(CompactResult).ToString()));
+			using var client = new HttpClient(handler);
+			var repository = Repository(client);
+			await repository.ClassifyExpensesWithGptAsync(Inputs, Categories, Accounts, []);
+			await repository.ClassifyExpensesWithGptAsync(Inputs, [.. Categories, new(123, "Extra category")], [.. Accounts, new("Other hint", 456, "Other account")], []);
+			Assert.That(JToken.DeepEquals(handler.Requests[0]["response_format"], handler.Requests[1]["response_format"]), Is.True);
+		}
+
+		[Test]
+		public void HttpErrorsLogMetadataWithoutUpstreamPayloads()
+		{
+			var body = JsonConvert.SerializeObject(new { error = new { message = $"{Inputs[0].Description} test-key", code = "private-payload" } });
+			using var client = new HttpClient(new ResponseHandler(body, HttpStatusCode.BadRequest));
+			var logger = new CaptureLogger();
+			var repository = new GptBankTrxCategorizationRepository(new ClientFactory(client), new Settings(), logger);
+			Assert.ThrowsAsync<ServiceException>(() => repository.ClassifyExpensesWithGptAsync(Inputs, Categories, Accounts, []));
+			var usage = logger.Events.Single(e => e.ContainsKey("InputTokens"));
+			Assert.That(usage["Outcome"], Is.EqualTo("http"));
+			Assert.That(usage["Status"], Is.EqualTo(400));
+			Assert.That(usage["RequestId"], Is.EqualTo("req_test"));
+			Assert.That(usage["InputTokens"], Is.Null);
+			Assert.That(JsonConvert.SerializeObject(logger.Events), Does.Not.Contain(Inputs[0].Description).And.Not.Contain("test-key").And.Not.Contain("private-payload"));
+		}
+
+		[TestCase(false)]
+		[TestCase(true)]
+		public void TransportFailuresLogUnknownUsage(bool timeout)
+		{
+			using var client = new HttpClient(new FailingHandler(timeout));
+			var logger = new CaptureLogger();
+			var repository = new GptBankTrxCategorizationRepository(new ClientFactory(client), new Settings(), logger);
+			Assert.ThrowsAsync<ServiceException>(() => repository.ClassifyExpensesWithGptAsync(Inputs, Categories, Accounts, []));
+			var usage = logger.Events.Single(e => e.ContainsKey("InputTokens"));
+			Assert.That(usage["Outcome"], Is.EqualTo("transport"));
+			Assert.That(usage["Status"], Is.Null);
+			Assert.That(usage["InputTokens"], Is.Null);
+		}
+
+		[TestCase(false)]
+		[TestCase(true)]
+		public async Task LogsUsageEvenWhenClassificationValidationFails(bool invalid)
+		{
+			var result = CompactResult;
+			if (invalid) result["accountId"] = 999;
+			var envelope = JObject.Parse(Completion(new JObject { ["expenses"] = new JArray(result) }.ToString()));
+			envelope["model"] = "gpt-6-luna";
+			envelope["usage"] = JObject.Parse("{\"prompt_tokens\":1000,\"completion_tokens\":200,\"prompt_tokens_details\":{\"cached_tokens\":300,\"cache_write_tokens\":500},\"completion_tokens_details\":{\"reasoning_tokens\":0}}");
+			using var client = new HttpClient(new ResponseHandler(envelope.ToString()));
+			var logger = new CaptureLogger();
+			var repository = new GptBankTrxCategorizationRepository(new ClientFactory(client), new Settings(), logger);
+			if (invalid)
+				Assert.ThrowsAsync<ServiceException>(() => repository.ClassifyExpensesWithGptAsync(Inputs, Categories, Accounts, []));
+			else
+				await repository.ClassifyExpensesWithGptAsync(Inputs, Categories, Accounts, []);
+			var usage = logger.Events.Single(e => e.ContainsKey("InputTokens"));
+			Assert.That(usage["RequestedModel"], Is.EqualTo("gpt-6-luna"));
+			Assert.That(usage["ReturnedModel"], Is.EqualTo("gpt-6-luna"));
+			Assert.That(usage["RequestId"], Is.EqualTo("req_test"));
+			Assert.That(usage["Outcome"], Is.EqualTo(invalid ? "validation" : "Success"));
+			Assert.That(usage["InputTokens"], Is.EqualTo(1000));
+			Assert.That(usage["OutputTokens"], Is.EqualTo(200));
+			Assert.That(usage["CachedInputTokens"], Is.EqualTo(300));
+			Assert.That(usage["CacheWriteTokens"], Is.EqualTo(500));
+			Assert.That(usage["ReasoningTokens"], Is.EqualTo(0));
+			Assert.That((long)usage["ElapsedMilliseconds"], Is.GreaterThanOrEqualTo(0));
+			Assert.That(JsonConvert.SerializeObject(logger.Events), Does.Not.Contain(Inputs[0].Description).And.Not.Contain(Accounts[0].Description).And.Not.Contain("test-key").And.Not.Contain("00123"));
+		}
+
+		[TestCase(null)]
+		[TestCase("{\"prompt_tokens\":\"bad\",\"completion_tokens\":-1}")]
+		public async Task MissingOrMalformedUsageRemainsUnknownWithoutFailingClassification(string usageJson)
+		{
+			var envelope = JObject.Parse(Completion(new JArray(CompactResult).ToString()));
+			if (usageJson != null) envelope["usage"] = JObject.Parse(usageJson);
+			using var client = new HttpClient(new ResponseHandler(envelope.ToString()));
+			var logger = new CaptureLogger();
+			await new GptBankTrxCategorizationRepository(new ClientFactory(client), new Settings(), logger)
+				.ClassifyExpensesWithGptAsync(Inputs, Categories, Accounts, []);
+			var usage = logger.Events.Single();
+			foreach (var field in new[] { "InputTokens", "OutputTokens", "CachedInputTokens", "CacheWriteTokens", "ReasoningTokens" })
+				Assert.That(usage[field], Is.Null);
+		}
+
+		[TestCase(false)]
+		[TestCase(true)]
+		public async Task LoggerFailuresDoNotChangeResultsOrMaskOriginalErrors(bool invalid)
+		{
+			using var client = new HttpClient(new ResponseHandler(invalid ? "{\"error\":{\"message\":\"Original failure\"}}" : Completion(new JArray(CompactResult).ToString())));
+			var repository = new GptBankTrxCategorizationRepository(new ClientFactory(client), new Settings(), new CaptureLogger(throws: true));
+			if (invalid)
+				Assert.That(Assert.ThrowsAsync<ServiceException>(() => repository.ClassifyExpensesWithGptAsync(Inputs, Categories, Accounts, [])).Message, Does.Contain("Original failure"));
+			else
+				Assert.That(await repository.ClassifyExpensesWithGptAsync(Inputs, Categories, Accounts, []), Has.Count.EqualTo(1));
 		}
 
 		[Test]
@@ -369,6 +509,8 @@ namespace EFDataAccessTest
 			var comparison = await Repository(client).CompareModelsAsync(Inputs, Categories, Accounts, []);
 			Assert.That(handler.Requests, Has.Count.EqualTo(2));
 			Assert.That(JToken.DeepEquals(handler.Requests[0]["messages"], handler.Requests[1]["messages"]), Is.True);
+			Assert.That(JToken.DeepEquals(handler.Requests[0]["response_format"], handler.Requests[1]["response_format"]), Is.True);
+			Assert.That((string)handler.Requests[0]["response_format"]["type"], Is.EqualTo("json_schema"));
 			Assert.That((string)handler.Requests[0]["model"], Is.EqualTo("gpt-4o-mini"));
 			Assert.That(handler.Requests[0]["reasoning_effort"], Is.Null);
 			Assert.That((string)handler.Requests[1]["model"], Is.EqualTo("gpt-6-luna"));
@@ -457,10 +599,22 @@ namespace EFDataAccessTest
 		private static GptBankTrxCategorizationRepository Repository(HttpClient client) => new(new ClientFactory(client), new Settings());
 		private static GptBankTrxCategorizationRepository Repository(HttpClient client, string model) => new(new ClientFactory(client), new Settings(model));
 
-		private class Settings(string model = "gpt-6-luna") : IBackendSettings
+		private class Settings(string model = "gpt-6-luna", bool structured = true) : IBackendSettings
 		{
 			public string CurrencyServiceUrl => "";
-			public OpenAISettings OpenAISettings => new() { ApiKey = "test-key", ChatUrl = "https://api.openai.com/v1/chat/completions", Model = model };
+			public OpenAISettings OpenAISettings => new() { ApiKey = "test-key", ChatUrl = "https://api.openai.com/v1/chat/completions", Model = model, UseStructuredOutputs = structured };
+		}
+
+		private class CaptureLogger(bool throws = false) : ILogger<GptBankTrxCategorizationRepository>
+		{
+			public List<Dictionary<string, object>> Events { get; } = [];
+			public bool IsEnabled(LogLevel logLevel) => true;
+			public IDisposable BeginScope<TState>(TState state) => null;
+			public void Log<TState>(LogLevel level, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
+			{
+				if (throws) throw new InvalidOperationException("Logging failed");
+				Events.Add(((IEnumerable<KeyValuePair<string, object>>)state).ToDictionary(e => e.Key, e => e.Value));
+			}
 		}
 
 		private class ClientFactory(HttpClient client) : IHttpClientFactory
@@ -471,10 +625,12 @@ namespace EFDataAccessTest
 		private class ResponseHandler(string body, HttpStatusCode status = HttpStatusCode.OK) : HttpMessageHandler
 		{
 			public string RequestBody { get; private set; }
+			public int RequestCount { get; private set; }
 
 			protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
 			{
 				RequestBody = await request.Content.ReadAsStringAsync(cancellationToken);
+				RequestCount++;
 				var response = new HttpResponseMessage(status) { Content = new StringContent(body) };
 				response.Headers.Add("x-request-id", "req_test");
 				return response;
