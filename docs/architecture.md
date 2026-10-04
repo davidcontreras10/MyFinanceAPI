@@ -151,9 +151,19 @@ cannot override the output contract or allowed IDs; individual transaction resul
 in the batch to identify a separately charged tax's related purchase.
 Each input also carries allowed historical category IDs matching its normalized description and currency.
 These are prompt evidence, not a server-side override; conflicting historical categories still require judgment.
-Digital-service IVA batches bypass cache lookups so GPT sees the accompanying purchases, including those
-already cached. IVA results themselves are not cached: description/amount/currency alone cannot identify
-which purchase's account to use. Other results in the batch are still cached.
+All classifications, including digital-service IVA, use the existing normalized description/amount/currency
+cache key and the same lookup/write behavior. Do not exclude tax rows, bypass caching for an IVA batch, or
+change the cache key to improve classification accuracy. Cache hits are reused after account-ownership checks;
+only misses go to GPT and all fresh results are cached. A repeated fully cached batch makes no GPT call.
+Because the key has no purchase context, identical IVA keys reuse the same classification; refining that
+accuracy is a separate product decision, not a reason to change caching semantics.
+
+Verify service-level cache decisions with
+`dotnet test --filter "FullyQualifiedName~ExpensesClassificationSubServiceTest"`.
+These tests use repository proxies, an in-memory cache with upserts, and a fake classifier; no LocalDB,
+MongoDB, Excel attachment or OpenAI connection is needed. They cover repeated requests, full/partial hits,
+normalization, amount/currency mismatches, account ownership and full caching of mixed IVA batches.
+They test orchestration, not MongoDB key serialization or connection health.
 
 ## Financial-entity file import
 
