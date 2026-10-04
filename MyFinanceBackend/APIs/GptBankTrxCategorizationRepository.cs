@@ -256,13 +256,13 @@ accountName. A categoryId is not an accountId. Never invent an ID or use an acco
 				throw ClassificationError("response", "OpenAI returned empty classification content.", response, choice.FinishReason);
 			}
 
-			List<OutGptClassifiedExpense> results;
+			IReadOnlyCollection<OutGptClassifiedExpense> results;
 			try
 			{
 				var content = CleanGptJson(choice.Message.Content);
 				// Accept older saved responses as well as the object required by JSON mode.
 				results = content.StartsWith("[")
-					? JsonConvert.DeserializeObject<List<OutGptClassifiedExpense>>(content)
+					? JsonConvert.DeserializeObject<IReadOnlyCollection<OutGptClassifiedExpense>>(content)
 					: JsonConvert.DeserializeObject<ClassificationContent>(content)?.Expenses;
 			}
 			catch (JsonException ex)
