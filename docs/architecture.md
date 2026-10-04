@@ -90,6 +90,10 @@ The GPT repository requests JSON mode (`response_format: json_object`) with an `
 the response object; parsing also accepts the older bare-array fixture in `FakeOpenAIResponse.json`.
 It checks completion/refusal status, transaction IDs, allowed category/account IDs and confidence values
 before returning results for caching. Original descriptions, amounts and currencies come from the bank data.
+The model is asked to return only `id`, `categoryId`, `categoryConfidence`, `accountId` and
+`accountConfidence`. Category/account names are populated from the validated catalogs; descriptions,
+amounts and currencies are populated from the input. Public API results and cache records keep their full
+fields, and older model responses containing descriptions or names remain accepted and overwritten.
 OpenAI failures become `ServiceException` responses (502, or 504 for timeouts), with the upstream status,
 request ID, error code/type, finish reason and failure stage in `dataObject`. JSON parsing errors also include
 the field path and line/position; warnings include those details without logging transaction payloads or API keys.

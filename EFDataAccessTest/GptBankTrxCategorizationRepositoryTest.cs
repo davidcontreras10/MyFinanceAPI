@@ -33,6 +33,12 @@ namespace EFDataAccessTest
 			["accountName"] = "Weekly expenses", ["accountConfidence"] = "Medium"
 		};
 
+		private static JObject CompactResult => new()
+		{
+			["id"] = "00123", ["categoryId"] = 2, ["categoryConfidence"] = "High",
+			["accountId"] = 10, ["accountConfidence"] = "Medium"
+		};
+
 		private static string Completion(string content, string finishReason = "stop", string refusal = null) =>
 			JsonConvert.SerializeObject(new
 			{
@@ -52,6 +58,40 @@ namespace EFDataAccessTest
 			Assert.That(result.Description, Is.EqualTo(Inputs[0].Description));
 			Assert.That(result.Amount, Is.EqualTo(42.5m));
 			Assert.That(result.Currency, Is.EqualTo("USD"));
+		}
+
+		[TestCase("json")]
+		[TestCase("")]
+		public async Task RestoresPublicFieldsFromCompactResponses(string language)
+		{
+			var content = new JObject { ["expenses"] = new JArray(CompactResult) }.ToString();
+			if (language == "json")
+				content = $"```json\n{content}\n```";
+			using var client = new HttpClient(new ResponseHandler(Completion(content)));
+			var result = (await Repository(client).ClassifyExpensesWithGptAsync(Inputs, Categories, Accounts, [])).Single();
+			Assert.That(result.Id, Is.EqualTo("00123"));
+			Assert.That(result.Description, Is.EqualTo(Inputs[0].Description));
+			Assert.That(result.Amount, Is.EqualTo(Inputs[0].Amount));
+			Assert.That(result.Currency, Is.EqualTo(Inputs[0].Currency));
+			Assert.That(result.CategoryId, Is.EqualTo(2));
+			Assert.That(result.Category, Is.EqualTo(Categories[0].Name));
+			Assert.That(result.AccountId, Is.EqualTo(10));
+			Assert.That(result.AccountName, Is.EqualTo(Accounts[0].Name));
+			Assert.That(result.CategoryConfidence, Is.EqualTo("High"));
+			Assert.That(result.AccountConfidence, Is.EqualTo("Medium"));
+		}
+
+		[Test]
+		public async Task IgnoresLegacyModelDescriptionsAndNames()
+		{
+			var response = Result;
+			response["category"] = "Incorrect category name";
+			response["accountName"] = "Incorrect account name";
+			using var client = new HttpClient(new ResponseHandler(Completion(new JArray(response).ToString())));
+			var result = (await Repository(client).ClassifyExpensesWithGptAsync(Inputs, Categories, Accounts, [])).Single();
+			Assert.That(result.Description, Is.EqualTo(Inputs[0].Description));
+			Assert.That(result.Category, Is.EqualTo(Categories[0].Name));
+			Assert.That(result.AccountName, Is.EqualTo(Accounts[0].Name));
 		}
 
 		[TestCase("json")]
@@ -283,11 +323,18 @@ namespace EFDataAccessTest
 				"set accountConfidence to Low", "exactly one result per input transaction",
 				"preserving leading zeros", "Never invent an ID",
 				"Confidence values must be exactly High, Medium, or Low",
-				"- id", "- description", "- category", "- categoryId", "- categoryConfidence",
-				"- accountName", "- accountId", "- accountConfidence"
+				"- id", "- categoryId", "- categoryConfidence", "- accountId", "- accountConfidence"
 			})
 				Assert.That(prompt, Does.Contain(rule));
 			Assert.That(prompt, Does.Not.Contain("Evaluate each expense independently"));
+			var outputRequirements = prompt.Split("## Output requirements")[1].Split("## Categories")[0];
+			var outputFields = outputRequirements.Split('\n').Select(line => line.Trim())
+				.Where(line => line.StartsWith("- ", StringComparison.Ordinal))
+				.Select(line => line.Substring(2).Split(' ', ':')[0]).ToArray();
+			Assert.That(outputFields, Is.EqualTo(new[]
+			{
+				"id", "categoryId", "categoryConfidence", "accountId", "accountConfidence"
+			}));
 		}
 
 		[Test]
@@ -313,7 +360,7 @@ namespace EFDataAccessTest
 		[Test]
 		public async Task ComparisonUsesIdenticalPromptsAndReportsUsageBasedCosts()
 		{
-			var envelope = JObject.Parse(Completion(new JArray(Result).ToString()));
+			var envelope = JObject.Parse(Completion(new JObject { ["expenses"] = new JArray(CompactResult) }.ToString()));
 			envelope["model"] = "returned-snapshot";
 			envelope["service_tier"] = "default";
 			envelope["usage"] = JObject.Parse("{\"prompt_tokens\":1000,\"completion_tokens\":200,\"prompt_tokens_details\":{\"cached_tokens\":200,\"cache_write_tokens\":100},\"completion_tokens_details\":{\"reasoning_tokens\":0}}");
@@ -329,6 +376,15 @@ namespace EFDataAccessTest
 			Assert.That(handler.Requests.All(r => (string)r["service_tier"] == "default" && (int)r["max_completion_tokens"] == 4096 && !(bool)r["store"]), Is.True);
 			var runs = comparison.Runs.ToArray();
 			Assert.That(runs.All(r => r.Succeeded && r.Results.Count == 1 && r.RequestId == "req_compare"), Is.True);
+			foreach (var run in runs)
+			{
+				var result = run.Results.Single();
+				Assert.That(result.Description, Is.EqualTo(Inputs[0].Description));
+				Assert.That(result.Amount, Is.EqualTo(Inputs[0].Amount));
+				Assert.That(result.Currency, Is.EqualTo(Inputs[0].Currency));
+				Assert.That(result.Category, Is.EqualTo(Categories[0].Name));
+				Assert.That(result.AccountName, Is.EqualTo(Accounts[0].Name));
+			}
 			Assert.That(runs[0].EstimatedCostUsd, Is.EqualTo(0.000255m));
 			Assert.That(runs[1].EstimatedCostUsd, Is.EqualTo(0.0001845m));
 			Assert.That(runs[1].ReasoningTokens, Is.Zero);

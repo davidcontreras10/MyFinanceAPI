@@ -186,19 +186,16 @@ identified reliably, set accountConfidence to Low.
 
 ## Output requirements
 Return only a JSON object with an expenses array containing exactly one result per input transaction.
-Do not include Markdown or explanatory text. Each result must contain:
+Do not include Markdown or explanatory text. Each result must contain only:
 - id (copied exactly from the input as a JSON string, preserving leading zeros)
-- description
-- category (from Categories)
 - categoryId (integer ID of the matched category)
 - categoryConfidence: High / Medium / Low
-- accountName (from Accounts and routing hints)
 - accountId (integer ID of the matched account)
 - accountConfidence: High / Medium / Low
 
 Use only category IDs and account IDs from their respective supplied lists.
-Copy categoryId from the same category object as category, and accountId from the same account object as
-accountName. A categoryId is not an accountId. Never invent an ID or use an account outside the account list.
+Copy categoryId from the selected category object and accountId from the selected account object.
+A categoryId is not an accountId. Never invent an ID or use an account outside the account list.
 Confidence values must be exactly High, Medium, or Low.
 
 ## Categories
