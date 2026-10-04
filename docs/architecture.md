@@ -147,6 +147,12 @@ registering it in that dictionary — follow `ScotiabankFileReader` as the templ
 (gitignored) or environment variables in deployment. Key sections: `ConnectionStrings:DefaultConnection`
 (SQL Server), `ConnectionStrings:MongoDB`, `authentication:secret` (JWT signing), `OpenAI:ApiKey`.
 
+For local debugging in Visual Studio, select the `Local` launch profile. The default `IIS Express`
+and `MyFinanceWebApiCore` profiles use `Development`, which does not load `appsettings.local.json`.
+The runtime uses the environment-specific configuration file, not an unconditional local override.
+If MongoDB is running but the API cannot connect, check the active environment and effective connection
+string first; a successful shell ping alone does not verify the API's configuration.
+
 ## Exceptions
 
 Controllers don't catch exceptions individually — `HttpResponseExceptionFilter`
