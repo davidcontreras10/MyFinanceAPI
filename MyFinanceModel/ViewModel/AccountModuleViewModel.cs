@@ -17,6 +17,9 @@ namespace MyFinanceModel.ViewModel
 		public int? DefaultCurrencyId { get; set; }
 		public bool IsDefaultPending { get; set; }
 
+		/// <summary>True when the account has an AI classification hint (see docs/account-ai-hints.md). The hint itself is read and written through its own endpoints.</summary>
+		public bool HasAiClassificationHint { get; set; }
+
 		/// <summary>The main account this account is a sub-account of; null for a top-level account.</summary>
 		public int? ParentAccountId { get; set; }
 		public string ParentAccountName { get; set; }
@@ -31,6 +34,7 @@ namespace MyFinanceModel.ViewModel
 	public class SubAccountViewModel : AccountBasicInfo
 	{
 		public int AccountGroupId { get; set; }
+		public bool HasAiClassificationHint { get; set; }
 	}
 
     public class AccountDetailsPeriodViewModel : AccountDetailsViewModel

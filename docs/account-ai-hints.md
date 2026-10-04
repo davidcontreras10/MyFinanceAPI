@@ -51,4 +51,11 @@ it available again. Hint updates do not rewrite transactions or invalidate exist
 entries, so cached results can still reflect an earlier hint or a now-cleared account. The model-comparison
 test endpoint bypasses that cache when testing current hints. This endpoint itself makes no OpenAI calls.
 
-The existing database field is reused; no migration or frontend implementation is required.
+The existing database field is reused; no migration is required.
+
+## Knowing which accounts have a hint
+
+The hint text is only returned by the GET above. To let a screen show which accounts have one without a request
+per account, the account list (`GET /api/Accounts/{accountGroupId}`), the edit view model and the period list
+return `hasAiClassificationHint` (true for a non-blank hint). Each entry of `subAccounts` carries the same flag.
+It is read from the account, so it is current after a PUT.

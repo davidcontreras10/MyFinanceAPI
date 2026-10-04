@@ -209,7 +209,8 @@ namespace EFDataAccess.Repositories
 					AccountName = acc.Name,
 					AccountPeriodId = currentPeriod != null ? currentPeriod.AccountPeriodId : 0,
 					AccountPosition = acc.Position ?? 0,
-					GlobalOrder = acc.Position ?? 0
+					GlobalOrder = acc.Position ?? 0,
+					HasAiClassificationHint = !string.IsNullOrWhiteSpace(acc.AiClassificationHint)
 				});
 			}
 
@@ -241,6 +242,7 @@ namespace EFDataAccess.Repositories
 					GlobalOrder = acc.Position ?? 0,
 					DefaultCurrencyId = acc.DefaultSelectCurrencyId,
 					IsDefaultPending = acc.DefaultSelectIsPending,
+					HasAiClassificationHint = !string.IsNullOrWhiteSpace(acc.AiClassificationHint),
 					ParentAccountId = acc.AccountIncludeAccount
 						.Select(ai => (int?)ai.AccountIncludeId)
 						.FirstOrDefault(),
@@ -253,7 +255,8 @@ namespace EFDataAccess.Repositories
 						{
 							AccountId = ai.AccountId,
 							AccountName = ai.Account.Name,
-							AccountGroupId = ai.Account.AccountGroupId ?? 0
+							AccountGroupId = ai.Account.AccountGroupId ?? 0,
+							HasAiClassificationHint = !string.IsNullOrWhiteSpace(ai.Account.AiClassificationHint)
 						})
 						.ToList()
 				});
@@ -345,7 +348,8 @@ namespace EFDataAccess.Repositories
 					{
 						AccountId = a.AccountId,
 						AccountName = a.Name,
-						AccountGroupId = a.AccountGroupId ?? 0
+						AccountGroupId = a.AccountGroupId ?? 0,
+						HasAiClassificationHint = !string.IsNullOrWhiteSpace(a.AiClassificationHint)
 					})
 					.ToList(),
 				CurrencyViewModels = efCurrencies.Select(c => new CurrencyViewModel
@@ -367,7 +371,8 @@ namespace EFDataAccess.Repositories
 				AccountStyle = CreateFrontStyleData(acc.HeaderColor),
 				GlobalOrder = acc.Position ?? 0,
 				DefaultCurrencyId = acc.DefaultSelectCurrencyId,
-				IsDefaultPending = acc.DefaultSelectIsPending
+				IsDefaultPending = acc.DefaultSelectIsPending,
+				HasAiClassificationHint = !string.IsNullOrWhiteSpace(acc.AiClassificationHint)
 			}).ToList();
 
 			return acc;
