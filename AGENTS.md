@@ -64,9 +64,13 @@ been initialized". On Windows `Local` matches `appsettings.local.json`. In Power
 `$env:ASPNETCORE_ENVIRONMENT = "Local"` (clear it afterwards with `Remove-Item Env:ASPNETCORE_ENVIRONMENT`).
 `migrations add` and `has-pending-model-changes` don't connect, so they don't need it.
 
-The only test project is `EFDataAccessTest` (NUnit). It covers the EF period helpers and the account
-hierarchy rules (`AccountHierarchyValidator`, `AccountLinkRules`). Other services and controllers have no
-tests — don't assume their behavior is pinned; check call sites when changing service logic.
+The only test project is `EFDataAccessTest` (NUnit). It covers the EF period helpers, account
+hierarchy rules (`AccountHierarchyValidator`, `AccountLinkRules`), GPT classification response/error handling,
+classification cache behavior for digital-service IVA, and model-comparison request/usage/cost handling.
+GPT tests also cover strict output schemas, the JSON-mode switch, and payload-free, failure-safe usage logging.
+It also covers account AI-hint request validation and service updates.
+Other services and controllers have no tests — don't assume their behavior is pinned; check call sites when
+changing service logic.
 
 ## Conventions
 
@@ -82,9 +86,11 @@ tests — don't assume their behavior is pinned; check call sites when changing 
   change another's data.
 - Real config values live in `appsettings.local.json` (gitignored) or environment variables; never commit
   secrets.
-- Ask before every `git commit`, push or pull request, even when you were asked to do the work: say what would be
-  committed (files, one-line message, branch) and wait for a yes. A yes covers only that one commit.
-- Branching: **`develop` is the working branch** — start new work, branches, worktrees and new sessions from it
-  (the git default branch is `master`, so tools often start from `master` by mistake; switch to `develop` first).
+- Never commit automatically after completing work. An explicit user request to commit authorizes that
+  commit without another confirmation. Ask before a push or pull request, stating the scope and branch;
+  permission to commit does not authorize either.
+- Branching: work on `develop` or a feature branch (for example, `feature/ImproveAIConnectivity`). Continue on
+  the current feature branch when it is relevant to the task; do not switch to `develop` just to start a session.
+  Base new feature branches and worktrees on `develop` unless the user specifies another base.
   **`master` is production**, and **production is the only environment** (no dev or staging): a push to `master`
   runs the EF migrations on the Azure database and then deploys. See `docs/architecture.md` ("CI / deployment").

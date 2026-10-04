@@ -11,6 +11,8 @@ namespace MyFinanceBackend.Data
 {
 	public interface IAccountRepository
 	{
+		Task<AiClassifiableAccount> GetAiClassificationHintAsync(string userId, int accountId);
+		Task<AiClassifiableAccount> UpdateAiClassificationHintAsync(string userId, int accountId, string hint);
 		Task<IReadOnlyCollection<int>> GetMatchedAccountIdsByUserIdAsync(string userId, IEnumerable<int> accountIds);
 		Task<IReadOnlyCollection<AiClassifiableAccount>> GetAiClassifiableAccountsAsync(string userId);
 		Task<IReadOnlyCollection<Tuple<IdDateTime, AccountPeriodBasicInfo>>> GetAccountPeriodInfoByAccountIdDateTimeAsync(IReadOnlyCollection<IdDateTime> accountsDates);

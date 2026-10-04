@@ -17,4 +17,8 @@
     <ProjectReference Include="..\MyFinanceBackend\MyFinanceBackend.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="..\MyFinanceWebApiCore\FakeOpenAIResponse.json" Link="FakeOpenAIResponse.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

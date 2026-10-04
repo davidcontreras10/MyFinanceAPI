@@ -36,6 +36,21 @@ namespace MyFinanceWebApiCore.Controllers
 
 		#region Routes
 
+		[HttpGet("{accountId:int}/ai-classification-hint")]
+		public Task<AiClassifiableAccount> GetAiClassificationHint([FromRoute] int accountId)
+		{
+			return _accountService.GetAiClassificationHintAsync(GetUserId(), accountId);
+		}
+
+		[HttpPut("{accountId:int}/ai-classification-hint")]
+		public Task<AiClassifiableAccount> UpdateAiClassificationHint(
+			[FromRoute] int accountId, [FromBody] ClientAccountAiClassificationHint request)
+		{
+			if (!ModelState.IsValid)
+				throw new ServiceException("Provide aiClassificationHint as text or null, with at most 4000 characters.", System.Net.HttpStatusCode.BadRequest);
+			return _accountService.UpdateAiClassificationHintAsync(GetUserId(), accountId, request);
+		}
+
 		[HttpGet]
 		[Route("currencies/addition")]
 		public async Task<IReadOnlyCollection<AccountsByCurrencyViewModel>> GetAccountsByCurrenciesAsync([FromQuery]int[] sourceCurrencyIds)

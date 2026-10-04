@@ -77,6 +77,94 @@ currency/account ownership, so previously-seen expenses skip the GPT call on sub
 touching this flow, be aware there are two distinct outputs: cached lookups vs. fresh GPT classification,
 merged before being returned to the caller.
 
+Fresh classification calls use `OpenAI:Model`, defaulting to `gpt-6-luna` with reasoning disabled.
+To switch to the supported alternative, set `"Model": "gpt-4o-mini"` under `OpenAI` in
+`appsettings.local.json`, or set the environment variable `OpenAI__Model=gpt-4o-mini`, then restart the API.
+Use `gpt-6-luna` to switch back. Model selection is explicit, with no automatic fallback or second paid
+call. Both models use standard service tier, the configured output format, temperature 0.2 and a 4096-token completion limit;
+the reasoning parameter is omitted for GPT-4o mini. Unsupported model settings fail before calling OpenAI.
+Changing this setting does not invalidate existing cached classifications; use the comparison endpoint
+for fresh calls to both models without cache writes.
+
+The GPT repository defaults to Structured Outputs (`response_format: json_schema`, `strict: true`)
+with an `expenses` array inside the response object. Its fixed schema requires the five compact fields,
+string transaction IDs, integer catalog IDs and High/Medium/Low confidence enums; additional properties
+are forbidden. Catalog membership and one-result-per-input checks remain server-side, as do refusal and
+truncation handling. Parsing also accepts the older bare-array fixture in `FakeOpenAIResponse.json`.
+Set `OpenAI:UseStructuredOutputs` to `false` in local configuration, or set
+`OpenAI__UseStructuredOutputs=false` and restart, to request JSON mode (`json_object`) instead.
+The setting applies to normal and comparison calls; schema rejection never triggers an automatic retry
+or fallback paid call. Schemas add input overhead; see [ai-prompt-comparison.md](ai-prompt-comparison.md).
+It checks completion/refusal status, transaction IDs, allowed category/account IDs and confidence values
+before returning results for caching. Original descriptions, amounts and currencies come from the bank data.
+The model is asked to return only `id`, `categoryId`, `categoryConfidence`, `accountId` and
+`accountConfidence`. Category/account names are populated from the validated catalogs; descriptions,
+amounts and currencies are populated from the input. Public API results and cache records keep their full
+fields, and older model responses containing descriptions or names remain accepted and overwritten.
+OpenAI failures become `ServiceException` responses (502, or 504 for timeouts), with the upstream status,
+request ID, error code/type, finish reason and failure stage in `dataObject`. JSON parsing errors also include
+the field path and line/position. Warning logs retain failure stage, request ID, upstream status, finish
+reason and JSON line/position, but omit message text, error codes and field paths that could contain payload data.
+
+Each normal or comparison call emits an Information-level usage event with requested/returned model,
+request ID, upstream status, outcome, elapsed milliseconds and input/output/cached/cache-write/reasoning
+token counts. Usage is retained for logging even if response validation fails; absent or malformed counts
+are null, not assumed zero. Normal-call time includes parsing; comparison time retains the existing
+HTTP-call measurement. Logs contain no transaction IDs, descriptions, hints, request/response payloads
+or API keys. Logging failures cannot interrupt classification or mask its original exception. No new
+database storage or external telemetry service is introduced; events use the existing logging providers.
+
+`GET /api/Tests/classify-expenses` uses fixed Scotiabank reference numbers to load pending bank transactions.
+Categories, account hints and recent classification history come from the database for the authenticated user.
+It can return an empty list when those references are no longer pending, or skip OpenAI when all results are cached.
+
+`POST /api/Tests/classify-expenses/compare?financialEntityId=6&sampleSize=10` compares `gpt-4o-mini`
+with `gpt-6-luna` (`reasoning_effort: none`). It replays up to 25 processed, user-owned transactions from
+the last three months, loading categories, hinted accounts and history once. Both calls share identical
+messages, configured output format, temperature and a 4096-token output limit, use standard service tier, and run sequentially
+without retries. It does not read or write the classification cache or modify transactions; each invocation
+does make two paid OpenAI calls. It does not change the configured default model.
+The response includes inputs and each model's classifications, elapsed HTTP-call time, returned model,
+request ID, input/output/cached/cache-write/reasoning token counts, and estimated USD cost. A model failure
+does not suppress the other result, and reported usage is retained even when classification validation fails.
+Cost uses standard public rates dated `PricingAsOf`, not an invoice: uncached input, cached input and cache
+writes are charged separately; completion tokens already include reasoning tokens, so those are not added
+again. Missing usage or a nonstandard returned service tier leaves cost unknown rather than reporting zero.
+Rates must be reviewed when pricing changes. Single-run latency and cost are observations, not benchmarks
+or guarantees, and classification accuracy is not scored.
+
+Account eligibility comes from `Account.AiClassificationHint`: only the current user's accounts with a
+nonblank hint are offered to GPT. A hint describes which transactions belong in that account, with useful
+merchant examples and exclusions. Spend categories come separately from the user's spend types; account
+notes and default spend categories do not substitute for a hint. The dedicated account endpoint
+`PUT /api/Accounts/{accountId}/ai-classification-hint` sets or clears this field for the authenticated
+owner; GET on the same route reads the hint, including accounts with no hint.
+Normal account create/edit DTOs remain unchanged. See [account-ai-hints.md](account-ai-hints.md)
+for the request contract. Clearing a hint removes the account from fresh AI candidate lists, not from
+existing classifications or cached results.
+Current account hints take precedence over historical examples. Identical descriptions, such as digital-service
+IVA, can route to different accounts depending on the associated purchase's amount and currency.
+Prompts serialize categories, accounts and inputs as separate JSON lists; historical examples provide category
+guidance while current hints govern account routing.
+The prompt separates classification rules and output requirements from the data sections. Routing hints
+cannot override the output contract or allowed IDs; individual transaction results may use other transactions
+in the batch to identify a separately charged tax's related purchase.
+Each input also carries allowed historical category IDs matching its normalized description and currency.
+These are prompt evidence, not a server-side override; conflicting historical categories still require judgment.
+All classifications, including digital-service IVA, use the existing normalized description/amount/currency
+cache key and the same lookup/write behavior. Do not exclude tax rows, bypass caching for an IVA batch, or
+change the cache key to improve classification accuracy. Cache hits are reused after account-ownership checks;
+only misses go to GPT and all fresh results are cached. A repeated fully cached batch makes no GPT call.
+Because the key has no purchase context, identical IVA keys reuse the same classification; refining that
+accuracy is a separate product decision, not a reason to change caching semantics.
+
+Verify service-level cache decisions with
+`dotnet test --filter "FullyQualifiedName~ExpensesClassificationSubServiceTest"`.
+These tests use repository proxies, an in-memory cache with upserts, and a fake classifier; no LocalDB,
+MongoDB, Excel attachment or OpenAI connection is needed. They cover repeated requests, full/partial hits,
+normalization, amount/currency mismatches, account ownership and full caching of mixed IVA batches.
+They test orchestration, not MongoDB key serialization or connection health.
+
 ## Financial-entity file import
 
 Bank statement files (Excel) are parsed per financial institution via
@@ -91,6 +179,12 @@ registering it in that dictionary — follow `ScotiabankFileReader` as the templ
 `appsettings.json` holds the schema (empty secrets); real values come from `appsettings.local.json`
 (gitignored) or environment variables in deployment. Key sections: `ConnectionStrings:DefaultConnection`
 (SQL Server), `ConnectionStrings:MongoDB`, `authentication:secret` (JWT signing), `OpenAI:ApiKey`.
+
+For local debugging in Visual Studio, select the `Local` launch profile. The default `IIS Express`
+and `MyFinanceWebApiCore` profiles use `Development`, which does not load `appsettings.local.json`.
+The runtime uses the environment-specific configuration file, not an unconditional local override.
+If MongoDB is running but the API cannot connect, check the active environment and effective connection
+string first; a successful shell ping alone does not verify the API's configuration.
 
 ## Exceptions
 

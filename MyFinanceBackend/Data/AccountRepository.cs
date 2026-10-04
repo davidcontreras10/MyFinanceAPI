@@ -26,6 +26,16 @@ namespace MyFinanceBackend.Data
 
 		#region Public
 
+		public Task<AiClassifiableAccount> GetAiClassificationHintAsync(string userId, int accountId)
+		{
+			throw new NotImplementedException();
+		}
+
+		public Task<AiClassifiableAccount> UpdateAiClassificationHintAsync(string userId, int accountId, string hint)
+		{
+			throw new NotImplementedException();
+		}
+
 		public IEnumerable<AccountDetailsInfoViewModel> GetAccountDetailsViewModel(IEnumerable<int> accountIds, string userId)
 		{
 			var parameters = new[]
