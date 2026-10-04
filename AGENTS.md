@@ -85,8 +85,9 @@ changing service logic.
   change another's data.
 - Real config values live in `appsettings.local.json` (gitignored) or environment variables; never commit
   secrets.
-- Ask before every `git commit`, push or pull request, even when you were asked to do the work: say what would be
-  committed (files, one-line message, branch) and wait for a yes. A yes covers only that one commit.
+- Never commit automatically after completing work. An explicit user request to commit authorizes that
+  commit without another confirmation. Ask before a push or pull request, stating the scope and branch;
+  permission to commit does not authorize either.
 - Branching: work on `develop` or a feature branch (for example, `feature/ImproveAIConnectivity`). Continue on
   the current feature branch when it is relevant to the task; do not switch to `develop` just to start a session.
   Base new feature branches and worktrees on `develop` unless the user specifies another base.

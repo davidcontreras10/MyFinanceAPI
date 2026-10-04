@@ -126,6 +126,9 @@ Current account hints take precedence over historical examples. Identical descri
 IVA, can route to different accounts depending on the associated purchase's amount and currency.
 Prompts serialize categories, accounts and inputs as separate JSON lists; historical examples provide category
 guidance while current hints govern account routing.
+The prompt separates classification rules and output requirements from the data sections. Routing hints
+cannot override the output contract or allowed IDs; individual transaction results may use other transactions
+in the batch to identify a separately charged tax's related purchase.
 Each input also carries allowed historical category IDs matching its normalized description and currency.
 These are prompt evidence, not a server-side override; conflicting historical categories still require judgment.
 Digital-service IVA batches bypass cache lookups so GPT sees the accompanying purchases, including those
