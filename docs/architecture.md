@@ -188,14 +188,67 @@ string first; a successful shell ping alone does not verify the API's configurat
 
 ## Controller authorization
 
-Follow [AUTHORIZATION_STRATEGY.md](AUTHORIZATION_STRATEGY.md) for authorization changes.
-The first adopted domain is `UsersController`: user reads, profile edits and direct password changes
+### Responsibilities and request flow
+
+Authentication establishes identity through the existing JWT middleware. Authorization decides whether
+that identity may perform the requested operation and which records it may access; it does not change
+login, tokens or password recovery.
+
+Controllers obtain trusted identity and invoke a dedicated domain authorization service before the
+protected operation. `BaseApiController.GetUserId()` validates the NameIdentifier claim and returns its
+value; use `ValidateUserIdClaim()` when only claim validation is needed. Neither method grants resource
+access. Controllers map denial to the endpoint's HTTP contract and forward only the approved scope,
+effective owner ID or verified target to the operation service.
+
+Authorization services in `MyFinanceBackend/Services/AuthServices` own permission and ownership decisions.
+Reuse the existing permission evaluator where applicable and register dependencies as scoped in
+`Startup.cs`. Shared authorization results and scopes belong in `MyFinanceModel`, without controller
+or persistence dependencies. Keep authenticated-user context in controllers and authorization services;
+operation services and repositories receive approved constraints and business inputs. An actor ID needed
+for auditing can be passed separately, without transferring authorization decisions to the operation.
+
+Operation services still validate inputs and enforce business rules. Authorization permits an attempt;
+it does not guarantee a valid account hierarchy, valid transition or successful operation. Repositories
+enforce approved constraints as defense in depth. Neither repository filtering nor business validation
+replaces the explicit controller authorization check.
+
+### Decisions and scopes
+
+Return a boolean only when it completely describes access to the requested operation and target,
+including ownership. If an allowed operation needs limits, such as an owner-filtered list, return a
+domain-specific result with an explicit query or operation scope. A generic authorization framework
+is not required.
+
+Denial must carry no usable scope. Scoped success must carry a valid scope; reject missing results,
+missing scopes, empty owner IDs and invalid scope combinations. Missing constraints must never mean
+unrestricted access. Controllers forward the approved scope rather than rebuilding rules from roles
+or treating client-supplied owner IDs as the effective scope.
+
+Treat client IDs as requested targets. Resolve access from trusted identity and persisted ownership;
+when needed, perform a controlled repository lookup of only the access metadata required. That lookup
+is not permission to return or mutate the protected record. Permission to perform an action and access
+to its target are separate requirements.
+
+Apply approved constraints to every query and mutation, including batches, related records and nested
+resources. Ordinary filters intersect with the scope; operations must not broaden it. Define explicitly
+whether an inaccessible target denies the request or narrows its results. Account batches deny the
+whole request. Preserve ownership constraints through writes using transaction or concurrency handling
+so an ownership change between authorization and execution cannot bypass the boundary.
+
+Missing identity uses the existing 401 exception mapping. Authenticated denial normally returns 403;
+preserve an endpoint's established 404 policy where it hides missing versus inaccessible records.
+Business validation failures retain the existing typed exception contracts.
+
+### Current adoption
+
+`UsersController`: user reads, profile edits and direct password changes
 call `IUserAuthorizeService` with the trusted claim user ID, requested target and exact action before
 invoking `IUsersService`. Denial returns 403; missing identity uses the existing 401 exception mapping.
 Anonymous login and token-based password recovery retain their existing flows.
 User authorization uses the existing assigned-access table: Any allows the target, Self requires the
 caller, and Owned requires every target to be among the caller's persisted owned users. Every requested
 action must be granted; empty/invalid targets and unsupported access levels deny access.
+
 `AccountsController` also checks every endpoint through `IAccountAuthorizationService`. Its policy is
 owner-only, independent of the Users/Spends assigned-access table. Authorization returns an explicit
 `AccountAccessScope`; controllers forward its effective owner ID to operation services. Targeted and
@@ -203,12 +256,21 @@ batch requests must contain only that owner's accounts, periods, groups and assi
 mixed-owner batches are denied before execution. Client include-child IDs are ignored in writes.
 Owner constraints are also applied in EF reads and mutations, including finance and date-based period
 resolution. Account writes keep ownership/reference checks and saving in a serializable transaction
-(or reuse a caller's transaction). Authorization denial is 403 except AI-hint endpoints, which preserve their existing 404 for
-missing/other-owner accounts. Nonpositive group IDs still select the owner's default group.
+(or reuse a caller's transaction). Authorization denial is 403 except AI-hint endpoints, which preserve
+their existing 404 for missing/other-owner accounts. Nonpositive group IDs still select the owner's default group.
 Other controllers have not yet adopted this pattern. Shared finance repository methods now enforce
 ownership for their other callers too. The EF user profile/password update methods remain unimplemented.
 
-Verify account authorization with `dotnet test --filter "FullyQualifiedName~AccountAuthorizationTest"`.
+### Adoption and verification
+
+For each controller, inspect its identity handling, existing permission rules, target lookups and call
+sites. Add domain authorization before protected operations, enforce the approved constraints in
+persistence, and preserve routes and response contracts unless changing them is part of the task.
+Verify denied and unauthenticated requests, each allowed scope, unrelated-user targets, mixed batches,
+related-record ownership, and missing or malformed scopes.
+
+Verify user authorization with `dotnet test --filter "FullyQualifiedName~UserAuthorizationTest"` and
+account authorization with `dotnet test --filter "FullyQualifiedName~AccountAuthorizationTest"`.
 These tests cover controller denial/identity checks on every account endpoint, owner scope forwarding,
 batch/reference checks and invalid scopes/targets using repository and service proxies; they do not
 exercise SQL Server persistence.
