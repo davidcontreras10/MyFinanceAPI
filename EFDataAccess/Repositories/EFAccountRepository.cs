@@ -20,8 +20,31 @@ using AccountPeriod = EFDataAccess.Models.AccountPeriod;
 
 namespace EFDataAccess.Repositories
 {
-	public class EFAccountRepository(MyFinanceContext context, ILogger<EFAccountRepository> logger) : BaseEFRepository(context), IAccountRepository
+	public class EFAccountRepository(MyFinanceContext context, ILogger<EFAccountRepository> logger) : BaseEFRepository(context), IAccountRepository, IAccountAccessRepository
 	{
+		public async Task<bool> IsWithinOwnerScopeAsync(Guid ownerId, AccountAccessTargets targets)
+		{
+			if (ownerId == Guid.Empty || targets == null || targets.AccountIds == null || targets.AccountPeriodIds == null ||
+				targets.AccountGroupIds == null || targets.SpendTypeIds == null)
+				return false;
+			var accounts = targets.AccountIds.Distinct().ToArray();
+			var periods = targets.AccountPeriodIds.Distinct().ToArray();
+			var groups = targets.AccountGroupIds.Distinct().ToArray();
+			var types = targets.SpendTypeIds.Distinct().ToArray();
+			if (accounts.Concat(periods).Concat(groups).Concat(types).Any(id => id <= 0))
+				return false;
+			return (accounts.Length == 0 || await Context.Account.CountAsync(a => a.UserId == ownerId && accounts.Contains(a.AccountId)) == accounts.Length)
+				&& (periods.Length == 0 || await Context.AccountPeriod.CountAsync(p => p.Account.UserId == ownerId && periods.Contains(p.AccountPeriodId)) == periods.Length)
+				&& (groups.Length == 0 || await Context.AccountGroup.CountAsync(g => g.UserId == ownerId && groups.Contains(g.AccountGroupId)) == groups.Length)
+				&& (types.Length == 0 || await Context.UserSpendType.Where(t => t.UserId == ownerId && types.Contains(t.SpendTypeId)).Select(t => t.SpendTypeId).Distinct().CountAsync() == types.Length);
+		}
+
+		private async Task RequireOwnedReferencesAsync(string userId, AccountAccessTargets targets)
+		{
+			if (!await IsWithinOwnerScopeAsync(Guid.Parse(userId), targets))
+				throw new ServiceException("An account or related record was not found within the approved scope.", System.Net.HttpStatusCode.NotFound);
+		}
+
 		public async Task<AiClassifiableAccount> GetAiClassificationHintAsync(string userId, int accountId)
 		{
 			var userGuid = Guid.Parse(userId);
@@ -33,12 +56,16 @@ namespace EFDataAccess.Repositories
 
 		public async Task<AiClassifiableAccount> UpdateAiClassificationHintAsync(string userId, int accountId, string hint)
 		{
+			await using var transaction = Context.Database.CurrentTransaction == null
+				? await Context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable) : null;
 			var userGuid = Guid.Parse(userId);
 			var account = await Context.Account.SingleOrDefaultAsync(acc => acc.AccountId == accountId && acc.UserId == userGuid);
 			if (account == null)
 				return null;
 			account.AiClassificationHint = hint;
 			await Context.SaveChangesAsync();
+			if (transaction != null)
+				await transaction.CommitAsync();
 			return new AiClassifiableAccount(account.AccountId, account.Name, account.AiClassificationHint);
 		}
 
@@ -105,15 +132,16 @@ namespace EFDataAccess.Repositories
 			return accountsByCurrency;
 		}
 
-		public async Task<IReadOnlyCollection<AccountPeriodIdReqResp>> GetEquivalentAccountPeriodsByDateAsync(IEnumerable<int> accountPeriodIds, DateTime dateTime)
+		public async Task<IReadOnlyCollection<AccountPeriodIdReqResp>> GetEquivalentAccountPeriodsByDateAsync(IEnumerable<int> accountPeriodIds, DateTime dateTime, string userId)
 		{
 			if (accountPeriodIds == null || !accountPeriodIds.Any())
 			{
 				return Array.Empty<AccountPeriodIdReqResp>();
 			}
 
+			var userGuid = Guid.Parse(userId);
 			var accountIds = await Context.AccountPeriod.AsNoTracking()
-				.Where(accp => accountPeriodIds.Contains(accp.AccountPeriodId) && accp.AccountId != null)
+				.Where(accp => accountPeriodIds.Contains(accp.AccountPeriodId) && accp.AccountId != null && accp.Account.UserId == userGuid)
 				.Include(accp => accp.Account)
 					.ThenInclude(acc => acc.AccountPeriod)
 				.Select(accp => new AccountPeriodIdReqResp(accp.AccountPeriodId,
@@ -125,6 +153,14 @@ namespace EFDataAccess.Repositories
 
 		public async Task AddAccountAsync(string userId, ClientAddAccount clientAddAccount)
 		{
+			await using var transaction = Context.Database.CurrentTransaction == null
+				? await Context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable) : null;
+			await RequireOwnedReferencesAsync(userId, new AccountAccessTargets
+			{
+				AccountIds = clientAddAccount.AccountIncludes?.Select(link => link.AccountIncludeId).ToArray() ?? Array.Empty<int>(),
+				AccountGroupIds = new[] { clientAddAccount.AccountGroupId },
+				SpendTypeIds = clientAddAccount.SpendTypeId.HasValue ? new[] { clientAddAccount.SpendTypeId.Value } : Array.Empty<int>()
+			});
 			var efAccount = new Account
 			{
 				AccountGroupId = clientAddAccount.AccountGroupId,
@@ -156,10 +192,17 @@ namespace EFDataAccess.Repositories
 			}
 
 			await Context.SaveChangesAsync();
+			if (transaction != null)
+				await transaction.CommitAsync();
 		}
 
 		public void DeleteAccount(string userId, int accountId)
 		{
+			using var transaction = Context.Database.CurrentTransaction == null
+				? Context.Database.BeginTransaction(System.Data.IsolationLevel.Serializable) : null;
+			var userGuid = Guid.Parse(userId);
+			var account = Context.Account.SingleOrDefault(a => a.AccountId == accountId && a.UserId == userGuid)
+				?? throw new ServiceException("Account not found.", System.Net.HttpStatusCode.NotFound);
 			var autoTrxIds = Context.AutomaticTask.Where(at => at.AccountId == accountId).Select(x => x.AutomaticTaskId);
 			Context.ExecutedTask.RemoveWhere(x => autoTrxIds.Contains(x.AutomaticTaskId));
 			Context.SpInTrxDef.RemoveWhere(x => autoTrxIds.Contains(x.SpInTrxDefId));
@@ -173,8 +216,9 @@ namespace EFDataAccess.Repositories
 			Context.AccountPeriod.RemoveRange(accountPeriods);
 
 			Context.AccountInclude.RemoveWhere(x => x.AccountIncludeId == accountId || x.AccountId == accountId);
-			Context.Account.RemoveWhere(x => x.AccountId == accountId);
+			Context.Account.Remove(account);
 			Context.SaveChanges();
+			transaction?.Commit();
 		}
 
 		public IEnumerable<AccountBasicPeriodInfo> GetAccountBasicInfoByAccountId(IEnumerable<int> accountIds)
@@ -244,12 +288,15 @@ namespace EFDataAccess.Repositories
 					IsDefaultPending = acc.DefaultSelectIsPending,
 					HasAiClassificationHint = !string.IsNullOrWhiteSpace(acc.AiClassificationHint),
 					ParentAccountId = acc.AccountIncludeAccount
+						.Where(ai => ai.AccountIncludeNavigation.UserId == guidUserId)
 						.Select(ai => (int?)ai.AccountIncludeId)
 						.FirstOrDefault(),
 					ParentAccountName = acc.AccountIncludeAccount
+						.Where(ai => ai.AccountIncludeNavigation.UserId == guidUserId)
 						.Select(ai => ai.AccountIncludeNavigation.Name)
 						.FirstOrDefault(),
 					SubAccounts = acc.AccountIncludeAccountIncludeNavigation
+						.Where(ai => ai.Account.UserId == guidUserId)
 						.OrderBy(ai => ai.Account.Position)
 						.Select(ai => new SubAccountViewModel
 						{
@@ -301,12 +348,12 @@ namespace EFDataAccess.Repositories
 			var userAccounts = Context.Account.Where(acc => acc.UserId == userGuid);
 			var userAccountList = userAccounts.ToList();
 			var hierarchyEdges = Context.AccountInclude.AsNoTracking()
-				.Where(ai => ai.Account.UserId == userGuid)
+				.Where(ai => ai.Account.UserId == userGuid && ai.AccountIncludeNavigation.UserId == userGuid)
 				.Select(ai => new AccountIncludeEdge { AccountId = ai.AccountId, AccountIncludeId = ai.AccountIncludeId })
 				.ToList();
 			var accountIdsWithParent = hierarchyEdges.Select(e => e.AccountId).ToHashSet();
 			var queryAccounts = Context.Account
-				.Where(acc => accountIds.Contains(acc.AccountId))
+				.Where(acc => acc.UserId == userGuid && accountIds.Contains(acc.AccountId))
 				.Include(acc => acc.AccountIncludeAccount)
 				.ToList();
 			var efCurrencies = Context.Currency.ToList();
@@ -317,7 +364,7 @@ namespace EFDataAccess.Repositories
 				AccountPosition = acc.Position ?? 0,
 				AccountGroupId = acc.AccountGroupId ?? 0,
 				AccountId = acc.AccountId,
-				SpendTypeViewModels = Context.UserSpendType.Where(ust => ust.UserId == userGuid || (acc.DefaultSpendTypeId != null && acc.DefaultSpendTypeId == ust.SpendTypeId))
+				SpendTypeViewModels = Context.UserSpendType.Where(ust => ust.UserId == userGuid)
 					.Include(x => x.SpendType)
 					.Select(x => x.SpendType.ToSpendTypeViewModel(acc.DefaultSpendTypeId ?? 1)),
 				// Inactive types are hidden, except the one this account already has, so it still displays and saves.
@@ -383,7 +430,7 @@ namespace EFDataAccess.Repositories
 			var userGuid = new Guid(userId);
 			var userAccounts = Context.Account.Where(acc => acc.UserId == userGuid);
 			var accountIdsWithParent = Context.AccountInclude.AsNoTracking()
-				.Where(ai => ai.Account.UserId == userGuid)
+				.Where(ai => ai.Account.UserId == userGuid && ai.AccountIncludeNavigation.UserId == userGuid)
 				.Select(ai => ai.AccountId)
 				.Distinct()
 				.ToHashSet();
@@ -511,7 +558,7 @@ namespace EFDataAccess.Repositories
 				.Include(acc => acc.PeriodDefinition)
 				.Include(acc => acc.AccountPeriod)
 				.Include(acc => acc.AccountGroup)
-				.Where(acc => acc.UserId == userGuid)
+				.Where(acc => acc.UserId == userGuid && acc.AccountGroup.UserId == userGuid)
 				.ToList();
 			UpdateCurrentCurrentAccountPeriods(userAccounts, dateTime);
 			Context.SaveChanges();
@@ -802,12 +849,22 @@ namespace EFDataAccess.Repositories
 
 		public async Task UpdateAccountAsync(string userId, ClientEditAccount clientEditAccount)
 		{
+			await using var transaction = Context.Database.CurrentTransaction == null
+				? await Context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable) : null;
 			if (!clientEditAccount.EditAccountFields.Any())
 			{
 				throw new Exception("No values to update");
 			}
 
-			var query = Context.Account.Where(acc => acc.AccountId == clientEditAccount.AccountId);
+			var userGuid = Guid.Parse(userId);
+			await RequireOwnedReferencesAsync(userId, new AccountAccessTargets
+			{
+				AccountIds = new[] { clientEditAccount.AccountId }.Concat(clientEditAccount.Contains(AccountFiedlds.AccountIncludes)
+					? clientEditAccount.AccountIncludes?.Select(link => link.AccountIncludeId) ?? Array.Empty<int>() : Array.Empty<int>()).ToArray(),
+				AccountGroupIds = clientEditAccount.Contains(AccountFiedlds.AccountGroupId) ? new[] { clientEditAccount.AccountGroupId } : Array.Empty<int>(),
+				SpendTypeIds = clientEditAccount.Contains(AccountFiedlds.SpendTypeId) && clientEditAccount.SpendTypeId.HasValue ? new[] { clientEditAccount.SpendTypeId.Value } : Array.Empty<int>()
+			});
+			var query = Context.Account.Where(acc => acc.AccountId == clientEditAccount.AccountId && acc.UserId == userGuid);
 			if (clientEditAccount.Contains(AccountFiedlds.AccountIncludes))
 			{
 				query = query.Include(acc => acc.AccountIncludeAccount);
@@ -822,7 +879,7 @@ namespace EFDataAccess.Repositories
 			var account = query.FirstOrDefault();
 			if (account == null)
 			{
-				throw new Exception("Account does not exist");
+				throw new ServiceException("Account not found.", System.Net.HttpStatusCode.NotFound);
 			}
 			if (clientEditAccount.Contains(AccountFiedlds.AccountName))
 			{
@@ -884,11 +941,11 @@ namespace EFDataAccess.Repositories
 			if (clientEditAccount.Contains(AccountFiedlds.AccountIncludes))
 			{
 				account.AccountIncludeAccount.Clear();
-				foreach (var clientAcountInclude in clientEditAccount.AccountIncludes)
+				foreach (var clientAcountInclude in clientEditAccount.AccountIncludes ?? Array.Empty<ClientAccountInclude>())
 				{
 					account.AccountIncludeAccount.Add(new AccountInclude
 					{
-						AccountId = clientAcountInclude.AccountId,
+						AccountId = account.AccountId,
 						AccountIncludeId = clientAcountInclude.AccountIncludeId,
 						CurrencyConverterMethodId = clientAcountInclude.CurrencyConverterMethodId
 					});
@@ -906,20 +963,28 @@ namespace EFDataAccess.Repositories
 			}
 
 			await Context.SaveChangesAsync();
+			if (transaction != null)
+				await transaction.CommitAsync();
 		}
 
 		public async Task<IEnumerable<ItemModified>> UpdateAccountPositionsAsync(string userId, IEnumerable<ClientAccountPosition> accountPositions)
 		{
+			await using var transaction = Context.Database.CurrentTransaction == null
+				? await Context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable) : null;
 			try
 			{
 				var ids = accountPositions.Select(accp => accp.AccountId);
-				var accounts = Context.Account.Where(acc => ids.Contains(acc.AccountId)).ToList();
+				await RequireOwnedReferencesAsync(userId, new AccountAccessTargets { AccountIds = ids.ToArray() });
+				var userGuid = Guid.Parse(userId);
+				var accounts = Context.Account.Where(acc => acc.UserId == userGuid && ids.Contains(acc.AccountId)).ToList();
 				foreach (var acc in accounts)
 				{
 					var clientAccount = accountPositions.First(ap => ap.AccountId == acc.AccountId);
 					acc.Position = clientAccount.Position;
 				}
 				await Context.SaveChangesAsync();
+				if (transaction != null)
+					await transaction.CommitAsync();
 				return accounts.Select(acc => new ItemModified
 				{
 					AccountId = acc.AccountId,
@@ -1143,9 +1208,13 @@ namespace EFDataAccess.Repositories
 			return result;
 		}
 
-		public async Task<MyFinanceModel.ViewModel.AccountNotes> UpdateNotes(MyFinanceModel.ViewModel.AccountNotes accountNotes, int accountId)
+		public async Task<MyFinanceModel.ViewModel.AccountNotes> UpdateNotes(string userId, MyFinanceModel.ViewModel.AccountNotes accountNotes, int accountId)
 		{
-			var account = await Context.Account.Where(acc => acc.AccountId == accountId).FirstAsync();
+			await using var transaction = Context.Database.CurrentTransaction == null
+				? await Context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable) : null;
+			var userGuid = Guid.Parse(userId);
+			var account = await Context.Account.SingleOrDefaultAsync(acc => acc.AccountId == accountId && acc.UserId == userGuid)
+				?? throw new ServiceException("Account not found.", System.Net.HttpStatusCode.NotFound);
 			account.Notes = new Models.AccountNotes
 			{
 				Content = accountNotes.NoteContent,
@@ -1153,6 +1222,8 @@ namespace EFDataAccess.Repositories
 			};
 
 			await Context.SaveChangesAsync();
+			if (transaction != null)
+				await transaction.CommitAsync();
 			return accountNotes;
 		}
 

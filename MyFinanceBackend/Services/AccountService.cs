@@ -129,9 +129,9 @@ namespace MyFinanceBackend.Services
 			return _accountRepository.GetAccountDetailsViewModel(accountIds, userId);
 		}
 
-		public async Task<AccountNotes> UpdateNotes(AccountNotes accountNotes, int accountId)
+		public async Task<AccountNotes> UpdateNotes(string userId, AccountNotes accountNotes, int accountId)
 		{
-			return await _accountRepository.UpdateNotes(accountNotes, accountId);
+			return await _accountRepository.UpdateNotes(userId, accountNotes, accountId);
 		}
 
 		#endregion

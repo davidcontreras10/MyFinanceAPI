@@ -196,8 +196,22 @@ Anonymous login and token-based password recovery retain their existing flows.
 User authorization uses the existing assigned-access table: Any allows the target, Self requires the
 caller, and Owned requires every target to be among the caller's persisted owned users. Every requested
 action must be granted; empty/invalid targets and unsupported access levels deny access.
-Other controllers have not yet adopted this pattern. The EF user profile/password update methods are
-still unimplemented, so granting access does not make those operations functional.
+`AccountsController` also checks every endpoint through `IAccountAuthorizationService`. Its policy is
+owner-only, independent of the Users/Spends assigned-access table. Authorization returns an explicit
+`AccountAccessScope`; controllers forward its effective owner ID to operation services. Targeted and
+batch requests must contain only that owner's accounts, periods, groups and assigned spend types;
+mixed-owner batches are denied before execution. Client include-child IDs are ignored in writes.
+Owner constraints are also applied in EF reads and mutations, including finance and date-based period
+resolution. Account writes keep ownership/reference checks and saving in a serializable transaction
+(or reuse a caller's transaction). Authorization denial is 403 except AI-hint endpoints, which preserve their existing 404 for
+missing/other-owner accounts. Nonpositive group IDs still select the owner's default group.
+Other controllers have not yet adopted this pattern. Shared finance repository methods now enforce
+ownership for their other callers too. The EF user profile/password update methods remain unimplemented.
+
+Verify account authorization with `dotnet test --filter "FullyQualifiedName~AccountAuthorizationTest"`.
+These tests cover controller denial/identity checks on every account endpoint, owner scope forwarding,
+batch/reference checks and invalid scopes/targets using repository and service proxies; they do not
+exercise SQL Server persistence.
 
 ## Exceptions
 

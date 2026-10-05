@@ -2,7 +2,6 @@
 using Microsoft.Extensions.Primitives;
 using MyFinanceModel;
 using System;
-using System.Linq;
 using System.Security.Claims;
 
 namespace MyFinanceWebApiCore.Controllers
@@ -11,12 +10,16 @@ namespace MyFinanceWebApiCore.Controllers
 	{
 		protected string GetUserId()
 		{
-			var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);
-			if(string.IsNullOrWhiteSpace(userIdClaim?.Value))
+			ValidateUserIdClaim();
+			return User.FindFirst(ClaimTypes.NameIdentifier).Value;
+		}
+
+		protected void ValidateUserIdClaim()
+		{
+			if (string.IsNullOrWhiteSpace(User.FindFirst(ClaimTypes.NameIdentifier)?.Value))
 			{
 				throw new UnauthorizedAccessException();
 			}
-			return userIdClaim.Value;
 		}
 
 		protected ApplicationModules GetModuleNameValue()

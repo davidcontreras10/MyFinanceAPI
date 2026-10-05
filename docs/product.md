@@ -86,6 +86,10 @@ Roughly one per controller in `MyFinanceWebApiCore/Controllers`:
   payments/transfers set up at the bank and splits salary across sub-accounts on payday.
 - **Users and authentication** — JWT-based.
 
+Account access is owner-only. Account endpoints authorize requested accounts and periods as well as
+user-owned references (groups, parent accounts and assigned categories). A batch containing another
+user's record is denied in full, rather than returning or modifying only the accessible subset.
+
 ## AI classification account rules
 
 In the owner's workflow, `Ingresos Ahorros` is used for AI subscriptions despite its name. Other digital
