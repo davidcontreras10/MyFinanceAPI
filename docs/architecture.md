@@ -186,6 +186,19 @@ The runtime uses the environment-specific configuration file, not an uncondition
 If MongoDB is running but the API cannot connect, check the active environment and effective connection
 string first; a successful shell ping alone does not verify the API's configuration.
 
+## Controller authorization
+
+Follow [AUTHORIZATION_STRATEGY.md](AUTHORIZATION_STRATEGY.md) for authorization changes.
+The first adopted domain is `UsersController`: user reads, profile edits and direct password changes
+call `IUserAuthorizeService` with the trusted claim user ID, requested target and exact action before
+invoking `IUsersService`. Denial returns 403; missing identity uses the existing 401 exception mapping.
+Anonymous login and token-based password recovery retain their existing flows.
+User authorization uses the existing assigned-access table: Any allows the target, Self requires the
+caller, and Owned requires every target to be among the caller's persisted owned users. Every requested
+action must be granted; empty/invalid targets and unsupported access levels deny access.
+Other controllers have not yet adopted this pattern. The EF user profile/password update methods are
+still unimplemented, so granting access does not make those operations functional.
+
 ## Exceptions
 
 Controllers don't catch exceptions individually — `HttpResponseExceptionFilter`

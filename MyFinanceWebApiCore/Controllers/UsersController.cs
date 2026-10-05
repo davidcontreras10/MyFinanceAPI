@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MyFinanceBackend.Attributes;
 using MyFinanceBackend.Services;
+using MyFinanceBackend.Services.AuthServices;
 using MyFinanceModel;
 using MyFinanceModel.ClientViewModel;
 using MyFinanceModel.ViewModel;
@@ -16,33 +17,37 @@ namespace MyFinanceWebApiCore.Controllers
 	public class UsersController : BaseApiController
 	{
 		private readonly IUsersService _usersService;
+		private readonly IUserAuthorizeService _userAuthorizationService;
 
-		public UsersController(IUsersService usersService)
+		public UsersController(IUsersService usersService, IUserAuthorizeService userAuthorizationService)
 		{
 			_usersService = usersService;
+			_userAuthorizationService = userAuthorizationService;
 		}
 
 		#region Web Methods
 
 		[ResourceActionRequired(ApplicationResources.Users, ResourceActionNames.View)]
 		[HttpGet]
-		public async Task<AppUser> GetUserById([FromQuery] string targetUserId)
+		public async Task<ActionResult<AppUser>> GetUserById([FromQuery] string targetUserId)
 		{
+			if (!await _userAuthorizationService.IsAuthorizedAsync(GetUserId(), new[] { targetUserId }, new[] { ResourceActionNames.View }))
+				return StatusCode(403);
 			var appUser = await _usersService.GetUserAsync(targetUserId);
 			return appUser;
 		}
 
 		[ResourceActionRequired(ApplicationResources.Users, ResourceActionNames.Edit)]
 		[HttpPatch]
-		public async Task<bool> UpdateUser([FromQuery] string targetUserId, [FromBody] ClientEditUser editUser)
+		public async Task<ActionResult<bool>> UpdateUser([FromQuery] string targetUserId, [FromBody] ClientEditUser editUser)
 		{
-			if (string.IsNullOrEmpty(targetUserId))
-			{
-				throw new ArgumentNullException(nameof(targetUserId));
-			}
+			var userId = GetUserId();
+			if (!await _userAuthorizationService.IsAuthorizedAsync(userId, new[] { targetUserId }, new[] { ResourceActionNames.Edit }))
+				return StatusCode(403);
+			if (editUser == null)
+				return BadRequest();
 
 			editUser.UserId = targetUserId;
-			var userId = GetUserId();
 			var result = await _usersService.UpdateUserAsync(userId, editUser);
 			return result;
 		}
@@ -99,8 +104,10 @@ namespace MyFinanceWebApiCore.Controllers
 		[ResourceActionRequired(ApplicationResources.Users, ResourceActionNames.EditSensitive)]
 		[Route("Password")]
 		[HttpPatch]
-		public async Task<bool> SetUserPassword([FromBody] SetPassword setPassword)
+		public async Task<ActionResult<bool>> SetUserPassword([FromBody] SetPassword setPassword)
 		{
+			if (!await _userAuthorizationService.IsAuthorizedAsync(GetUserId(), new[] { setPassword?.UserId }, new[] { ResourceActionNames.EditSensitive }))
+				return StatusCode(403);
 			return await _usersService.SetPasswordAsync(setPassword.UserId, setPassword.NewPassword);
 		}
 
