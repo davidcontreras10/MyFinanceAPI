@@ -24,6 +24,8 @@ conversion, AI-assisted expense classification). Solo, non-commercial project.
   transaction, expense or income).
 - [docs/architecture.md](docs/architecture.md) — project layout, UoW/repository pattern, sub-services,
   GPT classification, file import, configuration, exceptions, CI.
+- [Controller authorization](docs/architecture.md#controller-authorization) — controller checks,
+  domain authorization services, approved scopes and repository enforcement.
 - Other files in [docs/](docs/) are specs for individual features.
 
 ## Related repository
@@ -68,7 +70,8 @@ The only test project is `EFDataAccessTest` (NUnit). It covers the EF period hel
 hierarchy rules (`AccountHierarchyValidator`, `AccountLinkRules`), GPT classification response/error handling,
 classification cache behavior for digital-service IVA, and model-comparison request/usage/cost handling.
 GPT tests also cover strict output schemas, the JSON-mode switch, and payload-free, failure-safe usage logging.
-It also covers account AI-hint request validation and service updates.
+It also covers account AI-hint request validation and service updates, user authorization, and account
+controller authorization/identity checks and scope forwarding. Authorization tests use proxies, not SQL Server.
 Other services and controllers have no tests — don't assume their behavior is pinned; check call sites when
 changing service logic.
 

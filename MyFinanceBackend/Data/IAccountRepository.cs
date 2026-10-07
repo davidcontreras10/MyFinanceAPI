@@ -17,7 +17,7 @@ namespace MyFinanceBackend.Data
 		Task<IReadOnlyCollection<AiClassifiableAccount>> GetAiClassifiableAccountsAsync(string userId);
 		Task<IReadOnlyCollection<Tuple<IdDateTime, AccountPeriodBasicInfo>>> GetAccountPeriodInfoByAccountIdDateTimeAsync(IReadOnlyCollection<IdDateTime> accountsDates);
 		Task<IReadOnlyCollection<AccountsByCurrencyViewModel>> GetAccountsByCurrenciesAsync(IEnumerable<int> sourceCurrencyIds, string userId);
-		Task<IReadOnlyCollection<AccountPeriodIdReqResp>> GetEquivalentAccountPeriodsByDateAsync(IEnumerable<int> accountPeriodIds, DateTime dateTime);
+		Task<IReadOnlyCollection<AccountPeriodIdReqResp>> GetEquivalentAccountPeriodsByDateAsync(IEnumerable<int> accountPeriodIds, DateTime dateTime, string userId);
 		Task<IReadOnlyCollection<AccountDetailsPeriodViewModel>> GetAccountDetailsPeriodViewModelAsync(string userId, DateTime dateTime);
 
 		Task<AccountPeriodBasicInfo> GetAccountPeriodInfoByAccountIdDateTimeAsync(int accountId, DateTime dateTime);
@@ -43,6 +43,6 @@ namespace MyFinanceBackend.Data
 		Task UpdateAccountAsync(string userId, ClientEditAccount clientEditAccount);
 		IEnumerable<AccountIncludeViewModel> GetAccountIncludeViewModel(string userId, int currencyId, int? financialEntityId = null);
 		IEnumerable<AccountDetailsInfoViewModel> GetAccountDetailsViewModel(IEnumerable<int> accountIds, string userId);
-		Task<AccountNotes> UpdateNotes(AccountNotes accountNotes, int accountId);
+		Task<AccountNotes> UpdateNotes(string userId, AccountNotes accountNotes, int accountId);
 	}
 }

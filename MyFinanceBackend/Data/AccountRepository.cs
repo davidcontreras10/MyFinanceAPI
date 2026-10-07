@@ -801,7 +801,7 @@ namespace MyFinanceBackend.Data
 			};
 		}
 
-		public Task<AccountNotes> UpdateNotes(AccountNotes accountNotes, int accountId)
+		public Task<AccountNotes> UpdateNotes(string userId, AccountNotes accountNotes, int accountId)
 		{
 			throw new NotImplementedException();
 		}

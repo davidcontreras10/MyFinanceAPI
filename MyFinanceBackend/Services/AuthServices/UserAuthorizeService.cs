@@ -21,26 +21,38 @@ namespace MyFinanceBackend.Services.AuthServices
         public async Task<bool> IsAuthorizedAsync(string authenticatedUserId, IEnumerable<string> targetUserIds,
             IEnumerable<ResourceActionNames> actionNames)
         {
-            if (actionNames == null || !actionNames.Any())
+            var actions = actionNames?.Distinct().ToArray();
+            var targets = targetUserIds?.ToArray();
+            if (!Guid.TryParse(authenticatedUserId, out var actorId) || actorId == Guid.Empty ||
+                targets == null || targets.Length == 0 ||
+                targets.Any(id => !Guid.TryParse(id, out var targetId) || targetId == Guid.Empty) ||
+                actions == null || actions.Length == 0 ||
+                actions.Any(action => action == ResourceActionNames.Unknown || !Enum.IsDefined(typeof(ResourceActionNames), action)))
             {
-                throw new ArgumentNullException(nameof(actionNames));
+                return false;
             }
 
-            foreach (var action in actionNames)
+            foreach (var action in actions)
             {
+                var allowed = false;
                 var userAccessData = await
                     _authorizationDataRepository.GetUserAssignedAccessAsync(authenticatedUserId, ApplicationResources.Users,
                         action);
                 foreach (var assignedAccess in userAccessData)
                 {
                     var result = await EvaluateResourceAccessLevelAsync(assignedAccess.ResourceAccesLevel, authenticatedUserId,
-                        targetUserIds);
+                        targets);
                     if (result)
-                        return true;
+                    {
+                        allowed = true;
+                        break;
+                    }
                 }
+                if (!allowed)
+                    return false;
             }
 
-            return false;
+            return true;
         }
 
         private async Task<bool> EvaluateResourceAccessLevelAsync(ResourceAccesLevels resourceAccesLevel, string authenticatedUserId,
@@ -53,15 +65,8 @@ namespace MyFinanceBackend.Services.AuthServices
                     return await OwnedResourceAccesLevelEvaluationAsync(authenticatedUserId, targetUserIds);
                 case ResourceAccesLevels.Self:
                     return SelfResourceAccessLevelEvaluation(authenticatedUserId, targetUserIds);
-                case ResourceAccesLevels.AddRegular:
-                    return NoEvaluationRequired();
-                default: throw new ArgumentException("Invalid argument");
+                default: return false;
             }
-        }
-
-        private bool NoEvaluationRequired()
-        {
-            return true;
         }
 
         private bool AnyResourceAccessLevelEvaluation()
@@ -77,7 +82,8 @@ namespace MyFinanceBackend.Services.AuthServices
         private async Task<bool> OwnedResourceAccesLevelEvaluationAsync(string authenticatedUserId, IEnumerable<string> targetUserIds)
         {
             var owendUsers = await _userRepository.GetOwendUsersByUserIdAsync(authenticatedUserId);
-            return owendUsers.All(u => targetUserIds.Any(tu => new Guid(tu) == u.UserId));
+            var ownedIds = owendUsers.Select(u => u.UserId).ToHashSet();
+            return targetUserIds.All(id => ownedIds.Contains(new Guid(id)));
         }
     }
 }

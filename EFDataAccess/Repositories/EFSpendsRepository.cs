@@ -449,13 +449,14 @@ namespace EFDataAccess.Repositories
 				}
 			};
 
-			var viewModels = await GetAccountFinanceViewModelAsync(requestItems, null);
-			return viewModels.First();
+			var viewModels = await GetAccountFinanceViewModelAsync(requestItems, null, userId);
+			return viewModels.FirstOrDefault()
+				?? throw new ServiceException("Account period not found.", System.Net.HttpStatusCode.NotFound);
 		}
 
 		public async Task<IReadOnlyCollection<AccountFinanceViewModel>> GetAccountFinanceViewModelAsync(IEnumerable<ClientAccountFinanceViewModel> requestItems, string userId, DateTime? dateTime)
 		{
-			var res = await GetAccountFinanceViewModelAsync(requestItems.ToList(), dateTime);
+			var res = await GetAccountFinanceViewModelAsync(requestItems.ToList(), dateTime, userId);
 			return res;
 		}
 
@@ -1141,7 +1142,8 @@ namespace EFDataAccess.Repositories
 
 		private async Task<IReadOnlyCollection<AccountFinanceViewModel>> GetAccountFinanceViewModelAsync(
 			IReadOnlyCollection<ClientAccountFinanceViewModel> requestItems,
-			DateTime? currentDate
+			DateTime? currentDate,
+			string userId
 			)
 		{
 			var stopwatch = new Stopwatch();
@@ -1151,15 +1153,16 @@ namespace EFDataAccess.Repositories
 				return Array.Empty<AccountFinanceViewModel>();
 			}
 
+			var userGuid = Guid.Parse(userId);
 			var requiresLoan = requestItems.Any(r => r.LoanSpends);
 			var accountPeriodIds = requestItems.Select(accp => accp.AccountPeriodId);
 			var infoIds = await Context.AccountPeriod.AsNoTracking()
-				.Where(acc => accountPeriodIds.Contains(acc.AccountPeriodId))
+				.Where(acc => accountPeriodIds.Contains(acc.AccountPeriodId) && acc.Account.UserId == userGuid)
 				.Select(accp => new { accp.AccountId, accp.AccountPeriodId })
 				.ToListAsync();
 			var accountIds = infoIds.Select(acc => acc.AccountId);
 			IQueryable<Account> query = Context.Account.AsNoTracking()
-				.Where(acc => accountIds.Contains(acc.AccountId))
+				.Where(acc => acc.UserId == userGuid && accountIds.Contains(acc.AccountId))
 				.Include(acc => acc.Currency)
 				.Include(acc => acc.AccountPeriod)
 					.ThenInclude(accp => accp.SpendOnPeriod)

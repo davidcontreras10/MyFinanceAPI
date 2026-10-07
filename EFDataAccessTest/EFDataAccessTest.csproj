@@ -15,6 +15,7 @@
   <ItemGroup>
     <ProjectReference Include="..\EFDataAccess\EFDataAccess.csproj" />
     <ProjectReference Include="..\MyFinanceBackend\MyFinanceBackend.csproj" />
+    <ProjectReference Include="..\MyFinanceWebApiCore\MyFinanceWebApiCore.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -25,6 +25,6 @@ namespace MyFinanceBackend.Services
 	    Task<AddAccountViewModel> GetAddAccountViewModelAsync(string userId);
         Task AddAccountAsync(string userId, ClientAddAccount clientAddAccount);
         void DeleteAccount(string userId, int accountId);
-		Task<AccountNotes> UpdateNotes(AccountNotes accountNotes, int accountId);
+		Task<AccountNotes> UpdateNotes(string userId, AccountNotes accountNotes, int accountId);
 	}
 }
