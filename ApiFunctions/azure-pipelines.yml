@@ -4,6 +4,15 @@ trigger: none
 pr: none
 
 parameters:
+  - name: agentImage
+    displayName: Microsoft-hosted Windows image
+    type: string
+    default: windows-2022
+    values:
+      - windows-2022
+      - windows-2025
+      - windows-2025-vs2026
+      - windows-latest
   - name: deployProduction
     displayName: Deploy to the existing production Function App
     type: boolean
@@ -24,7 +33,7 @@ stages:
     jobs:
       - job: Package
         pool:
-          vmImage: windows-latest
+          vmImage: ${{ parameters.agentImage }}
         steps:
           - checkout: self
 
@@ -79,7 +88,7 @@ stages:
           - deployment: DeployFunctions
             displayName: Deploy MyFinanceFunctionApp
             pool:
-              vmImage: windows-latest
+              vmImage: ${{ parameters.agentImage }}
             environment: myfinance-functions-production
             strategy:
               runOnce:

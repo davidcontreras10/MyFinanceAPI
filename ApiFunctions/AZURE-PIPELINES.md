@@ -21,6 +21,12 @@ and publishes a ZIP artifact named `apifunctions`. `host.json` is at the ZIP roo
 `.azurefunctions` host extensions are included. Local settings and publish profiles are excluded.
 It does not start the functions or run API/database migrations.
 
+The `agentImage` parameter chooses a Microsoft-hosted Windows image for both jobs and defaults
+to `windows-2022`. The pipeline installs .NET 10 explicitly, independently of the image's bundled
+SDKs. Other supported images can be selected in **Run pipeline** to diagnose image-specific
+agent assignment failures without editing YAML. These images use the normal Microsoft-hosted
+allocation, not the separately billed GitHub-hosted agent option.
+
 The production deployment stage is included only when `deployProduction` is selected.
 It runs only from `master`, downloads the same run's artifact, checks the existing Windows
 .NET 10 isolated configuration, then deploys with `AzureFunctionApp@2`.
@@ -47,8 +53,12 @@ GitHub Actions continue to deploy the API independently.
    and select `davidcontreras10/MyFinanceAPI`. Choose **Existing Azure Pipelines YAML file**,
    select the published branch and `/ApiFunctions/azure-pipelines.yml`, then save the pipeline.
    Do not choose a template that creates another GitHub Actions workflow or deploys the API.
-6. Ensure the project can use Microsoft-hosted agents. If the run reports no hosted parallelism,
-   use the Azure DevOps parallel-job grant process or configure an agent before retrying.
+6. Enable Microsoft-hosted capacity at the organization level. If the run reports no hosted
+   parallelism, go to **Organization settings > Billing** and link a valid Azure subscription.
+   Then check **Organization settings > Pipelines > Parallel jobs** for the free Microsoft-hosted
+   job before retrying. Current Microsoft guidance enables the private-project free tier through
+   subscription linking; a paid parallel-job purchase is not required for the free allocation.
+   A self-hosted agent is another option if hosted capacity cannot be enabled.
 
 ## First run: build only
 
@@ -58,6 +68,12 @@ name does not need to resolve for this run because the deployment stage is omitt
 
 Verify the Build stage succeeds and download the `apifunctions` artifact if desired.
 There should be no Deploy stage and no changes to the running Azure app.
+
+If assignment fails with `No agent found` before checkout, verify hosted parallelism and the
+pool's `isHosted` property first. A hosted pool can have an empty Agents page; do not assume
+that a self-hosted agent must be installed. Start a new run with another `agentImage` value.
+Changing images is a diagnostic step, not proof of the cause; if all supported images fail,
+investigate organization/pool provisioning rather than buying additional capacity.
 
 ## First production deployment
 
@@ -101,3 +117,4 @@ az devops project list --organization https://dev.azure.com/dcontre10/ --output 
 - https://learn.microsoft.com/azure/azure-functions/functions-how-to-azure-devops
 - https://learn.microsoft.com/azure/devops/pipelines/library/connect-to-azure
 - https://learn.microsoft.com/azure/devops/pipelines/tasks/reference/azure-function-app-v2
+- https://learn.microsoft.com/azure/devops/pipelines/licensing/concurrent-jobs
