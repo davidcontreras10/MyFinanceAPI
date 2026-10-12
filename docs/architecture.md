@@ -59,6 +59,14 @@ Parent candidates (`accountIncludeViewModels`) carry `hasParent`, so the UI can 
 already sub-accounts. Deleting a main account removes its links, which turns its sub-accounts into top-level
 accounts; the UI warns about this using `subAccounts`.
 
+## Account group positions
+
+A user's account groups always hold the compact positions 1..N. `POST`/`PATCH /api/AccountsGroups` treat
+`accountGroupPosition` as the **final** 1-based position (below 1 means first, past the end means last) and
+the others are renumbered around it (`AccountGroupOrdering`, unit-tested without a database). So a drag in
+the UI is one `PATCH` with the drop index; the client must reload the groups afterwards because every other
+group's position may have changed. Edits are scoped to the current user's groups.
+
 ## Sub-services
 
 Cross-cutting logic that's reused by more than one top-level service lives in a "sub-service"
