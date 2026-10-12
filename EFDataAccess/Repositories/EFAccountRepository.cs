@@ -310,13 +310,15 @@ namespace EFDataAccess.Repositories
 
 			var accountGroupViewModels = Context.AccountGroup
 				.Where(accg => accg.UserId == guidUserId)
-				.Select(accg => new AccountGroupViewModel
+				.Select(accg => new AccountGroupAdminViewModel
 				{
 					AccountGroupId = accg.AccountGroupId,
 					AccountGroupDisplayValue = accg.DisplayValue,
 					AccountGroupName = accg.AccountGroupName,
 					AccountGroupPosition = accg.AccountGroupPosition ?? 0,
-					IsSelected = accountGroupIds.Contains(accg.AccountGroupId)
+					IsSelected = accountGroupIds.Contains(accg.AccountGroupId),
+					DisplayDefault = accg.DisplayDefault ?? false,
+					AccountCount = accg.Account.Count(acc => acc.UserId == guidUserId)
 				}).OrderBy(accg => accg.AccountGroupPosition);
 			return new AccountMainViewModel
 			{

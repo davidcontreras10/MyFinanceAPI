@@ -1,11 +1,13 @@
 ﻿using EFDataAccess.Models;
 using MyFinanceBackend.Data;
 using MyFinanceBackend.Models;
+using MyFinanceModel;
 using MyFinanceModel.ClientViewModel;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Net;
 
 namespace EFDataAccess.Repositories
 {
@@ -57,12 +59,17 @@ namespace EFDataAccess.Repositories
 
 		public void DeleteAccountGroup(string userId, int accountGroupId)
 		{
+			var guidUserId = new Guid(userId);
+			var userAccountGroups = Context.AccountGroup.Where(accg => accg.UserId == guidUserId).ToList();
+			var accountGroup = userAccountGroups.FirstOrDefault(accg => accg.AccountGroupId == accountGroupId)
+				?? throw new ServiceException("Account group not found.", HttpStatusCode.NotFound);
 			if (Context.Account.Any(ac => ac.AccountGroupId == accountGroupId))
 			{
-				throw new Exception("Accounts still associated to this group");
+				throw new ServiceException("Accounts still associated to this group", HttpStatusCode.BadRequest);
 			}
 
-			Context.AccountGroup.RemoveRange(Context.AccountGroup.Where(accg => accg.AccountGroupId == accountGroupId));
+			Context.AccountGroup.Remove(accountGroup);
+			AccountGroupOrdering.Renumber(userAccountGroups.Where(accg => !ReferenceEquals(accg, accountGroup)));
 			Context.SaveChanges();
 		}
 

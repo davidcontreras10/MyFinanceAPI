@@ -65,7 +65,12 @@ A user's account groups always hold the compact positions 1..N. `POST`/`PATCH /a
 `accountGroupPosition` as the **final** 1-based position (below 1 means first, past the end means last) and
 the others are renumbered around it (`AccountGroupOrdering`, unit-tested without a database). So a drag in
 the UI is one `PATCH` with the drop index; the client must reload the groups afterwards because every other
-group's position may have changed. Edits are scoped to the current user's groups.
+group's position may have changed. Edits and deletes are scoped to the current user's groups.
+
+`GET /api/Accounts/{accountGroupId}` returns the groups as `AccountGroupAdminViewModel`: besides the usual
+fields, `displayDefault` (the Finance page opens that group's accordion expanded; several groups can be
+default) and `accountCount`. Its `isSelected` means "the group being viewed", not default. `DELETE
+/api/AccountsGroups?accountGroupId=` returns 400 while the group still has accounts, and renumbers the rest.
 
 ## Sub-services
 
