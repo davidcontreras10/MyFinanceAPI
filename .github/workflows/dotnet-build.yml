@@ -7,6 +7,8 @@ on:
   push:
     branches:
       - develop
+    paths-ignore:
+      - 'ApiFunctions/**'
   workflow_dispatch:
 
 jobs:
@@ -23,7 +25,7 @@ jobs:
           include-prerelease: true
 
       - name: Build with dotnet
-        run: dotnet build --configuration Release
+        run: dotnet build MyFinanceWebApi.sln --configuration Release
 
       - name: dotnet publish
-        run: dotnet publish -c Release -o ${{env.DOTNET_ROOT}}/myapp
+        run: dotnet publish MyFinanceWebApiCore/MyFinanceWebApiCore.csproj -c Release -o ${{env.DOTNET_ROOT}}/myapp

@@ -37,13 +37,21 @@ along with `localhost:4350` for local frontend dev. Changing an API contract (ro
 
 ## Commands
 
-Solution: `MyFinanceWebApi.sln`. All projects target `net8.0`.
+API solution: `MyFinanceWebApi.sln`; its projects target `net8.0`.
+`ApiFunctions/ApiFunctions.sln` is an independent .NET 10 isolated-worker solution.
+It has no project references to the API and deploys separately. See `ApiFunctions/README.md`.
+Its Azure Pipelines YAML is `ApiFunctions/azure-pipelines.yml`: manual build/package by default,
+production deployment only when selected on `master`. Configuration is in `ApiFunctions/AZURE-PIPELINES.md`.
 
 ```bash
 dotnet build
 dotnet run --project MyFinanceWebApiCore            # Swagger UI at /swagger
 dotnet test
 dotnet test --filter "FullyQualifiedName~PeriodCreatorHelperTest"   # single NUnit test
+
+# Build/publish the separate Functions app without starting its financial jobs
+dotnet build ApiFunctions/ApiFunctions.sln --configuration Release
+dotnet publish ApiFunctions/ApiFunctions.csproj --configuration Release
 
 # Apply EF Core migrations to the local database (needs ASPNETCORE_ENVIRONMENT=Local, see below)
 ASPNETCORE_ENVIRONMENT=Local dotnet ef database update --project EFDataAccess --startup-project MyFinanceWebApiCore --context EFDataAccess.Models.MyFinanceContext
@@ -57,6 +65,10 @@ dotnet ef migrations add <Name> --project EFDataAccess --startup-project MyFinan
 carry (defaults, constraints) in the Fluent API in `MyFinanceContext`. If the API is running (Visual Studio or
 IIS Express locks the Debug DLLs), add `--configuration Release` to the `dotnet ef` commands. Don't create a
 migration unless asked.
+
+Functions local settings and publish profiles are gitignored. The settings example disables both timer
+jobs; keep them disabled during local verification. Do not copy credentials from the legacy MyFinance
+repository's tracked `local.settings.json`. Functions DI registrations live in `ApiFunctions/Program.cs`.
 
 **Commands that connect to the database need `ASPNETCORE_ENVIRONMENT=Local`** (`database update`,
 `migrations list`). The design-time factory (`MyFinanceWebApiCore/Models/MyFinanceContextFactory.cs`) reads only

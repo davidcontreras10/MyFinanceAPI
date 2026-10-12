@@ -398,3 +398,7 @@ FodyWeavers.xsd
 *.sln.iml
 
 MyFinanceWebApiCore/appsettings.Local.json
+
+# Azure Functions local configuration and generated publish output
+/ApiFunctions/local.settings.json
+/ApiFunctions/artifacts/

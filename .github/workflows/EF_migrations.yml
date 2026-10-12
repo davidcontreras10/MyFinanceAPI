@@ -20,7 +20,7 @@ jobs:
           include-prerelease: true
 
       - name: Build with dotnet
-        run: dotnet build --configuration Release
+        run: dotnet build MyFinanceWebApi.sln --configuration Release
 
       - name: Parse Azure Credentials
         id: parse_credentials

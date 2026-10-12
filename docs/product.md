@@ -82,7 +82,7 @@ Roughly one per controller in `MyFinanceWebApiCore/Controllers`:
   accounts, not only flip a status. The creditor/debtor status logic in `DebtRequestService` is
   scaffolding toward that.
 - **Scheduled / automatic tasks** — models and endpoints live here (`ScheduledTasks`, `ExecutedTasks`),
-  but **execution happens in a separate Azure Functions project outside this repo**. It tracks automatic
+  and execution happens in the independently deployed `ApiFunctions` project in this repo. It tracks automatic
   payments/transfers set up at the bank and splits salary across sub-accounts on payday.
 - **Users and authentication** — JWT-based.
 

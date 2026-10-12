@@ -20,6 +20,26 @@ MyFinanceWebApiCore  (ASP.NET Core host: Controllers, Startup/Program, auth midd
   register it there (services and repos are `Scoped`; the EF `DbContext` is scoped, Mongo `IMongoDatabase`
   is a singleton).
 
+## Azure Functions
+
+`ApiFunctions/ApiFunctions.sln` contains the independently deployed .NET 10 isolated-worker app
+(`ApiFunctions/ApiFunctions.csproj`). It is deliberately outside `MyFinanceWebApi.sln`, so API builds
+remain on .NET 8. The Functions project has no references to API assemblies; its DI registrations are
+in its own `Program.cs`.
+
+`ScheduledTasks` calls the configured API over HTTP; `DailyRefresh` calls the existing SQL stored
+procedure directly. Names, schedules, payloads and environment-variable keys are unchanged from the
+MyFinance source project. `local.settings.example.json` contains empty credentials and disables both
+jobs. Real `local.settings.json` and local Visual Studio publish profiles are gitignored.
+
+The code was imported from MyFinance commit `f40a1cc`. Keep the legacy copy until a deployment from
+this location has been verified, then retire it. `ApiFunctions/azure-pipelines.yml` defines a manual-only
+Azure DevOps pipeline: build/package by default, with production deployment opt-in and restricted to
+`master`. It targets the existing Windows Function App using an Azure Resource Manager service
+connection, independently of API GitHub Actions. See `ApiFunctions/AZURE-PIPELINES.md` for setup.
+The repository move does not change Azure resources or enable automatic deployment.
+See [the Functions README](../ApiFunctions/README.md) for build and local development commands.
+
 ## Unit of Work + Repository pattern
 
 `IUnitOfWork` (`MyFinanceBackend/Data/IUnitOfWork.cs`), implemented by `EFUnityOfWork`, aggregates all EF
@@ -304,6 +324,11 @@ The stored procedures themselves live in the database, not in this repo.
   migration). So **migrations in a release are applied automatically before the new code is deployed.**
 - `master_myfinancewebapicore.yml` also triggers on push to `master` and deploys without migrating.
   `EF_migrations.yml` is a manual (`workflow_dispatch`) migration job.
+
+The push workflows skip changes confined to `ApiFunctions/**`. API build steps explicitly target
+`MyFinanceWebApi.sln`, and publish steps target `MyFinanceWebApiCore/MyFinanceWebApiCore.csproj`,
+so Functions output cannot be included in the API deployment. Manual dispatch remains available.
+The duplicate API deployment workflows remain in place pending the separate deployment-strategy review.
 
 A local database (LocalDB, configured in the gitignored `appsettings.local.json`) is only for trying things
 out; it is a copy and lags behind production's migrations.
