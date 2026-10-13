@@ -1,0 +1,15 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+    "AzureWebJobs.DailyRefresh.Disabled": "true",
+    "AzureWebJobs.ScheduledTasks.Disabled": "true",
+    "DefaultMYFNDB": "",
+    "webApiBaseApi": "",
+    "webApiCoreBaseApi": "",
+    "useCoreVersion": "true",
+    "azureAppUser": "",
+    "azureAppPw": ""
+  }
+}
