@@ -1,0 +1,130 @@
+name: apifunctions_$(Date:yyyyMMdd)$(Rev:.r)
+
+trigger: none
+pr: none
+
+parameters:
+  - name: agentImage
+    displayName: Microsoft-hosted Windows image
+    type: string
+    default: windows-2022
+    values:
+      - windows-2022
+      - windows-2025
+      - windows-2025-vs2026
+      - windows-latest
+  - name: deployProduction
+    displayName: Deploy to the existing production Function App
+    type: boolean
+    default: false
+  - name: azureServiceConnection
+    displayName: Azure Resource Manager service connection
+    type: string
+    default: myfinance-functions-azure
+
+variables:
+  buildConfiguration: Release
+  functionAppName: MyFinanceFunctionApp
+  functionResourceGroup: MyFinance
+
+stages:
+  - stage: Build
+    displayName: Build and package ApiFunctions
+    jobs:
+      - job: Package
+        pool:
+          vmImage: ${{ parameters.agentImage }}
+        steps:
+          - checkout: self
+
+          - task: UseDotNet@2
+            displayName: Install .NET 10 SDK
+            inputs:
+              packageType: sdk
+              version: 10.0.x
+
+          - task: DotNetCoreCLI@2
+            displayName: Publish only ApiFunctions
+            inputs:
+              command: publish
+              publishWebProjects: false
+              projects: ApiFunctions/ApiFunctions.csproj
+              arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)/publish'
+              modifyOutputPath: false
+              zipAfterPublish: false
+
+          - pwsh: >-
+              ./ApiFunctions/scripts/Test-PublishPackage.ps1
+              -PublishDirectory '$(Build.ArtifactStagingDirectory)/publish'
+            displayName: Verify isolated worker publish output
+
+          - task: ArchiveFiles@2
+            displayName: Package the complete publish output
+            inputs:
+              rootFolderOrFile: $(Build.ArtifactStagingDirectory)/publish
+              includeRootFolder: false
+              archiveType: zip
+              archiveFile: $(Build.ArtifactStagingDirectory)/apifunctions.zip
+              replaceExistingArchive: true
+
+          - pwsh: >-
+              ./ApiFunctions/scripts/Test-PublishPackage.ps1
+              -PublishDirectory '$(Build.ArtifactStagingDirectory)/publish'
+              -PackagePath '$(Build.ArtifactStagingDirectory)/apifunctions.zip'
+            displayName: Verify the deployment ZIP
+
+          - task: PublishPipelineArtifact@1
+            displayName: Retain the deployable package
+            inputs:
+              targetPath: $(Build.ArtifactStagingDirectory)/apifunctions.zip
+              artifact: apifunctions
+
+  - ${{ if eq(parameters.deployProduction, true) }}:
+      - stage: Deploy
+        displayName: Deploy ApiFunctions to production
+        dependsOn: Build
+        condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+        jobs:
+          - deployment: DeployFunctions
+            displayName: Deploy MyFinanceFunctionApp
+            pool:
+              vmImage: ${{ parameters.agentImage }}
+            environment: myfinance-functions-production
+            strategy:
+              runOnce:
+                deploy:
+                  steps:
+                    - download: none
+
+                    - task: DownloadPipelineArtifact@2
+                      displayName: Download this run's Functions package
+                      inputs:
+                        buildType: current
+                        artifactName: apifunctions
+                        targetPath: $(Pipeline.Workspace)/apifunctions
+
+                    - task: AzureCLI@2
+                      displayName: Check the existing Azure runtime
+                      inputs:
+                        azureSubscription: ${{ parameters.azureServiceConnection }}
+                        scriptType: pscore
+                        scriptLocation: inlineScript
+                        inlineScript: |
+                          $app = az functionapp show --name '$(functionAppName)' --resource-group '$(functionResourceGroup)' --query '{reserved:reserved}' --output json | ConvertFrom-Json
+                          if ($LASTEXITCODE -ne 0) { throw 'Cannot read the existing Function App.' }
+                          if ($app.reserved) { throw 'This pipeline targets a Windows Function App.' }
+
+                          $worker = az functionapp config appsettings list --name '$(functionAppName)' --resource-group '$(functionResourceGroup)' --query "[?name=='FUNCTIONS_WORKER_RUNTIME'].value | [0]" --output tsv
+                          if ($LASTEXITCODE -ne 0 -or ([string]$worker).Trim() -ne 'dotnet-isolated') { throw 'Expected FUNCTIONS_WORKER_RUNTIME=dotnet-isolated.' }
+
+                          $framework = az functionapp config show --name '$(functionAppName)' --resource-group '$(functionResourceGroup)' --query netFrameworkVersion --output tsv
+                          if ($LASTEXITCODE -ne 0 -or ([string]$framework).Trim() -ne 'v10.0') { throw 'Expected the Windows .NET 10 runtime stack.' }
+
+                    - task: AzureFunctionApp@2
+                      displayName: Deploy the verified ZIP
+                      inputs:
+                        azureSubscription: ${{ parameters.azureServiceConnection }}
+                        appType: functionApp
+                        appName: $(functionAppName)
+                        package: $(Pipeline.Workspace)/apifunctions/apifunctions.zip
+                        deploymentMethod: zipDeploy
