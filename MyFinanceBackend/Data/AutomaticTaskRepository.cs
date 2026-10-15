@@ -15,6 +15,10 @@ namespace MyFinanceBackend.Data
 {
 	public class AutomaticTaskRepository : SqlServerBaseService, IAutomaticTaskRepository
 	{
+		public Task<IReadOnlyCollection<ExecutedTaskViewModel>> GetExecutedTasksByTaskIdAsync(ScheduledTaskAccessScope scope) =>
+			throw new NotSupportedException("Scoped history requires the registered EF repository.");
+		public Task<Guid> CreateAsync(ScheduledTaskCreateScope scope, ClientScheduledTask model) =>
+			throw new NotSupportedException("Scoped task creation requires the registered EF repository.");
 		public AutomaticTaskRepository(IConnectionConfig config) : base(config)
 		{
 		}

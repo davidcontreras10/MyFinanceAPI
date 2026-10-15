@@ -1,6 +1,18 @@
 # Scheduled-task execution audit
 
-## Current behavior
+## Implemented protections and remaining rollout
+
+Both execution routes, history and retirement now use dedicated domain authorization and approved
+scopes. Manual extras are owner-only; cross-user occurrence dispatch requires a persisted administrator.
+Legacy financial/history writes now share a transaction, returned failures roll back, and the legacy
+execution route is rejected when history maintenance is enabled because it lacks retry identities.
+Weekly Sunday parsing is fixed. V2 identity/transaction guards, execution context and bounded history
+are implemented; deletion retires tasks and cancels incomplete work without deleting history.
+Execution and retirement share owner-first locks, preserving already committed receipts and rejecting
+new work after retirement. The UI and hourly Function have not yet adopted the contracts, and full
+financial integration coverage and a durable failed/interrupted-attempt log remain pending.
+
+## Original behavior (historical)
 
 - `ScheduledTasksService.GetTodayScheduledTaskAsync` selects weekly/monthly tasks using
   `DateTime.UtcNow`; it does not exclude successful executions for that date.
@@ -18,7 +30,7 @@
 - Weekly selection uses Sunday = 0, but repository day parsing drops zero. Sunday
   tasks need coverage and a consistent day encoding.
 
-## Proposed direction (not implemented)
+## Original design direction
 
 Automatic execution should identify an occurrence by task ID and scheduled business
 date. Enforce uniqueness in SQL and persist the occurrence completion and all
@@ -33,5 +45,5 @@ daily list is an optimization, not the duplicate-execution guarantee.
 
 The agreed scheduling, timezone, catch-up and manual-execution rules are recorded
 in [the implementation plan](scheduled-task-plan.md), together with the acceptance
-test matrix and staged rollout. Its v2 ledger/execution foundation is implemented
-behind a default-off feature gate; this audit still describes the legacy path.
+test matrix and staged rollout. The implementation is behind default-off feature gates;
+the original gap list above is historical, not the current endpoint authorization/transaction policy.

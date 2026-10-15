@@ -134,6 +134,9 @@ is only shown when editing, so existing budgets can still be changed.
   and duplicate-safe financial effects. Manual execution can satisfy today's
   occurrence or create an independent extra execution. This is planned, not live;
   see [the agreed rules and acceptance tests](scheduled-task-plan.md).
+  Deleting a task retires it: future automatic work stops and incomplete work is canceled,
+  while completed executions and history are retained. A retired task cannot be run or edited;
+  retries of already committed execution identities still return their original receipt.
 
 - Fix the existing sub-account links whose financial entity differs from their main account's (rule 8 above),
   then apply the entity and exchange-method rules on edit as well as on create.

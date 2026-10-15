@@ -16,6 +16,8 @@ namespace MyFinanceWebApiCore.Controllers
 	[ApiController]
 	public class ScheduledTasksController : BaseApiController
 	{
+		private const int DefaultHistoryPageSize = 50;
+
 		private readonly IScheduledTasksService _scheduledTasksService;
 		private readonly IScheduledTaskAuthorizationService _authorizationService;
 
@@ -30,16 +32,24 @@ namespace MyFinanceWebApiCore.Controllers
 		[HttpPost]
 		public async Task CreateBasicAsync(ClientScheduledTask.Basic model)
 		{
-			var userId = GetUserId();
-			await _scheduledTasksService.CreateBasicTrxAsync(userId, model);
+			var scope = await AuthorizeCreationAsync(model);
+			await _scheduledTasksService.CreateBasicTrxAsync(scope, model);
 		}
 
 		[Route("transfer")]
 		[HttpPost]
 		public async Task CreateTransferAsync(ClientScheduledTask.Transfer model)
 		{
-			var userId = GetUserId();
-			await _scheduledTasksService.CreateTransferTrxAsync(userId, model);
+			var scope = await AuthorizeCreationAsync(model);
+			await _scheduledTasksService.CreateTransferTrxAsync(scope, model);
+		}
+
+		private async Task<ScheduledTaskCreateScope> AuthorizeCreationAsync(ClientScheduledTask model)
+		{
+			var result = await _authorizationService.AuthorizeCreateAsync(GetUserId(), model);
+			if (result?.IsAuthorized != true || result.Scope == null)
+				throw new ServiceException("Scheduled-task creation access is denied.", System.Net.HttpStatusCode.Forbidden);
+			return result.Scope;
 		}
 
 		[AdminRequired]
@@ -70,7 +80,23 @@ namespace MyFinanceWebApiCore.Controllers
 		[Route("{taskId}")]
 		public async Task DeleteScheduledTaskAsync(string taskId)
 		{
-			await _scheduledTasksService.DeleteByIdAsync(taskId);
+			await _scheduledTasksService.RetireAsync(await AuthorizeAccessAsync(taskId, ResourceActionNames.Delete));
+		}
+
+		[HttpGet("{taskId}/execution-context")]
+		public async Task<ScheduledTaskExecutionContext> GetExecutionContextAsync(string taskId) =>
+			await _scheduledTasksService.GetExecutionContextAsync(await AuthorizeAccessAsync(taskId, ResourceActionNames.View));
+
+		[HttpGet("{taskId}/execution-history")]
+		public async Task<ScheduledTaskHistoryPage> GetExecutionHistoryAsync(string taskId, [FromQuery] int skip = 0, [FromQuery] int limit = DefaultHistoryPageSize) =>
+			await _scheduledTasksService.GetExecutionHistoryAsync(await AuthorizeAccessAsync(taskId, ResourceActionNames.View), skip, limit);
+
+		private async Task<ScheduledTaskAccessScope> AuthorizeAccessAsync(string taskId, ResourceActionNames action)
+		{
+			var result = await _authorizationService.AuthorizeAccessAsync(GetUserId(), taskId, action);
+			if (result?.IsAuthorized != true || result.Scope == null)
+				throw new ServiceException("Scheduled-task access is denied.", System.Net.HttpStatusCode.Forbidden);
+			return result.Scope;
 		}
 
 		[HttpPatch]
@@ -96,10 +122,15 @@ namespace MyFinanceWebApiCore.Controllers
 
 		)
 		{
+			var actor = GetUserId();
+			ArgumentNullException.ThrowIfNull(clientExecuteTask);
+			var permission = await _authorizationService.AuthorizeExecutionAsync(actor, taskId,
+				clientExecuteTask.RequestType == ExecuteTaskRequestType.Automatic);
+			if (permission?.IsAuthorized != true || permission.Scope == null)
+				throw new ServiceException("Task execution access is denied.", System.Net.HttpStatusCode.Forbidden);
 			clientExecuteTask.DateTime = clientExecuteTask.DateTime ?? DateTime.Now;
-			return await _scheduledTasksService.ExecuteScheduledTaskAsync(taskId, clientExecuteTask.DateTime.Value,
-				clientExecuteTask.RequestType,
-				GetUserId());
+			return await _scheduledTasksService.ExecuteScheduledTaskAsync(permission.Scope, clientExecuteTask.DateTime.Value,
+				clientExecuteTask.RequestType);
 		}
 	}
 }

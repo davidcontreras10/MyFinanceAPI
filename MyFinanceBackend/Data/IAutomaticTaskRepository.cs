@@ -10,6 +10,7 @@ namespace MyFinanceBackend.Data
 {
 	public interface IAutomaticTaskRepository : ITransactional
 	{
+		Task<Guid> CreateAsync(ScheduledTaskCreateScope scope, ClientScheduledTask model);
 		Task InsertBasicTrxAsync(
 			string userId,
 			ClientScheduledTask.Basic clientScheduledTask
@@ -21,8 +22,7 @@ namespace MyFinanceBackend.Data
 		);
 
 		Task<IReadOnlyCollection<BaseScheduledTaskVm>> GetScheduledByUserIdAsync(string userId);
-		Task<IReadOnlyCollection<ExecutedTaskViewModel>> GetExecutedTasksByTaskIdAsync(string taskId);
-		Task DeleteByIdAsync(string taskId);
+		Task<IReadOnlyCollection<ExecutedTaskViewModel>> GetExecutedTasksByTaskIdAsync(ScheduledTaskAccessScope scope);
 		Task<IReadOnlyCollection<BaseScheduledTaskVm>> GetScheduledByTaskIdAsync(string taskId);
 		Task RecordClientExecutedTaskAsync(ClientExecutedTask clientExecutedTask);
 		Task<IReadOnlyCollection<BaseScheduledTaskVm>> GetScheduledTasksAsync();

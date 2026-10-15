@@ -12,7 +12,7 @@ namespace MyFinanceModel
     // An occurrence is shared by automatic calls and "Run Today's Occurrence".
     public sealed record ScheduledExecutionRequest(
         Guid TaskId, Guid ActorId, Guid? OccurrenceId, Guid? ManualRequestId,
-        DateTime? ManualPostingDate);
+        DateTime? ManualPostingDate, Guid? ExpectedOwnerId = null);
 
     public sealed record ScheduledExecutionWork(
         Guid TaskId, Guid OwnerId, Guid ActorId, DateTime PostingDate,

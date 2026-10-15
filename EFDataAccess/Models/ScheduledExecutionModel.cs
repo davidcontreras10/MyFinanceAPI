@@ -4,8 +4,13 @@ namespace EFDataAccess.Models
 {
     public static class ScheduledExecutionModel
     {
+        private const int MaximumTimeZoneIdLength = 128;
+
         public static void Configure(ModelBuilder modelBuilder)
         {
+            modelBuilder.Entity<AutomaticTask>().Property(x => x.RetiredAtUtc).HasColumnType("datetime2");
+            modelBuilder.Entity<AppUser>().Property(x => x.SchedulingTimeZoneId)
+                .HasMaxLength(MaximumTimeZoneIdLength).IsRequired().HasDefaultValue(MyFinanceModel.ScheduledUserPreferences.DefaultTimeZone);
             modelBuilder.Entity<ScheduledTaskSchedule>(entity =>
             {
                 entity.ToTable("ScheduledTaskSchedule", table => table.HasCheckConstraint(
@@ -23,7 +28,7 @@ namespace EFDataAccess.Models
                 entity.HasKey(x => x.Id);
                 entity.HasIndex(x => new { x.TaskId, x.EffectiveFromUtc }).IsUnique();
                 entity.HasIndex(x => x.TaskId).IsUnique().HasFilter("[EffectiveUntilUtc] IS NULL");
-                entity.Property(x => x.TimeZoneId).HasMaxLength(128).IsRequired();
+                entity.Property(x => x.TimeZoneId).HasMaxLength(MaximumTimeZoneIdLength).IsRequired();
                 entity.Property(x => x.DefinitionJson).IsRequired();
                 entity.HasOne<ScheduledTaskSchedule>().WithMany().HasForeignKey(x => x.TaskId).OnDelete(DeleteBehavior.NoAction);
             });
@@ -35,7 +40,7 @@ namespace EFDataAccess.Models
                 entity.HasIndex(x => new { x.TaskId, x.ScheduledLocalDate }).IsUnique();
                 entity.HasIndex(x => x.DueAtUtc);
                 entity.Property(x => x.ScheduledLocalDate).HasColumnType("date");
-                entity.Property(x => x.TimeZoneId).HasMaxLength(128).IsRequired();
+                entity.Property(x => x.TimeZoneId).HasMaxLength(MaximumTimeZoneIdLength).IsRequired();
                 entity.Property(x => x.DefinitionJson).IsRequired();
                 entity.HasOne<AutomaticTask>().WithMany().HasForeignKey(x => x.TaskId).OnDelete(DeleteBehavior.NoAction);
                 entity.HasOne<AppUser>().WithMany().HasForeignKey(x => x.OwnerId).OnDelete(DeleteBehavior.NoAction);

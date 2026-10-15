@@ -28,6 +28,26 @@ namespace MyFinanceWebApiCore.Controllers
 		#region Web Methods
 
 		[ResourceActionRequired(ApplicationResources.Users, ResourceActionNames.View)]
+		[HttpGet("scheduling-preferences")]
+		public async Task<ActionResult<ScheduledUserPreferences>> GetSchedulingPreferences([FromQuery] string targetUserId)
+		{
+			if (!await _userAuthorizationService.IsAuthorizedAsync(GetUserId(), new[] { targetUserId }, new[] { ResourceActionNames.View }))
+				return StatusCode(403);
+			return await _usersService.GetSchedulingPreferencesAsync(targetUserId);
+		}
+
+		[ResourceActionRequired(ApplicationResources.Users, ResourceActionNames.Edit)]
+		[HttpPut("scheduling-preferences")]
+		public async Task<ActionResult<ScheduledUserPreferences>> UpdateSchedulingPreferences([FromQuery] string targetUserId,
+			[FromBody] UpdateScheduledUserPreferences request)
+		{
+			if (!await _userAuthorizationService.IsAuthorizedAsync(GetUserId(), new[] { targetUserId }, new[] { ResourceActionNames.Edit }))
+				return StatusCode(403);
+			if (request == null) return BadRequest();
+			return await _usersService.UpdateSchedulingPreferencesAsync(targetUserId, request.TimeZoneId);
+		}
+
+		[ResourceActionRequired(ApplicationResources.Users, ResourceActionNames.View)]
 		[HttpGet]
 		public async Task<ActionResult<AppUser>> GetUserById([FromQuery] string targetUserId)
 		{

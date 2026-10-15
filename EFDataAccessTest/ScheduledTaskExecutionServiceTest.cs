@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using MyFinanceBackend.Data;
 using MyFinanceBackend.Services;
+using MyFinanceBackend.Services.AuthServices;
 using MyFinanceModel;
 using MyFinanceModel.ViewModel;
 using MyFinanceWebApiCore.Controllers;
@@ -30,20 +31,23 @@ namespace EFDataAccessTest
             { Id = TaskId, AccountId = 1, ToAccountId = 2, SpendTypeId = 3, CurrencyId = 1, Amount = 10 };
 
         private static ScheduledExecutionWork Work(bool occurrence, BaseScheduledTaskVm definition = null) =>
-            new(TaskId, Owner, Actor, PostingDate,
+            new(TaskId, Owner, occurrence ? Actor : Owner, PostingDate,
                 JsonConvert.SerializeObject(definition ?? Definition(), new JsonSerializerSettings
                     { ContractResolver = new CamelCasePropertyNamesContractResolver() }),
                 occurrence ? Guid.NewGuid() : null);
 
         private static ScheduledExecutionRequest Request(bool occurrence = false) =>
-            new(TaskId, Actor, occurrence ? Guid.NewGuid() : null,
+            new(TaskId, occurrence ? Actor : Owner, occurrence ? Guid.NewGuid() : null,
                 occurrence ? null : Guid.NewGuid(), occurrence ? null : PostingDate);
+
+        private static ScheduledTaskExecutionScope Scope(bool occurrence = false) =>
+            new(occurrence ? Actor : Owner, Owner, TaskId, occurrence);
 
         [Test]
         public void NewExecutionPathIsDisabledByDefaultBeforeRepositoryAccess()
         {
             var service = new ScheduledTaskExecutionService(null, null, null, new ScheduledExecutionOptions());
-            var error = Assert.Throws<ServiceException>(() => service.ExecuteAsync(Request()));
+            var error = Assert.Throws<ServiceException>(() => service.ExecuteAsync(Request(), Scope()));
             Assert.That(error.StatusCode, Is.EqualTo(HttpStatusCode.ServiceUnavailable));
         }
 
@@ -58,7 +62,7 @@ namespace EFDataAccessTest
                 Assert.That(((BaseScheduledTaskVm)args[0]).Id, Is.EqualTo(TaskId));
                 Assert.That(args[1], Is.EqualTo(PostingDate));
                 Assert.That(args[2], Is.EqualTo(occurrence ? ExecuteTaskRequestType.Automatic : ExecuteTaskRequestType.Manual));
-                Assert.That(args[3], Is.EqualTo(Actor.ToString()));
+                Assert.That(args[3], Is.EqualTo((occurrence ? Actor : Owner).ToString()));
                 called = true;
                 return Task.FromResult(TaskExecutedResult.Success(TaskId.ToString()));
             });
@@ -70,7 +74,7 @@ namespace EFDataAccessTest
                 Assert.That(targets.SpendTypeIds, Is.EqualTo(new[] { 3 }));
                 return Task.FromResult(true);
             });
-            await Service(Work(occurrence), financial, access).ExecuteAsync(Request(occurrence));
+            await Service(Work(occurrence), financial, access).ExecuteAsync(Request(occurrence), Scope(occurrence));
             Assert.That(called, Is.True);
         }
 
@@ -78,7 +82,7 @@ namespace EFDataAccessTest
         public void OwnerScopeFailurePreventsFinancialEffects()
         {
             var access = Proxy<IAccountAccessRepository>((_, _) => Task.FromResult(false));
-            var error = Assert.ThrowsAsync<ServiceException>(() => Service(Work(false), null, access).ExecuteAsync(Request()));
+            var error = Assert.ThrowsAsync<ServiceException>(() => Service(Work(false), null, access).ExecuteAsync(Request(), Scope()));
             Assert.That(error.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
         }
 
@@ -86,9 +90,9 @@ namespace EFDataAccessTest
         public void InvalidSnapshotCannotCreateFinancialEffects()
         {
             var invalid = Definition(); invalid.Id = Guid.NewGuid();
-            Assert.ThrowsAsync<ServiceException>(() => Service(Work(false, invalid), null, null).ExecuteAsync(Request()));
+            Assert.ThrowsAsync<ServiceException>(() => Service(Work(false, invalid), null, null).ExecuteAsync(Request(), Scope()));
             invalid = Definition(); invalid.ToAccountId = 0;
-            Assert.ThrowsAsync<ServiceException>(() => Service(Work(false, invalid), null, null).ExecuteAsync(Request()));
+            Assert.ThrowsAsync<ServiceException>(() => Service(Work(false, invalid), null, null).ExecuteAsync(Request(), Scope()));
         }
 
         [Test]
@@ -96,7 +100,7 @@ namespace EFDataAccessTest
         {
             var financial = Proxy<IScheduledTasksService>((_, _) => Task.FromResult(TaskExecutedResult.Error("No current period", TaskId.ToString())));
             var access = Proxy<IAccountAccessRepository>((_, _) => Task.FromResult(true));
-            var error = Assert.ThrowsAsync<ServiceException>(() => Service(Work(false), financial, access).ExecuteAsync(Request()));
+            var error = Assert.ThrowsAsync<ServiceException>(() => Service(Work(false), financial, access).ExecuteAsync(Request(), Scope()));
             Assert.That(error.StatusCode, Is.EqualTo(HttpStatusCode.Conflict));
         }
 
@@ -112,7 +116,14 @@ namespace EFDataAccessTest
                 Assert.That(request.ManualRequestId, Is.EqualTo(input.ManualRequestId));
                 return Task.FromResult(new ScheduledExecutionResult(Guid.NewGuid(), false));
             });
-            var controller = new ScheduledExecutionController(service)
+            var scope = new ScheduledTaskExecutionScope(Actor, Actor, TaskId);
+            var authorization = Proxy<IScheduledTaskAuthorizationService>((_, args) =>
+            {
+                Assert.That(args[0], Is.EqualTo(Actor.ToString())); Assert.That(args[1], Is.EqualTo(TaskId.ToString()));
+                Assert.That(args[2], Is.EqualTo(false));
+                return Task.FromResult(new ScheduledTaskExecutionAuthorizationResult(scope));
+            });
+            var controller = new ScheduledExecutionController(service, authorization)
             {
                 ControllerContext = new ControllerContext
                 {
@@ -130,9 +141,9 @@ namespace EFDataAccessTest
         [Test]
         public void ControllerRejectsMissingIdentityBeforeService()
         {
-            var controller = new ScheduledExecutionController(null)
+            var controller = new ScheduledExecutionController(null, null)
                 { ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() } };
-            Assert.Throws<UnauthorizedAccessException>(() => controller.ExecuteAsync(TaskId, new(), CancellationToken.None));
+            Assert.ThrowsAsync<UnauthorizedAccessException>(() => controller.ExecuteAsync(TaskId, new(), CancellationToken.None));
         }
 
         private static ScheduledTaskExecutionService Service(ScheduledExecutionWork work,

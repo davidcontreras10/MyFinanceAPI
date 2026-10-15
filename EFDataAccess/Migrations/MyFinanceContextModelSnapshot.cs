@@ -259,6 +259,13 @@ namespace EFDataAccess.Migrations
                         .IsUnicode(false)
                         .HasColumnType("varchar(500)");
 
+                    b.Property<string>("SchedulingTimeZoneId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)")
+                        .HasDefaultValue("America/Costa_Rica");
+
                     b.Property<string>("Username")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -347,6 +354,9 @@ namespace EFDataAccess.Migrations
 
                     b.Property<int>("PeriodTypeId")
                         .HasColumnType("int");
+
+                    b.Property<DateTime?>("RetiredAtUtc")
+                        .HasColumnType("datetime2");
 
                     b.Property<int>("SpendTypeId")
                         .HasColumnType("int");

@@ -1,8 +1,9 @@
 # Reliable scheduled-task execution
 
-Status: specification, execution ledger, bounded occurrence discovery and versioned
-schedule history implemented behind the disabled v2 path. Migrations are generated
-but not applied to existing databases.
+Status: specification, execution ledger, bounded occurrence discovery, versioned
+schedule history, profile timezones, new-task registration and backend execution workflows implemented.
+The v2 execution path remains disabled.
+Ledger/history, timezone and retirement migrations are generated; production migration application remains pending.
 The current frontend and Function still use the old execution path/schedules.
 See [the source audit](scheduled-task-execution.md) for current gaps.
 
@@ -57,6 +58,11 @@ See [the source audit](scheduled-task-execution.md) for current gaps.
   future scheduling only; they must not rewrite outstanding or completed dates.
 - Preserve existing occurrences when a timezone changes; use the new timezone
   for future scheduling. Retain old timezone context on existing occurrences.
+- Deletion retires a task and cancels all incomplete automatic work, including undiscovered missed
+  dates. Preserve task definitions, occurrences, legacy history and completed receipts. Retired tasks
+  cannot be edited, reactivated or executed with a new identity. Already committed retries return
+  their original receipt. An execution already holding the owner lock may commit before retirement;
+  retirement waits for that outcome rather than interrupting a financial transaction halfway through.
 - Materialize due work before advancing scheduling progress. An interrupted
   discovery pass must neither skip occurrences nor generate duplicates.
 
@@ -190,8 +196,8 @@ a later requirement. See the implementation checkpoint below.
 - Exact rollout instant and treatment of the activation day's already-run jobs:
   reconcile explicitly before enabling; do not infer from incomplete old history.
 - Immutable effective-dated revisions now preserve the old transaction inputs and
-  timezone even if due work is discovered after an edit. Define deletion of tasks
-  with outstanding work before activation. Invalid legacy monthly days block
+  timezone even if due work is discovered after an edit. Retirement now cancels outstanding work
+  and preserves history. Invalid legacy monthly days block
   activation/revision; they are not silently clamped or rewritten.
 - Final retry/backoff, batch size, interrupted-claim recovery, and wire-level
   conflict/in-progress semantics. These are implementation decisions to test.
@@ -225,13 +231,10 @@ specification step. Review each delivery checkpoint before proceeding to the nex
   outer transaction or owning/disposal-managing one when called independently.
 - Exceptions roll back and leave the identity retryable. Best-effort structured
   warning logs survive rollback; a durable attempt-history UI/table is not yet built.
-- Profile timezone preferences, automatic registration of newly created tasks,
-  confirmation UI, hourly Function dispatch, and rollout/history reconciliation
-  remain unimplemented. Discovery/history are described in the next checkpoint.
-  Existing legacy execution/history/delete routes have not been migrated to the
-  v2 authorization policy; their audit findings remain open. Monthly/weekly
-  validation is now used by history-aware activation/revisions (next checkpoint),
-  while legacy creation still needs validated registration.
+- Confirmation UI, hourly Function dispatch, and rollout/history reconciliation
+  remain unimplemented. Discovery/history and preferences/registration are described below.
+  Existing execution/history/delete routes now use domain authorization and approved scopes. Monthly/weekly
+  validation is used by activation/revisions and the validated creation path described below.
 
 Run all tests including SQL-backed execution tests in PowerShell:
 
@@ -275,20 +278,71 @@ ledger-only fixture are not a substitute for financial integration tests.
 - Pending-work queries return only the earliest incomplete occurrence per task,
   with owner filtering or verified administrator access. Cross-user scan listings
   are administrator-only and bounded. The Function is not yet calling these APIs.
-- Monthly/weekly validation is now enforced during activation and v2 revisions.
-  Legacy creation/edit behavior remains unchanged while history maintenance is disabled;
-  creation must adopt validated registration before rollout.
+- Monthly/weekly validation is enforced during activation, revisions and API creation/editing,
+  including when history maintenance is disabled. Weekly Sunday is preserved in DTO parsing.
 - Revision changes are serialized with discovery. They do not need to materialize
   an unbounded overdue backlog during an interactive edit: later discovery uses
   the retained older revisions to reconstruct the original dates and inputs.
-- Activated schedules cannot currently be deleted through the legacy delete path
-  because foreign keys preserve their history. A user-facing retirement/cancellation
-  policy must be implemented before activation, not worked around by deleting rows.
+- DELETE now retires tasks without removing history. Its cancellation and concurrency policy is
+  implemented in the backend workflow checkpoint below.
 
-Release safety: do not enable either setting until registration, timezone changes,
-legacy authorization gaps and client/dispatcher adoption are complete. Both default
+Release safety: do not enable either setting until full financial workflow tests and client/dispatcher
+adoption are complete. Both default
 to false. `ScheduledTasks:HistoryEnabled` protects schedule activation/discovery and
 revision-aware edits independently of `ScheduledTasks:ExecutionV2Enabled`. After
 activation, keep history maintenance enabled even when pausing v2 execution. Turning
 history maintenance off requires freezing edits and an explicit data/rollback plan;
 it is not the execution pause switch. No activation or flag change has been performed.
+
+## Implementation checkpoint: preferences and registration
+
+- The profile stores an explicit, validated IANA timezone in `AppUser.SchedulingTimeZoneId`.
+  Its required-column/default configuration lives in Fluent API, not handwritten migration code.
+  Existing/new users receive `America/Costa_Rica` through the database default. EF generated the additive
+  `20261015173512_ScheduledUserTimeZone` migration without manual edits; apply it before deploying this API build.
+- `GET`/`PUT /api/Users/scheduling-preferences?targetUserId=<user ID>` use the existing user
+  View/Edit authorization policy. PUT accepts a `timeZoneId`; both return the saved `timeZoneId`.
+  Missing identity remains 401, denial is 403, invalid timezone is 400, and disabled history is 503.
+  These endpoints do not depend on the unfinished general profile-update repository method.
+- An atomic profile change appends future timezone revisions for all activated tasks. Existing
+  occurrences and unmaterialized due work keep their original snapshots, including a midnight due
+  exactly at the change instant. Repeating the same preference creates no new revisions.
+- History operations lock owner first, task second. Registration, activation, discovery, schedule
+  edits and preference changes therefore cannot leave a newly created task on a stale timezone.
+  A failure rolls back the profile and every revision changed in that request.
+- Both creation endpoints authorize source/destination accounts and category, forward an approved
+  owner scope, validate monthly 1-28/weekly 0-6/manual schedules, and recheck references during writes.
+  With history enabled, task/definition/initial revision commit together, using the saved profile zone
+  and creation instant as the activation boundary. No earlier dates or old tasks are auto-activated.
+  With history disabled, creation remains validated/owner-scoped but writes no schedule-history rows.
+- Timezone selection UI, execution confirmation,
+  hourly dispatch and reviewed rollout activation remain later checkpoints. Neither feature flag has
+  been enabled and no production database has been migrated or activated by this work.
+
+## Implementation checkpoint: execution context and retirement
+
+- Owner-authorized execution context supplies today's shared occurrence, earliest pending work,
+  discovery completeness, execution enablement, default action and extra-execution warning. One read
+  scans at most 31 UTC days; repeated reads advance bounded catch-up. Incomplete discovery never
+  silently defaults to an extra run, and older pending dates still block newer scheduled work.
+- Manual choices use the existing `execution-v2` contract: send `occurrenceId` for the displayed due
+  occurrence, or a fresh `manualRequestId` plus `postingDate` for a deliberate extra. Retries preserve
+  that identity. A stale confirmation returns an existing completion and never becomes an extra run.
+  `DefaultAction` is 1 for today's occurrence, 2 for extra, or null when a default is unsafe/unavailable.
+  Occurrence status is 1 pending, 2 completed, 3 canceled. The Angular UI is not yet using this context.
+- Owner-scoped history lists successful receipts and materialized canceled occurrences with bounded
+  pagination. Old `ExecutedTask` history remains available through the owner-authorized legacy route;
+  it is not inferred into v2 completions. A durable failed/interrupted-attempt log remains future work.
+- DELETE stores `AutomaticTask.RetiredAtUtc` instead of physically deleting anything. It cancels all
+  incomplete automatic work and hides the task from normal lists/dispatch. Undiscovered canceled dates
+  are covered by the task tombstone, not expanded into an unbounded set of artificial history rows.
+  No restore endpoint exists; clearing the tombstone by hand is not a supported recovery procedure.
+- Execution and retirement serialize under an owner-first transaction lock. A completed identity
+  remains idempotent after retirement; pending or new manual identities cannot create financial effects.
+  An in-flight rollback followed by retirement leaves no financial effects and cancels the retry.
+- Dedicated authorization covers context, history, retirement and both execution routes. Cross-user
+  scheduled execution requires a persisted administrator grant; manual extras remain owner-only.
+  The legacy execution route is blocked once history is enabled so old clients cannot bypass identities.
+- EF generated the nullable retirement-column migration from Fluent API without manual edits.
+  It has not been applied to a database. Apply it before running/deploying this API build, even with
+  both flags disabled, because ordinary task queries now include the column. Production is unchanged.

@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MyFinanceBackend.Services;
+using MyFinanceBackend.Services.AuthServices;
 using MyFinanceModel;
 
 namespace MyFinanceWebApiCore.Controllers
@@ -11,17 +12,20 @@ namespace MyFinanceWebApiCore.Controllers
     [Authorize]
     [ApiController]
     [Route("api/ScheduledTasks")]
-    public sealed class ScheduledExecutionController(IScheduledTaskExecutionService service) : BaseApiController
+    public sealed class ScheduledExecutionController(IScheduledTaskExecutionService service,
+        IScheduledTaskAuthorizationService authorizationService) : BaseApiController
     {
         [HttpPost("{taskId:guid}/execution-v2")]
-        public Task<ScheduledExecutionResult> ExecuteAsync(Guid taskId, ScheduledExecutionInput input,
+        public async Task<ScheduledExecutionResult> ExecuteAsync(Guid taskId, ScheduledExecutionInput input,
             CancellationToken cancellationToken)
         {
-            if (!Guid.TryParse(GetUserId(), out var actorId) || actorId == Guid.Empty)
-                throw new UnauthorizedAccessException();
+            var actor = GetUserId();
             ArgumentNullException.ThrowIfNull(input);
-            return service.ExecuteAsync(new ScheduledExecutionRequest(taskId, actorId,
-                input.OccurrenceId, input.ManualRequestId, input.PostingDate), cancellationToken);
+            var permission = await authorizationService.AuthorizeExecutionAsync(actor, taskId.ToString(), input.OccurrenceId.HasValue);
+            if (permission?.IsAuthorized != true || permission.Scope == null)
+                throw new ServiceException("Task execution access is denied.", System.Net.HttpStatusCode.Forbidden);
+            return await service.ExecuteAsync(new ScheduledExecutionRequest(permission.Scope.TaskId, permission.Scope.ActorId,
+                input.OccurrenceId, input.ManualRequestId, input.PostingDate), permission.Scope, cancellationToken);
         }
     }
 }

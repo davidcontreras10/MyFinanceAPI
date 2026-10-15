@@ -10,6 +10,10 @@ namespace MyFinanceBackend.Services
 {
     public static class ScheduledTaskDefinitionCodec
     {
+        private const int BasicTaskType = 1;
+        private const int TransferTaskType = 2;
+        private const string TaskTypePropertyName = "taskType";
+
         public static string Write(BaseScheduledTaskVm definition) => JsonConvert.SerializeObject(definition,
             new JsonSerializerSettings { ContractResolver = new CamelCasePropertyNamesContractResolver() });
 
@@ -18,8 +22,8 @@ namespace MyFinanceBackend.Services
             try
             {
                 var document = JObject.Parse(json);
-                var type = document["taskType"];
-                if (type?.Type != JTokenType.Integer || (type.Value<long>() != 1 && type.Value<long>() != 2))
+                var type = document[TaskTypePropertyName];
+                if (type?.Type != JTokenType.Integer || (type.Value<long>() != BasicTaskType && type.Value<long>() != TransferTaskType))
                     throw new JsonSerializationException("Unsupported task type.");
                 return document.ToObject<BaseScheduledTaskVm>();
             }

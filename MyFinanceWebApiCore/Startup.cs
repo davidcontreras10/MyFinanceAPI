@@ -208,6 +208,7 @@ namespace MyFinanceWebApiCore
 			});
 			services.AddScoped<IScheduledExecutionRepository, EFScheduledExecutionRepository>();
 			services.AddScoped<IScheduledScheduleRepository, EFScheduledScheduleRepository>();
+			services.AddScoped<IScheduledUserPreferencesRepository, EFScheduledScheduleRepository>();
 			services.AddScoped<IScheduledTaskExecutionService, ScheduledTaskExecutionService>();
 			services.AddScoped<IAccountFinanceService, AccountFinanceService>();
 			services.AddScoped<ILoanService, LoanService>();

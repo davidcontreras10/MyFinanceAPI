@@ -11,12 +11,13 @@ namespace MyFinanceBackend.Services
 
     public static class ScheduledOccurrenceCalendar
     {
-        public const string DefaultTimeZone = "America/Costa_Rica";
+        public const string DefaultTimeZone = ScheduledUserPreferences.DefaultTimeZone;
         public const int ScanWindowDays = 31;
+        private const int MaximumTimeZoneIdLength = 128;
 
         public static TimeZoneInfo ResolveTimeZone(string id)
         {
-            if (string.IsNullOrWhiteSpace(id) || id.Length > 128 ||
+            if (string.IsNullOrWhiteSpace(id) || id.Length > MaximumTimeZoneIdLength ||
                 (id != "UTC" && !TimeZoneInfo.TryConvertIanaIdToWindowsId(id, out _)))
                 throw new ServiceException("A supported IANA timezone is required.", HttpStatusCode.BadRequest);
             try { return TimeZoneInfo.FindSystemTimeZoneById(id); }

@@ -16,7 +16,7 @@ namespace MyFinanceBackend.Services
 
     public interface IScheduledTaskExecutionService
     {
-        Task<ScheduledExecutionResult> ExecuteAsync(ScheduledExecutionRequest request,
+        Task<ScheduledExecutionResult> ExecuteAsync(ScheduledExecutionRequest request, ScheduledTaskExecutionScope scope,
             CancellationToken cancellationToken = default);
     }
 
@@ -24,13 +24,17 @@ namespace MyFinanceBackend.Services
         IScheduledTasksService financialExecutor, IAccountAccessRepository accountAccess,
         ScheduledExecutionOptions options) : IScheduledTaskExecutionService
     {
-        public Task<ScheduledExecutionResult> ExecuteAsync(ScheduledExecutionRequest request,
+        public Task<ScheduledExecutionResult> ExecuteAsync(ScheduledExecutionRequest request, ScheduledTaskExecutionScope scope,
             CancellationToken cancellationToken = default)
         {
             if (!options.Enabled)
                 throw new ServiceException("The new scheduled execution path is not enabled.", HttpStatusCode.ServiceUnavailable);
             ScheduledExecutionRules.Validate(request);
-            return repository.ExecuteAsync(request, ExecuteFinancialWorkAsync, cancellationToken);
+            ArgumentNullException.ThrowIfNull(scope);
+            if (request.TaskId != scope.TaskId || request.ActorId != scope.ActorId ||
+                (!request.OccurrenceId.HasValue && scope.ActorId != scope.OwnerId))
+                throw new ServiceException("The execution does not match the approved scope.", HttpStatusCode.Forbidden);
+            return repository.ExecuteAsync(request with { ExpectedOwnerId = scope.OwnerId }, ExecuteFinancialWorkAsync, cancellationToken);
         }
 
         private async Task ExecuteFinancialWorkAsync(ScheduledExecutionWork work, CancellationToken cancellationToken)

@@ -13,24 +13,25 @@ namespace MyFinanceBackend.Services
 	public interface IScheduledTasksService
 	{
 		Task CreateBasicTrxAsync(
-			string userId,
+			ScheduledTaskCreateScope scope,
 			ClientScheduledTask.Basic clientScheduledTask
 		);
 
 		Task CreateTransferTrxAsync(
-			string userId,
+			ScheduledTaskCreateScope scope,
 			ClientScheduledTask.Transfer clientScheduledTask
 		);
 
 		Task<IReadOnlyCollection<BaseScheduledTaskVm>> GetScheduledTasksByUserIdAsync(string userId);
-		Task<IReadOnlyCollection<ExecutedTaskViewModel>> GetExecutedTasksByTaskIdAsync(string taskId);
-		Task DeleteByIdAsync(string taskId);
+		Task<IReadOnlyCollection<ExecutedTaskViewModel>> GetExecutedTasksByTaskIdAsync(ScheduledTaskAccessScope scope);
+		Task RetireAsync(ScheduledTaskAccessScope scope);
+		Task<ScheduledTaskExecutionContext> GetExecutionContextAsync(ScheduledTaskAccessScope scope);
+		Task<ScheduledTaskHistoryPage> GetExecutionHistoryAsync(ScheduledTaskAccessScope scope, int skip, int limit);
 
 		Task<TaskExecutedResult> ExecuteScheduledTaskAsync(
-			string taskId,
+			ScheduledTaskExecutionScope scope,
 			DateTime dateTime,
-			ExecuteTaskRequestType requestType,
-			string userId
+			ExecuteTaskRequestType requestType
 		);
 
 		Task<TaskExecutedResult> ExecuteDefinitionAsync(BaseScheduledTaskVm scheduledTask,
@@ -71,19 +72,22 @@ namespace MyFinanceBackend.Services
 		}
 
 		public async Task<TaskExecutedResult> ExecuteScheduledTaskAsync(
-			string taskId,
+			ScheduledTaskExecutionScope scope,
 			DateTime dateTime,
-			ExecuteTaskRequestType requestType,
-			string userId
+			ExecuteTaskRequestType requestType
 		)
 		{
-			var scheduledTasks = await _automaticTaskRepository.GetScheduledByTaskIdAsync(taskId);
-			if (scheduledTasks == null || !scheduledTasks.Any())
+			ArgumentNullException.ThrowIfNull(scope);
+			if (requestType is not (ExecuteTaskRequestType.Automatic or ExecuteTaskRequestType.Manual) ||
+				(scope.ActorId != scope.OwnerId && requestType != ExecuteTaskRequestType.Automatic))
+				throw new ServiceException("The execution does not match the approved scope.", System.Net.HttpStatusCode.Forbidden);
+			return await _scheduleRepository.ExecuteLegacyAsync(scope, async () =>
 			{
-				return TaskExecutedResult.Error($"TaskId: {taskId} does not exist", taskId);
-			}
-
-			return await ExecuteDefinitionAsync(scheduledTasks.First(), dateTime, requestType, userId);
+				var definitions = await _automaticTaskRepository.GetScheduledByTaskIdAsync(scope.TaskId.ToString());
+				if (definitions == null || definitions.Count != 1)
+					throw new ServiceException("Task not found.", System.Net.HttpStatusCode.NotFound);
+				return await ExecuteDefinitionAsync(definitions.Single(), dateTime, requestType, scope.ActorId.ToString());
+			});
 		}
 
 		public async Task<TaskExecutedResult> ExecuteDefinitionAsync(BaseScheduledTaskVm scheduledTask,
@@ -121,19 +125,29 @@ namespace MyFinanceBackend.Services
 		}
 
 		public async Task CreateBasicTrxAsync(
-			string userId,
+			ScheduledTaskCreateScope scope,
 			ClientScheduledTask.Basic clientScheduledTask
 		)
 		{
-			await _automaticTaskRepository.InsertBasicTrxAsync(userId, clientScheduledTask);
+			await CreateAsync(scope, clientScheduledTask);
 		}
 
 		public async Task CreateTransferTrxAsync(
-			string userId,
+			ScheduledTaskCreateScope scope,
 			ClientScheduledTask.Transfer clientScheduledTask
 		)
 		{
-			await _automaticTaskRepository.InsertTransferTrxAsync(userId, clientScheduledTask);
+			await CreateAsync(scope, clientScheduledTask);
+		}
+
+		private async Task CreateAsync(ScheduledTaskCreateScope scope, ClientScheduledTask model)
+		{
+			ArgumentNullException.ThrowIfNull(scope);
+			ScheduledExecutionRules.ValidateCreation(model);
+			if (_executionOptions?.HistoryEnabled == true)
+				await _scheduleRepository.RegisterAsync(scope.OwnerId, () => _automaticTaskRepository.CreateAsync(scope, model));
+			else
+				await _automaticTaskRepository.CreateAsync(scope, model);
 		}
 
 		public async Task<IReadOnlyCollection<BaseScheduledTaskVm>> GetTodayScheduledTaskAsync()
@@ -153,15 +167,17 @@ namespace MyFinanceBackend.Services
 			return await _automaticTaskRepository.GetScheduledByUserIdAsync(userId);
 		}
 
-		public async Task<IReadOnlyCollection<ExecutedTaskViewModel>> GetExecutedTasksByTaskIdAsync(string taskId)
+		public async Task<IReadOnlyCollection<ExecutedTaskViewModel>> GetExecutedTasksByTaskIdAsync(ScheduledTaskAccessScope scope)
 		{
-			return await _automaticTaskRepository.GetExecutedTasksByTaskIdAsync(taskId);
+			ArgumentNullException.ThrowIfNull(scope);
+			return await _automaticTaskRepository.GetExecutedTasksByTaskIdAsync(scope);
 		}
 
-		public async Task DeleteByIdAsync(string taskId)
-		{
-			await _automaticTaskRepository.DeleteByIdAsync(taskId);
-		}
+		public Task RetireAsync(ScheduledTaskAccessScope scope) => _scheduleRepository.RetireAsync(scope);
+		public Task<ScheduledTaskExecutionContext> GetExecutionContextAsync(ScheduledTaskAccessScope scope) =>
+			_scheduleRepository.GetExecutionContextAsync(scope);
+		public Task<ScheduledTaskHistoryPage> GetExecutionHistoryAsync(ScheduledTaskAccessScope scope, int skip, int limit) =>
+			_scheduleRepository.GetExecutionHistoryAsync(scope, skip, limit);
 
 		public async Task EditScheduledTaskAsync(ClientEditScheduledTask model, ScheduledTaskEditScope scope)
 		{
