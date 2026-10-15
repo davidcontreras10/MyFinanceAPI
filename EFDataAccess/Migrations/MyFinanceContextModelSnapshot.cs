@@ -199,6 +199,11 @@ namespace EFDataAccess.Migrations
                         .IsUnicode(false)
                         .HasColumnType("varchar(500)");
 
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
                     b.HasKey("AccountTypeId");
 
                     b.ToTable("AccountType");
@@ -822,6 +827,11 @@ namespace EFDataAccess.Migrations
                     b.Property<string>("CuttingDate")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("IsDefault")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
 
                     b.Property<int>("PeriodTypeId")
                         .HasColumnType("int");

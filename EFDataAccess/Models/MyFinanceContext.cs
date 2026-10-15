@@ -263,6 +263,9 @@ namespace EFDataAccess.Models
 					.IsRequired()
 					.HasMaxLength(500)
 					.IsUnicode(false);
+
+				entity.Property(e => e.IsActive)
+					.HasDefaultValue(true);
 			});
 
 			modelBuilder.Entity<AmountType>(entity =>
@@ -565,6 +568,9 @@ namespace EFDataAccess.Models
 			modelBuilder.Entity<PeriodDefinition>(entity =>
 			{
 				entity.Property(e => e.CuttingDate).HasMaxLength(500);
+
+				entity.Property(e => e.IsDefault)
+					.HasDefaultValue(false);
 
 				entity.HasOne(d => d.PeriodType)
 					.WithMany(p => p.PeriodDefinition)

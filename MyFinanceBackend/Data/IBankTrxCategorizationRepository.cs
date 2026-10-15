@@ -6,6 +6,10 @@ namespace MyFinanceBackend.Data
 {
 	public interface IBankTrxCategorizationRepository
 	{
+		Task<ClassificationComparison> CompareModelsAsync(
+			List<ExpenseToClassify> inputs, List<Gpt.Category> categories,
+			List<Gpt.Account> accounts, List<InHisotricClassfiedExpense> history);
+
 		Task<IReadOnlyCollection<OutGptClassifiedExpense>> ClassifyExpensesWithGptAsync(
 			List<ExpenseToClassify> inputExpenses,
 			List<Gpt.Category> categories,

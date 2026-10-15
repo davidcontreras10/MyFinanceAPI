@@ -19,6 +19,12 @@ namespace EFDataAccess.Models
         public string CuttingDate { get; set; }
         public int? Repetition { get; set; }
 
+        /// <summary>
+        /// The period definition the add account form preselects. Meant to be set on one row; it's only a
+        /// suggestion, the user can pick another.
+        /// </summary>
+        public bool IsDefault { get; set; }
+
         public virtual PeriodType PeriodType { get; set; }
         public virtual ICollection<Account> Account { get; set; }
     }

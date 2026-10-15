@@ -42,6 +42,13 @@ namespace MyFinanceWebApiCore.Controllers
 			return await _expensesClassificationSubService.ClassifyExistingBankTransactionsAsync(trxIds, 6, userId);
 		}
 
+		[HttpPost("classify-expenses/compare")]
+		public Task<ClassificationComparison> CompareClassificationModels(
+			[FromQuery] int financialEntityId = 6, [FromQuery] int sampleSize = 10)
+		{
+			return _expensesClassificationSubService.CompareClassificationModelsAsync(financialEntityId, sampleSize, GetUserId());
+		}
+
 		[HttpGet("historical-expenses-classification")]
 		public async Task<IEnumerable<ClassifiedBankTrx>> GetHistoricalExpensesClassificationAsync()
 		{

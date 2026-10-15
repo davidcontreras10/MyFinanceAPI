@@ -22,7 +22,7 @@ namespace MyFinanceBackend.Services
 		{
 			if (expectedDate != null)
 			{
-				var newAccountPeriods = await _accountRepository.GetEquivalentAccountPeriodsByDateAsync(requestItems.Select(i => i.AccountPeriodId), expectedDate.Value);
+				var newAccountPeriods = await _accountRepository.GetEquivalentAccountPeriodsByDateAsync(requestItems.Select(i => i.AccountPeriodId), expectedDate.Value, userId);
 				var newItems = requestItems.ToList();
 				foreach (var accountPeriod in newAccountPeriods)
 				{

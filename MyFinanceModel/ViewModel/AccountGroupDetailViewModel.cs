@@ -12,6 +12,17 @@
 	    public virtual bool IsSelected { get; set; }
 	}
 
+	/// <summary>
+	/// Group as the Accounts screen manages it. <see cref="AccountGroupViewModel.IsSelected"/> means "the group
+	/// being viewed" here, so the default flag is exposed separately: a default group is one the Finance page
+	/// opens expanded, and several can be default.
+	/// </summary>
+	public class AccountGroupAdminViewModel : AccountGroupViewModel
+	{
+		public bool DisplayDefault { get; set; }
+		public int AccountCount { get; set; }
+	}
+
 	public class AccountGroupDetailViewModel : AccountGroupViewModel
 	{
 		public bool DisplayDefault { get; set; }

@@ -1,4 +1,5 @@
 ﻿using System;
+using MyFinanceBackend.Services;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using MyFinanceModel;
@@ -10,11 +11,13 @@ namespace MyFinanceBackend.Data
 {
 	public interface IAccountRepository
 	{
+		Task<AiClassifiableAccount> GetAiClassificationHintAsync(string userId, int accountId);
+		Task<AiClassifiableAccount> UpdateAiClassificationHintAsync(string userId, int accountId, string hint);
 		Task<IReadOnlyCollection<int>> GetMatchedAccountIdsByUserIdAsync(string userId, IEnumerable<int> accountIds);
 		Task<IReadOnlyCollection<AiClassifiableAccount>> GetAiClassifiableAccountsAsync(string userId);
 		Task<IReadOnlyCollection<Tuple<IdDateTime, AccountPeriodBasicInfo>>> GetAccountPeriodInfoByAccountIdDateTimeAsync(IReadOnlyCollection<IdDateTime> accountsDates);
 		Task<IReadOnlyCollection<AccountsByCurrencyViewModel>> GetAccountsByCurrenciesAsync(IEnumerable<int> sourceCurrencyIds, string userId);
-		Task<IReadOnlyCollection<AccountPeriodIdReqResp>> GetEquivalentAccountPeriodsByDateAsync(IEnumerable<int> accountPeriodIds, DateTime dateTime);
+		Task<IReadOnlyCollection<AccountPeriodIdReqResp>> GetEquivalentAccountPeriodsByDateAsync(IEnumerable<int> accountPeriodIds, DateTime dateTime, string userId);
 		Task<IReadOnlyCollection<AccountDetailsPeriodViewModel>> GetAccountDetailsPeriodViewModelAsync(string userId, DateTime dateTime);
 
 		Task<AccountPeriodBasicInfo> GetAccountPeriodInfoByAccountIdDateTimeAsync(int accountId, DateTime dateTime);
@@ -22,6 +25,9 @@ namespace MyFinanceBackend.Data
 		Task<IEnumerable<BankAccountPeriodBasicId>> GetBankSummaryAccountsPeriodByUserIdAsync(string userId, DateTime? dateTime);
 		Task<IReadOnlyCollection<BankFlaggedAccountBasicInfo>> GetBankFlaggedAccountsBasicInfoAsync(string userId, IEnumerable<int> accountIds);
 		Task<IReadOnlyCollection<AccountIncludeEdge>> GetAccountIncludeEdgesAsync(IEnumerable<int> accountIds);
+		Task<AccountLinkContext> GetAccountLinkContextAsync(int parentAccountId);
+		Task<AccountTypeUsage> GetAccountTypeUsageAsync(int accountTypeId, int? accountId);
+		Task<AccountHierarchyInfo> GetAccountHierarchyInfoAsync(string userId, int? accountId, IReadOnlyCollection<int> requestedParentIds);
 		Task<IEnumerable<AccountViewModel>> GetOrderedAccountViewModelListAsync(IEnumerable<int> accountIds, string userId);
 		IEnumerable<AccountPeriodBasicInfo> GetAccountPeriodBasicInfo(IEnumerable<int> accountPeriodIds);
 		AccountPeriodBasicInfo GetAccountPeriodInfoByAccountIdDateTime(int accountId, DateTime dateTime);
@@ -37,6 +43,6 @@ namespace MyFinanceBackend.Data
 		Task UpdateAccountAsync(string userId, ClientEditAccount clientEditAccount);
 		IEnumerable<AccountIncludeViewModel> GetAccountIncludeViewModel(string userId, int currencyId, int? financialEntityId = null);
 		IEnumerable<AccountDetailsInfoViewModel> GetAccountDetailsViewModel(IEnumerable<int> accountIds, string userId);
-		Task<AccountNotes> UpdateNotes(AccountNotes accountNotes, int accountId);
+		Task<AccountNotes> UpdateNotes(string userId, AccountNotes accountNotes, int accountId);
 	}
 }

@@ -26,6 +26,16 @@ namespace MyFinanceBackend.Data
 
 		#region Public
 
+		public Task<AiClassifiableAccount> GetAiClassificationHintAsync(string userId, int accountId)
+		{
+			throw new NotImplementedException();
+		}
+
+		public Task<AiClassifiableAccount> UpdateAiClassificationHintAsync(string userId, int accountId, string hint)
+		{
+			throw new NotImplementedException();
+		}
+
 		public IEnumerable<AccountDetailsInfoViewModel> GetAccountDetailsViewModel(IEnumerable<int> accountIds, string userId)
 		{
 			var parameters = new[]
@@ -791,7 +801,7 @@ namespace MyFinanceBackend.Data
 			};
 		}
 
-		public Task<AccountNotes> UpdateNotes(AccountNotes accountNotes, int accountId)
+		public Task<AccountNotes> UpdateNotes(string userId, AccountNotes accountNotes, int accountId)
 		{
 			throw new NotImplementedException();
 		}
@@ -802,6 +812,21 @@ namespace MyFinanceBackend.Data
 		}
 
 		public Task<IReadOnlyCollection<AccountIncludeEdge>> GetAccountIncludeEdgesAsync(IEnumerable<int> accountIds)
+		{
+			throw new NotImplementedException();
+		}
+
+		public Task<AccountLinkContext> GetAccountLinkContextAsync(int parentAccountId)
+		{
+			throw new NotImplementedException();
+		}
+
+		public Task<AccountTypeUsage> GetAccountTypeUsageAsync(int accountTypeId, int? accountId)
+		{
+			throw new NotImplementedException();
+		}
+
+		public Task<AccountHierarchyInfo> GetAccountHierarchyInfoAsync(string userId, int? accountId, IReadOnlyCollection<int> requestedParentIds)
 		{
 			throw new NotImplementedException();
 		}

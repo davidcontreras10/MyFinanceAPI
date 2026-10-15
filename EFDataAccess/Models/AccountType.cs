@@ -17,6 +17,11 @@ namespace EFDataAccess.Models
         public int AccountTypeId { get; set; }
         public string AccountTypeName { get; set; }
 
+        /// <summary>
+        /// Inactive types can't be chosen for new accounts, but accounts that already have one keep it.
+        /// </summary>
+        public bool IsActive { get; set; }
+
         public virtual ICollection<Account> Account { get; set; }
     }
 }

@@ -9,6 +9,8 @@ namespace MyFinanceBackend.Services
 {
     public interface IAccountService
     {
+		Task<AiClassifiableAccount> GetAiClassificationHintAsync(string userId, int accountId);
+		Task<AiClassifiableAccount> UpdateAiClassificationHintAsync(string userId, int accountId, ClientAccountAiClassificationHint request);
 		Task<IReadOnlyCollection<AccountsByCurrencyViewModel>> GetAccountsByCurrenciesAsync(IEnumerable<int> sourceCurrencyIds, string userId);
 		Task<IReadOnlyCollection<AccountDetailsPeriodViewModel>> GetAccountDetailsPeriodViewModelAsync(
 		    string userId,
@@ -23,6 +25,6 @@ namespace MyFinanceBackend.Services
 	    Task<AddAccountViewModel> GetAddAccountViewModelAsync(string userId);
         Task AddAccountAsync(string userId, ClientAddAccount clientAddAccount);
         void DeleteAccount(string userId, int accountId);
-		Task<AccountNotes> UpdateNotes(AccountNotes accountNotes, int accountId);
+		Task<AccountNotes> UpdateNotes(string userId, AccountNotes accountNotes, int accountId);
 	}
 }
