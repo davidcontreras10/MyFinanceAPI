@@ -198,6 +198,13 @@ namespace MyFinanceWebApiCore
 			services.AddScoped<IBankTrxCategorizationRepository, GptBankTrxCategorizationRepository>();
 
 			services.AddScoped<IScheduledTasksService, ScheduledTasksService>();
+			services.AddSingleton<TimeProvider>(TimeProvider.System);
+			services.AddSingleton(new ScheduledExecutionOptions
+			{
+				Enabled = Configuration.GetValue<bool>("ScheduledTasks:ExecutionV2Enabled")
+			});
+			services.AddScoped<IScheduledExecutionRepository, EFScheduledExecutionRepository>();
+			services.AddScoped<IScheduledTaskExecutionService, ScheduledTaskExecutionService>();
 			services.AddScoped<IAccountFinanceService, AccountFinanceService>();
 			services.AddScoped<ILoanService, LoanService>();
 			services.AddScoped<IDebtRequestRepository, EFDebtRequestRepository>();

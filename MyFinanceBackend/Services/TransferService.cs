@@ -88,22 +88,15 @@ namespace MyFinanceBackend.Services
 
 			var response = await CreateTransferSpendsResponseAsync(transferClientViewModel);
 			var itemsModified = new List<SpendItemModified>();
-			try
+			await unitOfWork.ExecuteInTransactionAsync(async () =>
 			{
-				transferRepository.BeginTransaction();
 				var transactions = new List<ClientAddSpendModel> { response.SpendModel, response.IncomeModel };
 				var items = await appTransactionsSubService.AddMultipleTransactionsAsync(transactions);
 				var sourceTrxId = items.Where(i => i.RequestId == response.SpendModel.RequestId).Select(i => i.SpendId).FirstOrDefault();
 				var destinationTrxId = items.Where(i => i.RequestId == response.IncomeModel.RequestId).Select(i => i.SpendId).FirstOrDefault();
 				await unitOfWork.AppTransferRepository.AddAsync(sourceTrxId, destinationTrxId);
 				itemsModified.AddRange(items.Select(SpendItemModified.To));
-				transferRepository.Commit();
-			}
-			catch (Exception)
-			{
-				transferRepository.RollbackTransaction();
-				throw;
-			}
+			});
 
 			return itemsModified;
 		}
@@ -156,7 +149,7 @@ namespace MyFinanceBackend.Services
 				IncomeModel = income
 			};
 		}
-			
+
 		private async Task<ClientAddSpendModel> CreateTransferIncomeClientAddSpendModelAsync(
 			TransferClientViewModel transferClientViewModel, int originalAccountId)
 		{

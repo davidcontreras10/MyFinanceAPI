@@ -129,6 +129,12 @@ is only shown when editing, so existing budgets can still be changed.
 
 ## Planned work
 
+- Reliable scheduled-task execution: user-selected profile timezones (Costa Rica
+  fallback), hourly discovery with missed-date catch-up, monthly days 1-28 only,
+  and duplicate-safe financial effects. Manual execution can satisfy today's
+  occurrence or create an independent extra execution. This is planned, not live;
+  see [the agreed rules and acceptance tests](scheduled-task-plan.md).
+
 - Fix the existing sub-account links whose financial entity differs from their main account's (rule 8 above),
   then apply the entity and exchange-method rules on edit as well as on create.
 - Retire the **Checking** account type. It no longer adds anything, but 10 accounts still use it. Account types

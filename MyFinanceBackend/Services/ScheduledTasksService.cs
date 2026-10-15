@@ -33,6 +33,9 @@ namespace MyFinanceBackend.Services
 			string userId
 		);
 
+		Task<TaskExecutedResult> ExecuteDefinitionAsync(BaseScheduledTaskVm scheduledTask,
+			DateTime dateTime, ExecuteTaskRequestType requestType, string userId);
+
 		Task<IReadOnlyCollection<BaseScheduledTaskVm>> GetScheduledTasksAsync();
 		Task<IReadOnlyCollection<BaseScheduledTaskVm>> GetTodayScheduledTaskAsync();
 		Task EditScheduledTaskAsync(ClientEditScheduledTask model);
@@ -74,11 +77,18 @@ namespace MyFinanceBackend.Services
 				return TaskExecutedResult.Error($"TaskId: {taskId} does not exist", taskId);
 			}
 
+			return await ExecuteDefinitionAsync(scheduledTasks.First(), dateTime, requestType, userId);
+		}
+
+		public async Task<TaskExecutedResult> ExecuteDefinitionAsync(BaseScheduledTaskVm scheduledTask,
+			DateTime dateTime, ExecuteTaskRequestType requestType, string userId)
+		{
+			ArgumentNullException.ThrowIfNull(scheduledTask);
+			var taskId = scheduledTask.Id.ToString();
+
 			try
 			{
 				TaskExecutedResult taskExecutedResult;
-				var scheduledTask = scheduledTasks.First();
-				//_automaticTaskRepository.BeginTransaction();
 				switch (scheduledTask)
 				{
 					case BasicScheduledTaskVm baseScheduledTaskVm:
@@ -95,13 +105,11 @@ namespace MyFinanceBackend.Services
 				}
 
 				await RecordExecutedTaskAsync(scheduledTask, taskExecutedResult, dateTime, userId);
-				//_automaticTaskRepository.Commit();
 				return taskExecutedResult;
 			}
 			catch (Exception e)
 			{
 				_logger.Error(e.ToString());
-				//_automaticTaskRepository.RollbackTransaction();
 				throw;
 			}
 		}
@@ -175,7 +183,7 @@ namespace MyFinanceBackend.Services
 		{
 			return (int) dateTime.DayOfWeek;
 		}
-		
+
 		private int GetDayOfMonth(DateTime dateTime)
 		{
 			return dateTime.Day;

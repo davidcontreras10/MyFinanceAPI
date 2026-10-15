@@ -922,6 +922,93 @@ namespace EFDataAccess.Migrations
                     b.ToTable("ResourceRequiredAccess");
                 });
 
+            modelBuilder.Entity("EFDataAccess.Models.ScheduledTaskCompletion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ActorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CompletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ManualRequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("OccurrenceId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("PostingDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OccurrenceId")
+                        .IsUnique()
+                        .HasFilter("[OccurrenceId] IS NOT NULL");
+
+                    b.HasIndex("TaskId");
+
+                    b.HasIndex("ActorId", "ManualRequestId")
+                        .IsUnique()
+                        .HasFilter("[ManualRequestId] IS NOT NULL");
+
+                    b.ToTable("ScheduledTaskCompletion", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ScheduledTaskCompletion_Identity", "([OccurrenceId] IS NOT NULL AND [ManualRequestId] IS NULL) OR ([OccurrenceId] IS NULL AND [ManualRequestId] IS NOT NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("EFDataAccess.Models.ScheduledTaskOccurrence", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DefinitionJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("DueAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("OwnerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("PostingDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ScheduledLocalDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("TimeZoneId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DueAtUtc");
+
+                    b.HasIndex("OwnerId");
+
+                    b.HasIndex("TaskId", "ScheduledLocalDate")
+                        .IsUnique();
+
+                    b.ToTable("ScheduledTaskOccurrence", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ScheduledTaskOccurrence_Date", "CONVERT(date, [PostingDate]) = [ScheduledLocalDate]");
+                        });
+                });
+
             modelBuilder.Entity("EFDataAccess.Models.SpFinanceSpendByAccountsListTable", b =>
                 {
                     b.Property<int?>("AccountCurrencyId")
@@ -1718,6 +1805,41 @@ namespace EFDataAccess.Migrations
                     b.Navigation("ResourceAccessLevel");
 
                     b.Navigation("ResourceAction");
+                });
+
+            modelBuilder.Entity("EFDataAccess.Models.ScheduledTaskCompletion", b =>
+                {
+                    b.HasOne("EFDataAccess.Models.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("ActorId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("EFDataAccess.Models.ScheduledTaskOccurrence", null)
+                        .WithMany()
+                        .HasForeignKey("OccurrenceId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("EFDataAccess.Models.AutomaticTask", null)
+                        .WithMany()
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("EFDataAccess.Models.ScheduledTaskOccurrence", b =>
+                {
+                    b.HasOne("EFDataAccess.Models.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("EFDataAccess.Models.AutomaticTask", null)
+                        .WithMany()
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.SpInTrxDef", b =>

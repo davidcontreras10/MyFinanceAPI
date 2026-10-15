@@ -22,6 +22,13 @@ MyFinanceWebApiCore  (ASP.NET Core host: Controllers, Startup/Program, auth midd
 
 ## Unit of Work + Repository pattern
 
+Scheduled-task reliability work is specified in [scheduled-task-plan.md](scheduled-task-plan.md)
+and audited in [scheduled-task-execution.md](scheduled-task-execution.md). The new
+occurrence/completion ledger has SQL-backed concurrency/rollback tests and a generated
+migration. Its v2 execution route is feature-gated off; the old Function/UI are not
+migrated. Transfers join a caller-owned transaction through `IUnitOfWork.ExecuteInTransactionAsync`
+and own/dispose one for standalone calls. Do not enable v2 before coordinated rollout.
+
 `IUnitOfWork` (`MyFinanceBackend/Data/IUnitOfWork.cs`), implemented by `EFUnityOfWork`, aggregates all EF
 repositories and exposes explicit transaction control: `StartTransactionAsync` / `CommitTransactionAsync`
 / `RollbackAsync` / `SaveAsync`. Services that need atomicity across multiple repositories manage this
