@@ -8,6 +8,7 @@ using DataAccess;
 using MyFinanceBackend.Constants;
 using MyFinanceBackend.Services;
 using MyFinanceModel.ClientViewModel;
+using MyFinanceModel;
 using MyFinanceModel.ViewModel;
 
 namespace MyFinanceBackend.Data
@@ -38,7 +39,7 @@ namespace MyFinanceBackend.Data
 			await ExecuteStoredProcedureAsync(DatabaseConstants.SP_AUTO_TASK_DELETE, taskIdPar);
 		}
 
-		public Task EditScheduledTaskAsync(ClientEditScheduledTask model)
+		public Task EditScheduledTaskAsync(ClientEditScheduledTask model, ScheduledTaskEditScope scope)
 		{
 			// Legacy ADO.NET implementation, superseded by EFAutomaticTaskRepository (the only
 			// implementation registered in Startup.cs). No stored procedure backs this path.

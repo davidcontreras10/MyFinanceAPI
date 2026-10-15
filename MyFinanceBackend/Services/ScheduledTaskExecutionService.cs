@@ -5,13 +5,13 @@ using System.Threading.Tasks;
 using MyFinanceBackend.Data;
 using MyFinanceModel;
 using MyFinanceModel.ViewModel;
-using Newtonsoft.Json;
 
 namespace MyFinanceBackend.Services
 {
     public sealed class ScheduledExecutionOptions
     {
         public bool Enabled { get; init; }
+        public bool HistoryEnabled { get; init; }
     }
 
     public interface IScheduledTaskExecutionService
@@ -35,12 +35,7 @@ namespace MyFinanceBackend.Services
 
         private async Task ExecuteFinancialWorkAsync(ScheduledExecutionWork work, CancellationToken cancellationToken)
         {
-            BaseScheduledTaskVm definition;
-            try { definition = JsonConvert.DeserializeObject<BaseScheduledTaskVm>(work.DefinitionJson); }
-            catch (JsonException)
-            {
-                throw new ServiceException("The stored task definition is invalid.", HttpStatusCode.Conflict);
-            }
+            var definition = ScheduledTaskDefinitionCodec.Read(work.DefinitionJson);
             if (definition == null || definition.Id != work.TaskId || definition.AccountId <= 0 ||
                 definition.SpendTypeId <= 0 || definition.CurrencyId <= 0 || !float.IsFinite(definition.Amount) || definition.Amount <= 0 ||
                 (definition is TransferScheduledTaskVm transfer && transfer.ToAccountId <= 0))

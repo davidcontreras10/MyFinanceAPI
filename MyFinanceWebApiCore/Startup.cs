@@ -171,6 +171,7 @@ namespace MyFinanceWebApiCore
 			services.AddScoped<IAuthorizationService, AuthorizationService>();
 			services.AddScoped<IUserAuthorizeService, UserAuthorizeService>();
 			services.AddScoped<IAccountAuthorizationService, AccountAuthorizationService>();
+			services.AddScoped<IScheduledTaskAuthorizationService, ScheduledTaskAuthorizationService>();
 			services.AddScoped<IEmailService, EmailService>();
 			services.AddScoped<IAccountGroupService, AccountGroupService>();
 			services.AddScoped<IAppTransactionsSubService, AppTransactionsSubService>();
@@ -189,6 +190,7 @@ namespace MyFinanceWebApiCore
 			services.AddScoped<IAccountAccessRepository, EFAccountRepository>();
 			services.AddScoped<ITransferRepository, EFTransferRepository>();
 			services.AddScoped<IAutomaticTaskRepository, EFAutomaticTaskRepository>();
+			services.AddScoped<IScheduledTaskAccessRepository, EFAutomaticTaskRepository>();
 			services.AddScoped<ILoanRepository, EFLoanRepository>();
 			services.AddScoped<IResourceAccessRepository, EFResourceAccessRepository>();
 			services.AddScoped<IFinancialEntitiesRepository, EFFinancialEntitiesRepository>();
@@ -201,9 +203,11 @@ namespace MyFinanceWebApiCore
 			services.AddSingleton<TimeProvider>(TimeProvider.System);
 			services.AddSingleton(new ScheduledExecutionOptions
 			{
-				Enabled = Configuration.GetValue<bool>("ScheduledTasks:ExecutionV2Enabled")
+				Enabled = Configuration.GetValue<bool>("ScheduledTasks:ExecutionV2Enabled"),
+				HistoryEnabled = Configuration.GetValue<bool>("ScheduledTasks:HistoryEnabled")
 			});
 			services.AddScoped<IScheduledExecutionRepository, EFScheduledExecutionRepository>();
+			services.AddScoped<IScheduledScheduleRepository, EFScheduledScheduleRepository>();
 			services.AddScoped<IScheduledTaskExecutionService, ScheduledTaskExecutionService>();
 			services.AddScoped<IAccountFinanceService, AccountFinanceService>();
 			services.AddScoped<ILoanService, LoanService>();

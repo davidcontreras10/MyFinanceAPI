@@ -29,6 +29,14 @@ migration. Its v2 execution route is feature-gated off; the old Function/UI are 
 migrated. Transfers join a caller-owned transaction through `IUnitOfWork.ExecuteInTransactionAsync`
 and own/dispose one for standalone calls. Do not enable v2 before coordinated rollout.
 
+`ScheduledTaskSchedule`/`ScheduledTaskRevision` add explicit activation, 31-day UTC
+discovery windows and effective-dated snapshots. Occurrences and scan progress save
+together; edits preserve old definitions for still-undiscovered due dates. The separate
+default-off `ScheduledTasks:HistoryEnabled` flag guards discovery and revision-aware edits,
+so history maintenance can continue while v2 execution is paused. Profile timezone updates,
+new-task registration, retirement and dispatcher adoption remain rollout prerequisites;
+see the plan's rollback warning before enabling or disabling history maintenance.
+
 `IUnitOfWork` (`MyFinanceBackend/Data/IUnitOfWork.cs`), implemented by `EFUnityOfWork`, aggregates all EF
 repositories and exposes explicit transaction control: `StartTransactionAsync` / `CommitTransactionAsync`
 / `RollbackAsync` / `SaveAsync`. Services that need atomicity across multiple repositories manage this
@@ -278,6 +286,15 @@ Owner constraints are also applied in EF reads and mutations, including finance 
 resolution. Account writes keep ownership/reference checks and saving in a serializable transaction
 (or reuse a caller's transaction). Authorization denial is 403 except AI-hint endpoints, which preserve
 their existing 404 for missing/other-owner accounts. Nonpositive group IDs still select the owner's default group.
+`ScheduledTasksController` edits use `IScheduledTaskAuthorizationService.AuthorizeEditAsync` with
+trusted identity, the route task ID and any replacement spend type. The owner-only decision returns
+a typed `ScheduledTaskEditScope`; the controller forwards it unchanged to the edit service. Missing
+identity retains 401; denied, malformed or inaccessible targets return 403 without an operation call.
+The repository uses the scope's task/owner rather than the body ID, rechecks replacement category
+assignment and holds ownership/reference locks through the edit transaction, including when joining
+history maintenance. These protections apply with history both enabled and disabled. Other scheduled-task
+endpoints have not yet adopted this domain authorization service.
+
 Other controllers have not yet adopted this pattern. Shared finance repository methods now enforce
 ownership for their other callers too. The EF user profile/password update methods remain unimplemented.
 
@@ -293,7 +310,9 @@ Verify user authorization with `dotnet test --filter "FullyQualifiedName~UserAut
 account authorization with `dotnet test --filter "FullyQualifiedName~AccountAuthorizationTest"`.
 These tests cover controller denial/identity checks on every account endpoint, owner scope forwarding,
 batch/reference checks and invalid scopes/targets using repository and service proxies; they do not
-exercise SQL Server persistence.
+exercise SQL Server persistence. Scheduled-task edit authorization tests are in
+`ScheduledTaskAuthorizationTest` and `ScheduledTaskEditingTest`; the disposable LocalDB fixture also
+covers scoped writes and ownership changes between approval and mutation (`MYFINANCE_RUN_SQL_TESTS=1`).
 
 ## Exceptions
 

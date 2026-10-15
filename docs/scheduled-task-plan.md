@@ -1,7 +1,8 @@
 # Reliable scheduled-task execution
 
-Status: specification complete; execution-ledger foundation and a disabled v2 API
-path implemented. The migration is generated but not applied to existing databases.
+Status: specification, execution ledger, bounded occurrence discovery and versioned
+schedule history implemented behind the disabled v2 path. Migrations are generated
+but not applied to existing databases.
 The current frontend and Function still use the old execution path/schedules.
 See [the source audit](scheduled-task-execution.md) for current gaps.
 
@@ -188,15 +189,15 @@ a later requirement. See the implementation checkpoint below.
 
 - Exact rollout instant and treatment of the activation day's already-run jobs:
   reconcile explicitly before enabling; do not infer from incomplete old history.
-- Snapshot the execution inputs/revision of due work before edits so preserved
-  occurrences do not accidentally use new amounts/accounts. Define deletion of
-  tasks with outstanding work and invalid legacy monthly days before activation;
-  do not silently execute, clamp, discard, or rewrite those records.
+- Immutable effective-dated revisions now preserve the old transaction inputs and
+  timezone even if due work is discovered after an edit. Define deletion of tasks
+  with outstanding work before activation. Invalid legacy monthly days block
+  activation/revision; they are not silently clamped or rewritten.
 - Final retry/backoff, batch size, interrupted-claim recovery, and wire-level
   conflict/in-progress semantics. These are implementation decisions to test.
-- Handling DST midnight gaps/ambiguities must produce one occurrence per local
-  date. Use the first valid instant for a missing midnight and the first occurrence
-  of an ambiguous midnight as the proposed rule; verify platform timezone support.
+- DST midnight gaps use the first valid instant of that local date; ambiguities
+  use the earliest UTC instant. A civil date skipped entirely has no occurrence.
+  System timezone data and IANA/Windows support are exercised in calendar tests.
 
 No commits, pushes, migration application or production changes are part of this
 specification step. Review each delivery checkpoint before proceeding to the next.
@@ -224,11 +225,13 @@ specification step. Review each delivery checkpoint before proceeding to the nex
   outer transaction or owning/disposal-managing one when called independently.
 - Exceptions roll back and leave the identity retryable. Best-effort structured
   warning logs survive rollback; a durable attempt-history UI/table is not yet built.
-- No occurrence discovery/checkpoint population, profile timezone, confirmation UI,
-  hourly Function dispatch, or rollout/history reconciliation is implemented yet.
-  Existing legacy routes have not been migrated to the v2 authorization policy;
-  their audit findings remain open. Monthly/weekly validation helpers are tested
-  but not wired into schedule writes until edit/version semantics are implemented.
+- Profile timezone preferences, automatic registration of newly created tasks,
+  confirmation UI, hourly Function dispatch, and rollout/history reconciliation
+  remain unimplemented. Discovery/history are described in the next checkpoint.
+  Existing legacy execution/history/delete routes have not been migrated to the
+  v2 authorization policy; their audit findings remain open. Monthly/weekly
+  validation is now used by history-aware activation/revisions (next checkpoint),
+  while legacy creation still needs validated registration.
 
 Run all tests including SQL-backed execution tests in PowerShell:
 
@@ -243,3 +246,49 @@ LocalDB database. It uses the full EF model, with a test-only correction to the
 legacy TransferRecord primary-key clustering to allow EnsureCreated; production
 model/migration clustering is unchanged. Placeholder task/account links in this
 ledger-only fixture are not a substitute for financial integration tests.
+
+## Implementation checkpoint: discovery and schedule history
+
+- `ScheduledTaskSchedule` persists an explicit activation boundary and a monotonic
+  next-scan UTC cursor. Deploying its schema does not activate anything. Activation
+  is administrator-only, idempotent for the same boundary/initial timezone, and
+  refuses resetting an existing boundary. There is no public activation endpoint.
+- `ScheduledTaskRevision` stores an immutable transaction definition and timezone
+  for a half-open UTC interval. SQL permits only one open revision per task and
+  rejects nonpositive intervals. Old revisions are retained for catch-up.
+- Discovery scans at most 31 UTC days per task/call, intersects each revision's
+  interval, and adds each `(task, local date)` only once. Dates and cursor advancement
+  commit together under a task-scoped SQL lock. Interrupted discovery can be retried
+  without skipped dates; larger gaps return `HasMore` for another bounded pass.
+- Edits obtain an owner/task scope from the dedicated scheduled-task authorization service, including
+  approval of replacement spend categories. Both legacy and history-enabled writes enforce that scope
+  transactionally; body IDs cannot override the approved task. Denials use 403 (missing identity: 401).
+- Owner-authorized edits use this boundary when history maintenance is enabled. The original edit
+  and new revision share a transaction; a failed edit or snapshot validation rolls
+  both back. Due work at the exact edit instant still uses the old revision. A
+  timezone change affects future scheduling and never rewrites existing dates.
+- The new calendar enforces monthly days 1-28, supports weekly Sunday = 0 and all
+  month dates, and handles fractional-hour offsets and midnight DST changes using
+  .NET timezone APIs. Scheduled local dates remain date values; due instants remain
+  UTC. This does not change the legacy UTC daily-list implementation or its Sunday
+  parsing issue; the new discovery path reads raw stored schedule days correctly.
+- Pending-work queries return only the earliest incomplete occurrence per task,
+  with owner filtering or verified administrator access. Cross-user scan listings
+  are administrator-only and bounded. The Function is not yet calling these APIs.
+- Monthly/weekly validation is now enforced during activation and v2 revisions.
+  Legacy creation/edit behavior remains unchanged while history maintenance is disabled;
+  creation must adopt validated registration before rollout.
+- Revision changes are serialized with discovery. They do not need to materialize
+  an unbounded overdue backlog during an interactive edit: later discovery uses
+  the retained older revisions to reconstruct the original dates and inputs.
+- Activated schedules cannot currently be deleted through the legacy delete path
+  because foreign keys preserve their history. A user-facing retirement/cancellation
+  policy must be implemented before activation, not worked around by deleting rows.
+
+Release safety: do not enable either setting until registration, timezone changes,
+legacy authorization gaps and client/dispatcher adoption are complete. Both default
+to false. `ScheduledTasks:HistoryEnabled` protects schedule activation/discovery and
+revision-aware edits independently of `ScheduledTasks:ExecutionV2Enabled`. After
+activation, keep history maintenance enabled even when pausing v2 execution. Turning
+history maintenance off requires freezing edits and an explicit data/rollback plan;
+it is not the execution pause switch. No activation or flag change has been performed.

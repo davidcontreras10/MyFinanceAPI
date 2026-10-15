@@ -1009,6 +1009,71 @@ namespace EFDataAccess.Migrations
                         });
                 });
 
+            modelBuilder.Entity("EFDataAccess.Models.ScheduledTaskRevision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DefinitionJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("EffectiveFromUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("EffectiveUntilUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("TimeZoneId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaskId")
+                        .IsUnique()
+                        .HasFilter("[EffectiveUntilUtc] IS NULL");
+
+                    b.HasIndex("TaskId", "EffectiveFromUtc")
+                        .IsUnique();
+
+                    b.ToTable("ScheduledTaskRevision", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ScheduledTaskRevision_Window", "[EffectiveUntilUtc] IS NULL OR [EffectiveUntilUtc] > [EffectiveFromUtc]");
+                        });
+                });
+
+            modelBuilder.Entity("EFDataAccess.Models.ScheduledTaskSchedule", b =>
+                {
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("ActivatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("NextScanUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("OwnerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("TaskId");
+
+                    b.HasIndex("NextScanUtc");
+
+                    b.HasIndex("OwnerId");
+
+                    b.ToTable("ScheduledTaskSchedule", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ScheduledTaskSchedule_Cursor", "[NextScanUtc] >= [ActivatedAtUtc]");
+                        });
+                });
+
             modelBuilder.Entity("EFDataAccess.Models.SpFinanceSpendByAccountsListTable", b =>
                 {
                     b.Property<int?>("AccountCurrencyId")
@@ -1828,6 +1893,30 @@ namespace EFDataAccess.Migrations
                 });
 
             modelBuilder.Entity("EFDataAccess.Models.ScheduledTaskOccurrence", b =>
+                {
+                    b.HasOne("EFDataAccess.Models.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("EFDataAccess.Models.AutomaticTask", null)
+                        .WithMany()
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("EFDataAccess.Models.ScheduledTaskRevision", b =>
+                {
+                    b.HasOne("EFDataAccess.Models.ScheduledTaskSchedule", null)
+                        .WithMany()
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("EFDataAccess.Models.ScheduledTaskSchedule", b =>
                 {
                     b.HasOne("EFDataAccess.Models.AppUser", null)
                         .WithMany()

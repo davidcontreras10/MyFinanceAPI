@@ -77,8 +77,10 @@ changing service logic.
 
 ## Conventions
 
-Scheduled execution v2 is default-off (`ScheduledTasks:ExecutionV2Enabled`). Its
-ledger, service/controller and transaction tests are in `EFDataAccessTest`. Set
+Scheduled execution and history maintenance are independently default-off
+(`ScheduledTasks:ExecutionV2Enabled`, `ScheduledTasks:HistoryEnabled`). Keep history
+enabled after activation even when execution is paused. Their
+ledger, calendar/discovery, service/controller and transaction tests are in `EFDataAccessTest`. Set
 `MYFINANCE_RUN_SQL_TESTS=1` to include the disposable LocalDB concurrency/rollback
 tests. These use probe writes, not complete financial workflows; do not enable v2
 before the rollout work in `docs/scheduled-task-plan.md` is complete.

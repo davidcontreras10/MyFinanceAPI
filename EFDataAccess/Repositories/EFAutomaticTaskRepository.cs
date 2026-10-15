@@ -18,7 +18,7 @@ using System.Threading.Tasks;
 
 namespace EFDataAccess.Repositories
 {
-	public class EFAutomaticTaskRepository : BaseEFRepository, IAutomaticTaskRepository
+	public class EFAutomaticTaskRepository : BaseEFRepository, IAutomaticTaskRepository, IScheduledTaskAccessRepository
 	{
 		private readonly ILogger<EFAutomaticTaskRepository> _logger;
 
@@ -123,9 +123,14 @@ namespace EFDataAccess.Repositories
 			await Context.SaveChangesAsync();
 		}
 
-		public async Task EditScheduledTaskAsync(ClientEditScheduledTask model)
+		public Task<bool> IsOwnedByAsync(Guid taskId, Guid ownerId) =>
+			Context.AutomaticTask.AsNoTracking().AnyAsync(x => taskId != Guid.Empty && ownerId != Guid.Empty &&
+				x.AutomaticTaskId == taskId && x.UserId == ownerId);
+
+		public async Task EditScheduledTaskAsync(ClientEditScheduledTask model, ScheduledTaskEditScope scope)
 		{
-			if (model == null || string.IsNullOrEmpty(model.TaskId) || model.ModifyList == null || !model.ModifyList.Any())
+			ArgumentNullException.ThrowIfNull(scope);
+			if (model == null || model.ModifyList == null || !model.ModifyList.Any())
 			{
 				throw new ArgumentException("Invalid parameters", nameof(model));
 			}
@@ -143,12 +148,20 @@ namespace EFDataAccess.Repositories
 				throw new ServiceException("Days cannot be empty", HttpStatusCode.BadRequest);
 			}
 
-			var taskGuid = new Guid(model.TaskId);
-			var automaticTask = await Context.AutomaticTask.FirstOrDefaultAsync(x => x.AutomaticTaskId == taskGuid);
+			await using var transaction = Context.Database.CurrentTransaction == null
+				? await Context.Database.BeginTransactionAsync(IsolationLevel.Serializable) : null;
+			// Keep the approved owner constraint stable until the enclosing edit commits.
+			var automaticTask = await Context.AutomaticTask.FromSqlInterpolated(
+				$"SELECT * FROM [AutomaticTask] WITH (UPDLOCK, HOLDLOCK) WHERE [AutomaticTaskId] = {scope.TaskId} AND [UserId] = {scope.OwnerId}")
+				.SingleOrDefaultAsync();
 			if (automaticTask == null)
 			{
-				throw new ServiceException($"ScheduledTask {model.TaskId} not found", HttpStatusCode.NotFound);
+				throw new ServiceException("Scheduled task not found within the approved scope.", HttpStatusCode.NotFound);
 			}
+			if (modifyList.Contains(ClientEditScheduledTask.ScheduledTaskField.SpendTypeId) &&
+				(model.SpendTypeId <= 0 || !await Context.UserSpendType.FromSqlInterpolated(
+					$"SELECT * FROM [UserSpendType] WITH (HOLDLOCK) WHERE [UserId] = {scope.OwnerId} AND [SpendTypeId] = {model.SpendTypeId}").AnyAsync()))
+				throw new ServiceException("Spending category not found within the approved scope.", HttpStatusCode.NotFound);
 
 			foreach (var field in modifyList)
 			{
@@ -179,6 +192,8 @@ namespace EFDataAccess.Repositories
 			}
 
 			await Context.SaveChangesAsync();
+			if (transaction != null)
+				await transaction.CommitAsync();
 		}
 
 		public async Task RecordClientExecutedTaskAsync(ClientExecutedTask clientExecutedTask)

@@ -1,5 +1,6 @@
 ﻿using MyFinanceModel.ClientViewModel;
 using MyFinanceModel.ViewModel;
+using MyFinanceModel;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -25,6 +26,6 @@ namespace MyFinanceBackend.Data
 		Task<IReadOnlyCollection<BaseScheduledTaskVm>> GetScheduledByTaskIdAsync(string taskId);
 		Task RecordClientExecutedTaskAsync(ClientExecutedTask clientExecutedTask);
 		Task<IReadOnlyCollection<BaseScheduledTaskVm>> GetScheduledTasksAsync();
-		Task EditScheduledTaskAsync(ClientEditScheduledTask model);
+		Task EditScheduledTaskAsync(ClientEditScheduledTask model, ScheduledTaskEditScope scope);
 	}
 }

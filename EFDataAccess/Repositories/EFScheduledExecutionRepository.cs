@@ -9,7 +9,6 @@ using Microsoft.Extensions.Logging;
 using MyFinanceBackend.Data;
 using MyFinanceBackend.Services;
 using MyFinanceModel;
-using Newtonsoft.Json;
 
 namespace EFDataAccess.Repositories
 {
@@ -84,10 +83,7 @@ namespace EFDataAccess.Repositories
                 if (definition == null)
                 {
                     var currentDefinitions = await definitions.GetScheduledByTaskIdAsync(task.AutomaticTaskId.ToString());
-                    definition = JsonConvert.SerializeObject(currentDefinitions.Single(), new JsonSerializerSettings
-                    {
-                        ContractResolver = new Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver()
-                    });
+                    definition = ScheduledTaskDefinitionCodec.Write(currentDefinitions.Single());
                 }
                 await execute(new ScheduledExecutionWork(task.AutomaticTaskId, task.UserId, request.ActorId,
                     occurrence?.PostingDate ?? request.ManualPostingDate.Value, definition, occurrence?.Id), cancellationToken);

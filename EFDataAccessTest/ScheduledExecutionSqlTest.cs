@@ -20,7 +20,7 @@ namespace EFDataAccessTest
 {
     [Category("LocalSql")]
     [NonParallelizable]
-    public class ScheduledExecutionSqlTest
+    public partial class ScheduledExecutionSqlTest
     {
         private string _connection;
         private readonly Guid _owner = Guid.NewGuid();

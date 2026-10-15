@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using MyFinanceBackend.Services;
+using MyFinanceBackend.Services.AuthServices;
 using MyFinanceModel.ClientViewModel;
 using MyFinanceModel.ViewModel;
 using MyFinanceModel;
@@ -16,10 +17,13 @@ namespace MyFinanceWebApiCore.Controllers
 	public class ScheduledTasksController : BaseApiController
 	{
 		private readonly IScheduledTasksService _scheduledTasksService;
+		private readonly IScheduledTaskAuthorizationService _authorizationService;
 
-		public ScheduledTasksController(IScheduledTasksService scheduledTasksService)
+		public ScheduledTasksController(IScheduledTasksService scheduledTasksService,
+			IScheduledTaskAuthorizationService authorizationService)
 		{
 			_scheduledTasksService = scheduledTasksService;
+			_authorizationService = authorizationService;
 		}
 
 		[Route("basic")]
@@ -73,21 +77,15 @@ namespace MyFinanceWebApiCore.Controllers
 		[Route("{taskId}")]
 		public async Task EditScheduledTaskAsync(string taskId, ClientEditScheduledTask model)
 		{
-			ArgumentNullException.ThrowIfNull(model);
 			var userId = GetUserId();
-			await EnsureTaskBelongsToUserAsync(taskId, userId);
-			model.TaskId = taskId;
-			await _scheduledTasksService.EditScheduledTaskAsync(model);
-		}
-
-		private async Task EnsureTaskBelongsToUserAsync(string taskId, string userId)
-		{
-			var userTasks = await _scheduledTasksService.GetScheduledTasksByUserIdAsync(userId);
-			var belongsToUser = userTasks.Any(t => string.Equals(t.Id.ToString(), taskId, StringComparison.OrdinalIgnoreCase));
-			if (!belongsToUser)
-			{
-				throw new UnauthorizedAccessException($"ScheduledTask {taskId} does not belong to the current user");
-			}
+			ArgumentNullException.ThrowIfNull(model);
+			var result = await _authorizationService.AuthorizeEditAsync(userId, taskId,
+				model.ModifyList?.Contains(ClientEditScheduledTask.ScheduledTaskField.SpendTypeId) == true
+					? model.SpendTypeId : null);
+			if (result?.IsAuthorized != true || result.Scope == null)
+				throw new ServiceException("Scheduled-task edit access is denied.", System.Net.HttpStatusCode.Forbidden);
+			model.TaskId = result.Scope.TaskId.ToString();
+			await _scheduledTasksService.EditScheduledTaskAsync(model, result.Scope);
 		}
 
 		[HttpPost]

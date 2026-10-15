@@ -38,7 +38,7 @@ namespace MyFinanceBackend.Services
 
 		Task<IReadOnlyCollection<BaseScheduledTaskVm>> GetScheduledTasksAsync();
 		Task<IReadOnlyCollection<BaseScheduledTaskVm>> GetTodayScheduledTaskAsync();
-		Task EditScheduledTaskAsync(ClientEditScheduledTask model);
+		Task EditScheduledTaskAsync(ClientEditScheduledTask model, ScheduledTaskEditScope scope);
 	}
 
 	public class ScheduledTasksService : IScheduledTasksService
@@ -48,13 +48,17 @@ namespace MyFinanceBackend.Services
 		private readonly ISpendsService _spendsService;
 		private readonly ITransferService _transferService;
 		private readonly ILogger _logger;
+		private readonly IScheduledScheduleRepository _scheduleRepository;
+		private readonly ScheduledExecutionOptions _executionOptions;
 
 		public ScheduledTasksService(
 			IAutomaticTaskRepository automaticTaskRepository,
 			IAccountRepository accountRepository,
 			ISpendsService spendsService,
 			ITransferService transferService,
-			ILogger logger
+			ILogger logger,
+			IScheduledScheduleRepository scheduleRepository = null,
+			ScheduledExecutionOptions executionOptions = null
 		)
 		{
 			_automaticTaskRepository = automaticTaskRepository;
@@ -62,6 +66,8 @@ namespace MyFinanceBackend.Services
 			_spendsService = spendsService;
 			_transferService = transferService;
 			_logger = logger;
+			_scheduleRepository = scheduleRepository;
+			_executionOptions = executionOptions;
 		}
 
 		public async Task<TaskExecutedResult> ExecuteScheduledTaskAsync(
@@ -157,9 +163,17 @@ namespace MyFinanceBackend.Services
 			await _automaticTaskRepository.DeleteByIdAsync(taskId);
 		}
 
-		public async Task EditScheduledTaskAsync(ClientEditScheduledTask model)
+		public async Task EditScheduledTaskAsync(ClientEditScheduledTask model, ScheduledTaskEditScope scope)
 		{
-			await _automaticTaskRepository.EditScheduledTaskAsync(model);
+			ArgumentNullException.ThrowIfNull(model);
+			ArgumentNullException.ThrowIfNull(scope);
+			if (_executionOptions?.HistoryEnabled == true)
+			{
+				await _scheduleRepository.ReviseAsync(scope.TaskId, scope.OwnerId,
+					() => _automaticTaskRepository.EditScheduledTaskAsync(model, scope));
+				return;
+			}
+			await _automaticTaskRepository.EditScheduledTaskAsync(model, scope);
 		}
 
 		private bool IsTaskForToday(BaseScheduledTaskVm baseScheduledTaskVm, DateTime today)

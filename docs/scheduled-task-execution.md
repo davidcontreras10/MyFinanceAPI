@@ -6,7 +6,7 @@
   `DateTime.UtcNow`; it does not exclude successful executions for that date.
 - `ExecuteScheduledTaskAsync` creates a spend or transfer on every request. Execution
   history is recorded afterward; there is no occurrence key or duplicate guard.
-- The task service's transaction calls are commented out. `TransferService` commits
+- The legacy task service has no encompassing transaction. `TransferService` commits
   its financial transaction before the task service writes execution history.
   An execution-history failure can therefore leave committed financial effects.
 - Returned validation failures reach execution history, but thrown exceptions bypass
