@@ -101,6 +101,48 @@ namespace EFDataAccessTest
             });
         }
 
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task CurrentPreferenceRoutesUseAuthenticatedIdentityAndPolicy(bool update, bool allowed)
+        {
+            var actor = Guid.NewGuid().ToString(); var called = false;
+            var authorization = Proxy<IUserAuthorizeService>((_, args) =>
+            {
+                Assert.That(args[0], Is.EqualTo(actor));
+                Assert.That(args.Length, Is.EqualTo(1));
+                return Task.FromResult(allowed);
+            });
+            var operations = Proxy<IUsersService>((method, args) =>
+            {
+                Assert.That(allowed, Is.True);
+                Assert.That(method.Name, Is.EqualTo(update ? nameof(IUsersService.UpdateSchedulingPreferencesAsync) : nameof(IUsersService.GetSchedulingPreferencesAsync)));
+                Assert.That(args[0], Is.EqualTo(actor));
+                if (update) Assert.That(args[1], Is.EqualTo("UTC"));
+                called = true;
+                return Task.FromResult(new ScheduledUserPreferences("UTC"));
+            });
+            var controller = new UsersController(operations, authorization) { ControllerContext = Context(actor) };
+            var result = update
+                ? await controller.UpdateCurrentSchedulingPreferences(new UpdateScheduledUserPreferences { TimeZoneId = "UTC" })
+                : await controller.GetCurrentSchedulingPreferences();
+            Assert.That(called, Is.EqualTo(allowed));
+            if (!allowed) Assert.That(((StatusCodeResult)result.Result).StatusCode, Is.EqualTo(403));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void CurrentPreferenceRoutesRejectMissingIdentity(bool update)
+        {
+            var controller = new UsersController(null, null) { ControllerContext = Context(null) };
+            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            {
+                if (update) await controller.UpdateCurrentSchedulingPreferences(new UpdateScheduledUserPreferences { TimeZoneId = "UTC" });
+                else await controller.GetCurrentSchedulingPreferences();
+            });
+        }
+
         internal static ControllerContext Context(string identity) => new()
         {
             HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity(identity == null

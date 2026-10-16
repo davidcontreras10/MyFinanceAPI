@@ -346,3 +346,18 @@ it is not the execution pause switch. No activation or flag change has been perf
 - EF generated the nullable retirement-column migration from Fluent API without manual edits.
   It has not been applied to a database. Apply it before running/deploying this API build, even with
   both flags disabled, because ordinary task queries now include the column. Production is unchanged.
+
+## Implementation checkpoint: timezone editor
+
+- The Angular Scheduled Tasks screen now loads profile preferences on demand and
+  offers an explicit timezone choice, with confirmation before PUT. The saved
+  preference always wins over device detection; detected device timezone is only
+  an unsaved suggestion. API 404/503 leaves preferences unavailable without
+  changing task execution or writing a client-invented default.
+- Authenticated `GET`/`PUT /api/Users/@current/scheduling-preferences` resolve the
+  owner from the authenticated identity and reuse the existing View/Edit policy.
+  The original administrator/target-user routes remain unchanged. No token
+  decoding or client-supplied owner ID is needed by the editor.
+- This checkpoint does not adopt execution-v2, change Function schedules, enable
+  either flag, apply migrations or activate historical tasks. Execution-choice
+  confirmation, stable manual identities and history UI remain pending.

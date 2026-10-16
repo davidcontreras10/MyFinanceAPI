@@ -27,6 +27,26 @@ namespace MyFinanceWebApiCore.Controllers
 
 		#region Web Methods
 
+		[HttpGet("@current/scheduling-preferences")]
+		public async Task<ActionResult<ScheduledUserPreferences>> GetCurrentSchedulingPreferences()
+		{
+			var userId = GetUserId();
+			if (!await _userAuthorizationService.IsAuthorizedForOwnSchedulingPreferencesAsync(userId))
+				return StatusCode(403);
+			return await _usersService.GetSchedulingPreferencesAsync(userId);
+		}
+
+		[HttpPut("@current/scheduling-preferences")]
+		public async Task<ActionResult<ScheduledUserPreferences>> UpdateCurrentSchedulingPreferences(
+			[FromBody] UpdateScheduledUserPreferences request)
+		{
+			var userId = GetUserId();
+			if (!await _userAuthorizationService.IsAuthorizedForOwnSchedulingPreferencesAsync(userId))
+				return StatusCode(403);
+			if (request == null) return BadRequest();
+			return await _usersService.UpdateSchedulingPreferencesAsync(userId, request.TimeZoneId);
+		}
+
 		[ResourceActionRequired(ApplicationResources.Users, ResourceActionNames.View)]
 		[HttpGet("scheduling-preferences")]
 		public async Task<ActionResult<ScheduledUserPreferences>> GetSchedulingPreferences([FromQuery] string targetUserId)
