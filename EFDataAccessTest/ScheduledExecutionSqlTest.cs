@@ -60,9 +60,12 @@ namespace EFDataAccessTest
         private static AppUser User(Guid id) => new()
             { UserId = id, Username = id.ToString("N"), Name = "Execution test", Password = "not-a-real-password" };
 
-        private MyFinanceContext Context() => new LedgerTestContext(new DbContextOptionsBuilder<MyFinanceContext>().UseSqlServer(_connection).Options);
+        private DbContextOptions<MyFinanceContext> ContextOptions() =>
+            new DbContextOptionsBuilder<MyFinanceContext>().UseSqlServer(_connection).Options;
 
-        private static EFScheduledExecutionRepository Repository(MyFinanceContext context) => new(context,
+        private MyFinanceContext Context() => new LedgerTestContext(ContextOptions());
+
+        private EFScheduledExecutionRepository Repository(MyFinanceContext context) => new(context, ContextOptions(),
             TimeProvider.System, DispatchProxy.Create<IAutomaticTaskRepository, Definitions>(),
             NullLogger<EFScheduledExecutionRepository>.Instance);
 
@@ -98,6 +101,65 @@ namespace EFDataAccessTest
         {
             await using var context = Context();
             return await context.Database.SqlQuery<int>($"SELECT COUNT(*) AS [Value] FROM ScheduledExecutionProbe WHERE Marker={marker}").SingleAsync();
+        }
+
+        [Test]
+        public async Task AttemptHistoryIsOwnerTaskScopedOrderedAndPaged()
+        {
+            var task = await NewTask();
+            var otherTask = await NewTask();
+            var older = DateTime.UtcNow.AddMinutes(-2);
+            var newer = older.AddMinutes(1);
+            await using (var context = Context())
+            {
+                context.AddRange(
+                    new ScheduledTaskExecutionAttempt
+                    {
+                        Id = Guid.NewGuid(), TaskId = task, OwnerId = _owner, ActorId = _owner,
+                        ManualRequestId = Guid.NewGuid(), AttemptNumber = 1, PostingDate = new DateTime(2026, 10, 16),
+                        StartedAtUtc = older, EndedAtUtc = older.AddSeconds(1), Status = ScheduledTaskAttemptStatus.Failed,
+                        FailureStage = "FinancialWork", FailureType = "ServiceException", FailureMessage = "Safe summary"
+                    },
+                    new ScheduledTaskExecutionAttempt
+                    {
+                        Id = Guid.NewGuid(), TaskId = task, OwnerId = _owner, ActorId = _owner,
+                        ManualRequestId = Guid.NewGuid(), AttemptNumber = 1, PostingDate = new DateTime(2026, 10, 17),
+                        StartedAtUtc = newer, EndedAtUtc = newer.AddSeconds(1), Status = ScheduledTaskAttemptStatus.Succeeded
+                    },
+                    new ScheduledTaskExecutionAttempt
+                    {
+                        Id = Guid.NewGuid(), TaskId = otherTask, OwnerId = _owner, ActorId = _owner,
+                        ManualRequestId = Guid.NewGuid(), AttemptNumber = 1, PostingDate = new DateTime(2026, 10, 17),
+                        StartedAtUtc = newer.AddMinutes(1), EndedAtUtc = newer.AddMinutes(1).AddSeconds(1), Status = ScheduledTaskAttemptStatus.Failed
+                    },
+                    new ScheduledTaskExecutionAttempt
+                    {
+                        Id = Guid.NewGuid(), TaskId = task, OwnerId = _other, ActorId = _other,
+                        ManualRequestId = Guid.NewGuid(), AttemptNumber = 1, PostingDate = new DateTime(2026, 10, 17),
+                        StartedAtUtc = newer.AddMinutes(2), EndedAtUtc = newer.AddMinutes(2).AddSeconds(1), Status = ScheduledTaskAttemptStatus.Failed
+                    });
+                await context.SaveChangesAsync();
+            }
+
+            await using (var context = Context())
+            {
+                var page = await Repository(context).GetAttemptHistoryAsync(
+                    new ScheduledTaskAccessScope(_owner, task, ResourceActionNames.View), 0, 1);
+                Assert.That(page.Items, Has.Count.EqualTo(1));
+                Assert.That(page.Items[0].Status, Is.EqualTo(ScheduledExecutionAttemptStatus.Succeeded));
+                Assert.That(page.Items[0].PostingDate, Is.EqualTo(new DateTime(2026, 10, 17)));
+                Assert.That(page.HasMore, Is.True);
+            }
+
+            await using (var context = Context())
+            {
+                var page = await Repository(context).GetAttemptHistoryAsync(
+                    new ScheduledTaskAccessScope(_owner, task, ResourceActionNames.View), 1, 1);
+                Assert.That(page.Items, Has.Count.EqualTo(1));
+                Assert.That(page.Items[0].Status, Is.EqualTo(ScheduledExecutionAttemptStatus.Failed));
+                Assert.That(page.Items[0].FailureMessage, Is.EqualTo("Safe summary"));
+                Assert.That(page.HasMore, Is.False);
+            }
         }
 
         [Test]
@@ -184,6 +246,131 @@ namespace EFDataAccessTest
         }
 
         [Test]
+        public async Task FailedAttemptIsDurableAndRetryGetsANewAttemptNumber()
+        {
+            var task = await NewTask();
+            var request = new ScheduledExecutionRequest(task, _owner, null, Guid.NewGuid(), new DateTime(2026, 1, 14));
+            await using (var context = Context())
+            {
+                Assert.ThrowsAsync<ServiceException>(() => Repository(context).ExecuteAsync(request,
+                    (_, _) => throw new ServiceException("The task definition is invalid.", HttpStatusCode.Conflict)));
+            }
+
+            await using (var context = Context())
+            {
+                var failed = await context.Set<ScheduledTaskExecutionAttempt>()
+                    .SingleAsync(x => x.TaskId == task && x.ManualRequestId == request.ManualRequestId);
+                Assert.That(failed.Status, Is.EqualTo(ScheduledTaskAttemptStatus.Failed));
+                Assert.That(failed.AttemptNumber, Is.EqualTo(1));
+                Assert.That(failed.FailureStage, Is.EqualTo("FinancialWork"));
+                Assert.That(failed.FailureType, Is.EqualTo(nameof(ServiceException)));
+                Assert.That(failed.FailureMessage, Is.EqualTo("The task definition is invalid."));
+                Assert.That(failed.EndedAtUtc, Is.Not.Null);
+            }
+
+            await using (var context = Context())
+            {
+                await Repository(context).ExecuteAsync(request, (_, _) => Task.CompletedTask);
+                var attempts = await context.Set<ScheduledTaskExecutionAttempt>()
+                    .Where(x => x.TaskId == task && x.ManualRequestId == request.ManualRequestId)
+                    .OrderBy(x => x.AttemptNumber).ToListAsync();
+                Assert.That(attempts.Select(x => x.Status), Is.EqualTo(new[]
+                    { ScheduledTaskAttemptStatus.Failed, ScheduledTaskAttemptStatus.Succeeded }));
+                Assert.That(attempts.Select(x => x.AttemptNumber), Is.EqualTo(new[] { 1, 2 }));
+            }
+        }
+
+        [Test]
+        public async Task RetryMarksPriorUnfinishedAttemptAsInterrupted()
+        {
+            var task = await NewTask();
+            var request = new ScheduledExecutionRequest(task, _owner, null, Guid.NewGuid(), new DateTime(2026, 1, 14));
+            var abandonedAttemptId = Guid.NewGuid();
+            await using (var context = Context())
+            {
+                context.Add(new ScheduledTaskExecutionAttempt
+                {
+                    Id = abandonedAttemptId,
+                    TaskId = task,
+                    OwnerId = _owner,
+                    ActorId = _owner,
+                    ManualRequestId = request.ManualRequestId,
+                    AttemptNumber = 1,
+                    PostingDate = request.ManualPostingDate.Value,
+                    StartedAtUtc = new DateTime(2026, 1, 14, 12, 0, 0, DateTimeKind.Utc),
+                    Status = ScheduledTaskAttemptStatus.InProgress
+                });
+                await context.SaveChangesAsync();
+            }
+
+            await using (var context = Context())
+                await Repository(context).ExecuteAsync(request, (_, _) => Task.CompletedTask);
+
+            await using (var context = Context())
+            {
+                var attempts = await context.Set<ScheduledTaskExecutionAttempt>()
+                    .Where(x => x.TaskId == task && x.ManualRequestId == request.ManualRequestId)
+                    .OrderBy(x => x.AttemptNumber).ToListAsync();
+                Assert.That(attempts.Select(x => x.Id), Does.Contain(abandonedAttemptId));
+                Assert.That(attempts.Select(x => x.Status), Is.EqualTo(new[]
+                    { ScheduledTaskAttemptStatus.Interrupted, ScheduledTaskAttemptStatus.Succeeded }));
+                Assert.That(attempts[0].FailureType, Is.EqualTo("ProcessInterrupted"));
+                Assert.That(attempts.All(x => x.EndedAtUtc.HasValue), Is.True);
+            }
+        }
+
+        [Test]
+        public async Task ExistingCompletionReconcilesAnUnfinishedAttemptWithoutReexecuting()
+        {
+            var task = await NewTask();
+            var request = new ScheduledExecutionRequest(task, _owner, null, Guid.NewGuid(), new DateTime(2026, 1, 14));
+            var completedAt = new DateTime(2026, 1, 14, 13, 0, 0, DateTimeKind.Utc);
+            var completionId = Guid.NewGuid();
+            await using (var context = Context())
+            {
+                context.AddRange(
+                    new ScheduledTaskCompletion
+                    {
+                        Id = completionId,
+                        TaskId = task,
+                        ActorId = _owner,
+                        ManualRequestId = request.ManualRequestId,
+                        PostingDate = request.ManualPostingDate.Value,
+                        CompletedAtUtc = completedAt
+                    },
+                    new ScheduledTaskExecutionAttempt
+                    {
+                        Id = Guid.NewGuid(),
+                        TaskId = task,
+                        OwnerId = _owner,
+                        ActorId = _owner,
+                        ManualRequestId = request.ManualRequestId,
+                        AttemptNumber = 1,
+                        PostingDate = request.ManualPostingDate.Value,
+                        StartedAtUtc = completedAt.AddMinutes(-1),
+                        Status = ScheduledTaskAttemptStatus.InProgress
+                    });
+                await context.SaveChangesAsync();
+            }
+
+            await using (var context = Context())
+            {
+                var result = await Repository(context).ExecuteAsync(request,
+                    (_, _) => throw new AssertionException("Committed work was executed again"));
+                Assert.That(result.ExecutionId, Is.EqualTo(completionId));
+                Assert.That(result.AlreadyCompleted, Is.True);
+            }
+
+            await using (var context = Context())
+            {
+                var attempt = await context.Set<ScheduledTaskExecutionAttempt>()
+                    .SingleAsync(x => x.TaskId == task && x.ManualRequestId == request.ManualRequestId);
+                Assert.That(attempt.Status, Is.EqualTo(ScheduledTaskAttemptStatus.Succeeded));
+                Assert.That(attempt.EndedAtUtc, Is.EqualTo(completedAt));
+            }
+        }
+
+        [Test]
         public async Task CompletionWriteFailureRollsBackPreviouslyWrittenEffects()
         {
             var task = await NewTask();
@@ -193,8 +380,24 @@ namespace EFDataAccessTest
                 Assert.ThrowsAsync<InvalidOperationException>(() => Repository(context).ExecuteAsync(request, (_, _) => Probe(context, marker)));
             Assert.That(await ProbeCount(marker), Is.Zero);
             await using (var context = Context())
+            {
+                var failed = await context.Set<ScheduledTaskExecutionAttempt>()
+                    .SingleAsync(x => x.TaskId == task && x.ManualRequestId == request.ManualRequestId);
+                Assert.That(failed.Status, Is.EqualTo(ScheduledTaskAttemptStatus.Failed));
+                Assert.That(failed.FailureStage, Is.EqualTo("PersistCompletion"));
+                Assert.That(await context.Set<ScheduledTaskCompletion>().AnyAsync(x => x.ManualRequestId == request.ManualRequestId), Is.False);
+            }
+            await using (var context = Context())
                 await Repository(context).ExecuteAsync(request, (_, _) => Probe(context, marker));
             Assert.That(await ProbeCount(marker), Is.EqualTo(1));
+            await using (var context = Context())
+            {
+                var attempts = await context.Set<ScheduledTaskExecutionAttempt>()
+                    .Where(x => x.TaskId == task && x.ManualRequestId == request.ManualRequestId)
+                    .OrderBy(x => x.AttemptNumber).ToListAsync();
+                Assert.That(attempts.Select(x => x.Status), Is.EqualTo(new[]
+                    { ScheduledTaskAttemptStatus.Failed, ScheduledTaskAttemptStatus.Succeeded }));
+            }
         }
 
         [Test]

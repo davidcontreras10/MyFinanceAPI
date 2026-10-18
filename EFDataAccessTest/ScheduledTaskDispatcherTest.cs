@@ -163,6 +163,9 @@ namespace EFDataAccessTest
             public Func<ScheduledExecutionRequest, ScheduledExecutionResult> Execute { get; init; } =
                 _ => new ScheduledExecutionResult(Guid.NewGuid(), false);
 
+            public Task<ScheduledExecutionAttemptHistoryPage> GetAttemptHistoryAsync(ScheduledTaskAccessScope scope,
+                int skip, int limit, CancellationToken cancellationToken = default) => throw new NotImplementedException();
+
             public Task<ScheduledExecutionResult> ExecuteAsync(ScheduledExecutionRequest request,
                 ScheduledTaskExecutionScope scope, CancellationToken cancellationToken = default)
             {

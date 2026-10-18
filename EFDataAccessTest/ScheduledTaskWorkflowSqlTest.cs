@@ -19,8 +19,9 @@ namespace EFDataAccessTest
 {
     public partial class ScheduledExecutionSqlTest
     {
-        private static EFScheduledExecutionRepository WorkflowExecution(MyFinanceContext context, TimeProvider clock) =>
-            new(context, clock, DispatchProxy.Create<IAutomaticTaskRepository, Definitions>(), NullLogger<EFScheduledExecutionRepository>.Instance);
+        private EFScheduledExecutionRepository WorkflowExecution(MyFinanceContext context, TimeProvider clock) =>
+            new(context, ContextOptions(), clock, DispatchProxy.Create<IAutomaticTaskRepository, Definitions>(),
+                NullLogger<EFScheduledExecutionRepository>.Instance);
         private ScheduledTaskAccessScope View(Guid task) => new(_owner, task, ResourceActionNames.View);
         private ScheduledTaskAccessScope Delete(Guid task) => new(_owner, task, ResourceActionNames.Delete);
         private async Task<Guid> WorkflowTask(ScheduleClock clock, int activationDay = 19)

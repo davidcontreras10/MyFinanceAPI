@@ -6,11 +6,21 @@ Both execution routes, history and retirement now use dedicated domain authoriza
 scopes. Manual extras are owner-only; cross-user occurrence dispatch requires a persisted administrator.
 Legacy financial/history writes now share a transaction, returned failures roll back, and the legacy
 execution route is rejected when history maintenance is enabled because it lacks retry identities.
-Weekly Sunday parsing is fixed. V2 identity/transaction guards, execution context and bounded history
-are implemented; deletion retires tasks and cancels incomplete work without deleting history.
-Execution and retirement share owner-first locks, preserving already committed receipts and rejecting
-new work after retirement. The UI and hourly Function have not yet adopted the contracts, and full
-financial integration coverage and a durable failed/interrupted-attempt log remain pending.
+Weekly Sunday parsing is fixed. V2 identity/transaction guards, execution context, bounded history,
+manual execution-choice UI and hourly Function dispatch are implemented; deletion retires tasks and
+cancels incomplete work without deleting history. Execution and retirement share owner-first locks,
+preserving committed receipts and rejecting new work after retirement. Failed/interrupted attempts are
+now persisted separately from financial transactions; the owner-facing attempt-history API is
+implemented, while its UI and full financial integration coverage remain pending.
+
+## Durable attempt records
+
+`ScheduledTaskExecutionAttempt` persists a numbered start before financial work. The success status is
+committed atomically with the completion receipt and financial effects. On rollback, the attempt is
+marked failed in a separate context; if a later retry finds an unfinished attempt, it is marked
+interrupted. Stored failure details are stage/type plus a bounded summary that avoids raw database
+exception messages. The generated migration was applied to the local database on 2026-10-17;
+production migration application remains pending.
 
 ## Original behavior (historical)
 

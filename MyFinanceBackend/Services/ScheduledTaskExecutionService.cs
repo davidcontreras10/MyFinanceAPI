@@ -16,6 +16,9 @@ namespace MyFinanceBackend.Services
 
     public interface IScheduledTaskExecutionService
     {
+        Task<ScheduledExecutionAttemptHistoryPage> GetAttemptHistoryAsync(ScheduledTaskAccessScope scope,
+            int skip, int limit, CancellationToken cancellationToken = default);
+
         Task<ScheduledExecutionResult> ExecuteAsync(ScheduledExecutionRequest request, ScheduledTaskExecutionScope scope,
             CancellationToken cancellationToken = default);
     }
@@ -24,6 +27,17 @@ namespace MyFinanceBackend.Services
         IScheduledTasksService financialExecutor, IAccountAccessRepository accountAccess,
         ScheduledExecutionOptions options) : IScheduledTaskExecutionService
     {
+        public Task<ScheduledExecutionAttemptHistoryPage> GetAttemptHistoryAsync(ScheduledTaskAccessScope scope,
+            int skip, int limit, CancellationToken cancellationToken = default)
+        {
+            if (!options.HistoryEnabled)
+                throw new ServiceException("Scheduled execution history is not enabled.", HttpStatusCode.ServiceUnavailable);
+            ArgumentNullException.ThrowIfNull(scope);
+            if (scope.Action != ResourceActionNames.View)
+                throw new ServiceException("The approved scope does not permit viewing execution history.", HttpStatusCode.Forbidden);
+            return repository.GetAttemptHistoryAsync(scope, skip, limit, cancellationToken);
+        }
+
         public Task<ScheduledExecutionResult> ExecuteAsync(ScheduledExecutionRequest request, ScheduledTaskExecutionScope scope,
             CancellationToken cancellationToken = default)
         {

@@ -51,6 +51,54 @@ namespace EFDataAccessTest
             Assert.That(error.StatusCode, Is.EqualTo(HttpStatusCode.ServiceUnavailable));
         }
 
+        [Test]
+        public void AttemptHistoryRequiresHistoryFeatureFlagBeforeRepositoryAccess()
+        {
+            var service = new ScheduledTaskExecutionService(null, null, null,
+                new ScheduledExecutionOptions { HistoryEnabled = false });
+            var scope = new ScheduledTaskAccessScope(Owner, TaskId, ResourceActionNames.View);
+            var error = Assert.ThrowsAsync<ServiceException>(() => service.GetAttemptHistoryAsync(scope, 0, 50));
+            Assert.That(error.StatusCode, Is.EqualTo(HttpStatusCode.ServiceUnavailable));
+        }
+
+        [Test]
+        public async Task AttemptHistoryControllerUsesAuthenticatedOwnerViewScope()
+        {
+            var scope = new ScheduledTaskAccessScope(Actor, TaskId, ResourceActionNames.View);
+            var expected = new ScheduledExecutionAttemptHistoryPage(Array.Empty<ScheduledExecutionAttemptHistoryEntry>(), 0, 25, false);
+            var service = Proxy<IScheduledTaskExecutionService>((method, args) =>
+            {
+                Assert.That(method.Name, Is.EqualTo(nameof(IScheduledTaskExecutionService.GetAttemptHistoryAsync)));
+                Assert.That(args[0], Is.SameAs(scope));
+                Assert.That(args[1], Is.EqualTo(2));
+                Assert.That(args[2], Is.EqualTo(25));
+                return Task.FromResult(expected);
+            });
+            var authorization = Proxy<IScheduledTaskAuthorizationService>((method, args) =>
+            {
+                Assert.That(method.Name, Is.EqualTo(nameof(IScheduledTaskAuthorizationService.AuthorizeAccessAsync)));
+                Assert.That(args[0], Is.EqualTo(Actor.ToString()));
+                Assert.That(args[1], Is.EqualTo(TaskId.ToString()));
+                Assert.That(args[2], Is.EqualTo(ResourceActionNames.View));
+                return Task.FromResult(new ScheduledTaskAccessAuthorizationResult(scope));
+            });
+            var controller = new ScheduledExecutionController(service, authorization)
+            {
+                ControllerContext = new ControllerContext
+                {
+                    HttpContext = new DefaultHttpContext
+                    {
+                        User = new ClaimsPrincipal(new ClaimsIdentity(new[]
+                            { new Claim(ClaimTypes.NameIdentifier, Actor.ToString()) }, "test"))
+                    }
+                }
+            };
+
+            var result = await controller.GetAttemptHistoryAsync(TaskId, 2, 25, CancellationToken.None);
+
+            Assert.That(result, Is.SameAs(expected));
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public async Task FinancialExecutionUsesSnapshotOwnerActorDateAndOrigin(bool occurrence)

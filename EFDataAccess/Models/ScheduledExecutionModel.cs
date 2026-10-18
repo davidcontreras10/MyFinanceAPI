@@ -5,6 +5,9 @@ namespace EFDataAccess.Models
     public static class ScheduledExecutionModel
     {
         private const int MaximumTimeZoneIdLength = 128;
+        private const int MaximumAttemptFailureStageLength = 64;
+        private const int MaximumAttemptFailureTypeLength = 200;
+        private const int MaximumAttemptFailureMessageLength = 1000;
 
         public static void Configure(ModelBuilder modelBuilder)
         {
@@ -55,6 +58,33 @@ namespace EFDataAccess.Models
                 entity.HasIndex(x => new { x.ActorId, x.ManualRequestId }).IsUnique().HasFilter("[ManualRequestId] IS NOT NULL");
                 entity.HasOne<ScheduledTaskOccurrence>().WithMany().HasForeignKey(x => x.OccurrenceId).OnDelete(DeleteBehavior.NoAction);
                 entity.HasOne<AutomaticTask>().WithMany().HasForeignKey(x => x.TaskId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne<AppUser>().WithMany().HasForeignKey(x => x.ActorId).OnDelete(DeleteBehavior.NoAction);
+            });
+            modelBuilder.Entity<ScheduledTaskExecutionAttempt>(entity =>
+            {
+                entity.ToTable("ScheduledTaskExecutionAttempt", table =>
+                {
+                    table.HasCheckConstraint("CK_ScheduledTaskExecutionAttempt_Identity",
+                        "([OccurrenceId] IS NOT NULL AND [ManualRequestId] IS NULL) OR ([OccurrenceId] IS NULL AND [ManualRequestId] IS NOT NULL)");
+                    table.HasCheckConstraint("CK_ScheduledTaskExecutionAttempt_Number", "[AttemptNumber] > 0");
+                    table.HasCheckConstraint("CK_ScheduledTaskExecutionAttempt_Status",
+                        "([Status] = 1 AND [EndedAtUtc] IS NULL) OR ([Status] IN (2, 3, 4) AND [EndedAtUtc] IS NOT NULL)");
+                });
+                entity.HasKey(x => x.Id);
+                entity.HasIndex(x => new { x.OccurrenceId, x.AttemptNumber }).IsUnique()
+                    .HasFilter("[OccurrenceId] IS NOT NULL");
+                entity.HasIndex(x => new { x.ActorId, x.ManualRequestId, x.AttemptNumber }).IsUnique()
+                    .HasFilter("[ManualRequestId] IS NOT NULL");
+                entity.HasIndex(x => new { x.TaskId, x.StartedAtUtc });
+                entity.Property(x => x.PostingDate).HasColumnType("date");
+                entity.Property(x => x.StartedAtUtc).HasColumnType("datetime2");
+                entity.Property(x => x.EndedAtUtc).HasColumnType("datetime2");
+                entity.Property(x => x.FailureStage).HasMaxLength(MaximumAttemptFailureStageLength);
+                entity.Property(x => x.FailureType).HasMaxLength(MaximumAttemptFailureTypeLength);
+                entity.Property(x => x.FailureMessage).HasMaxLength(MaximumAttemptFailureMessageLength);
+                entity.HasOne<ScheduledTaskOccurrence>().WithMany().HasForeignKey(x => x.OccurrenceId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne<AutomaticTask>().WithMany().HasForeignKey(x => x.TaskId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne<AppUser>().WithMany().HasForeignKey(x => x.OwnerId).OnDelete(DeleteBehavior.NoAction);
                 entity.HasOne<AppUser>().WithMany().HasForeignKey(x => x.ActorId).OnDelete(DeleteBehavior.NoAction);
             });
         }

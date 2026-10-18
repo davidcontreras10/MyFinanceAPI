@@ -3,7 +3,7 @@
 Status: specification, execution ledger, bounded occurrence discovery, versioned
 schedule history, profile timezones, new-task registration and backend execution workflows implemented.
 The v2 execution path remains disabled.
-Ledger/history, timezone and retirement migrations are generated; production migration application remains pending.
+Ledger/history, timezone, retirement and execution-attempt migrations are generated; production migration application remains pending.
 The frontend contains the manual-run choice flow and falls back while history is disabled.
 The Function retains its legacy daily path; the new hourly dispatcher remains opt-in.
 See [the source audit](scheduled-task-execution.md) for current gaps.
@@ -231,9 +231,9 @@ specification step. Review each delivery checkpoint before proceeding to the nex
   transaction. Transfers now use the unit-of-work transaction helper, joining an
   outer transaction or owning/disposal-managing one when called independently.
 - Exceptions roll back and leave the identity retryable. Best-effort structured
-  warning logs survive rollback; a durable attempt-history UI/table is not yet built.
-- Confirmation UI, hourly Function dispatch, and rollout/history reconciliation
-  remain unimplemented. Discovery/history and preferences/registration are described below.
+  warning logs survive rollback; durable attempt records are described below.
+- Confirmation UI and hourly Function dispatch are implemented in later checkpoints.
+  Rollout/history reconciliation and full financial workflow tests remain pending.
   Existing execution/history/delete routes now use domain authorization and approved scopes. Monthly/weekly
   validation is used by activation/revisions and the validated creation path described below.
 
@@ -330,10 +330,11 @@ it is not the execution pause switch. No activation or flag change has been perf
   occurrence, or a fresh `manualRequestId` plus `postingDate` for a deliberate extra. Retries preserve
   that identity. A stale confirmation returns an existing completion and never becomes an extra run.
   `DefaultAction` is 1 for today's occurrence, 2 for extra, or null when a default is unsafe/unavailable.
-  Occurrence status is 1 pending, 2 completed, 3 canceled. The Angular UI is not yet using this context.
+  Occurrence status is 1 pending, 2 completed, 3 canceled. The Angular UI uses this context in the
+  manual execution-choice checkpoint below.
 - Owner-scoped history lists successful receipts and materialized canceled occurrences with bounded
   pagination. Old `ExecutedTask` history remains available through the owner-authorized legacy route;
-  it is not inferred into v2 completions. A durable failed/interrupted-attempt log remains future work.
+  it is not inferred into v2 completions. Owner-facing failed/interrupted-attempt history remains future work.
 - DELETE stores `AutomaticTask.RetiredAtUtc` instead of physically deleting anything. It cancels all
   incomplete automatic work and hides the task from normal lists/dispatch. Undiscovered canceled dates
   are covered by the task tombstone, not expanded into an unbounded set of artificial history rows.
@@ -378,9 +379,9 @@ it is not the execution pause switch. No activation or flag change has been perf
   existing legacy confirmation and route. A missing context route also supports
   older API versions. Other failures do not fall back, and a context reporting
   v2 disabled never invokes legacy execution.
-- The existing execution-history panel still reads legacy records. Durable
-  failure/attempt history and full financial transaction tests remain required
-  before enabling either feature flag.
+- The existing execution-history panel still reads legacy records. A separate
+  owner-facing attempt-history API/UI is implemented; full financial transaction
+  tests remain required before enabling either feature flag.
 
 ## Implementation checkpoint: hourly dispatcher
 
@@ -397,3 +398,23 @@ it is not the execution pause switch. No activation or flag change has been perf
   All remain off by default; the existing daily Function is unchanged and must
   be stopped before any coordinated production activation.
 - No migration was applied, no flag was enabled and nothing was deployed.
+
+## Implementation checkpoint: durable execution attempts
+
+- `ScheduledTaskExecutionAttempt` stores a numbered attempt for each occurrence or
+  manual request identity, including owner, actor, posting date, UTC start/end,
+  outcome, failure stage/type and a bounded safe failure summary.
+- A start row commits before financial work. On success, the attempt's succeeded
+  state and execution completion commit in the same financial transaction. On
+  failure, financial work rolls back and the attempt is marked failed separately.
+  If a later retry finds an unfinished attempt, it records it as interrupted first.
+- A completion remains authoritative after an ambiguous response. The repository
+  checks the persisted identity before recording failure; diagnostic-write errors
+  never turn a committed financial result into a reported execution failure.
+- SQL tests cover durable callback and completion-write failures, safe retry with
+  incremented attempt numbers, and recovery of an unfinished attempt. Full spend/
+  transfer integration coverage remains outstanding.
+- EF generated `20261018033003_ScheduledTaskExecutionAttempts` from Fluent API and
+  it was applied to the local database on 2026-10-17. Production migration application
+  remains pending. The owner-facing attempt-history API/UI is implemented, with
+  focused UI coverage for loading, pagination and the feature-disabled response.
