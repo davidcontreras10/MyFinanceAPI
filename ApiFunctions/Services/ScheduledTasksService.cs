@@ -15,6 +15,7 @@ namespace ApiFunctions.Services
 	public interface IScheduledTasksService
 	{
 		Task ExecuteAllTasksAsync();
+		Task<ScheduledTaskDispatchResult> DispatchDueTasksV2Async();
 	}
 
 	public class ScheduledTasksService : IScheduledTasksService
@@ -42,6 +43,21 @@ namespace ApiFunctions.Services
 			var tasks = await GetTodaysScheduledTasksAsync(tokenResponse.AccessToken);
 			var taskIds = tasks.Select(t => t.Id.ToString()).ToList();
 			await ExecuteTasksAsync(taskIds, tokenResponse.AccessToken);
+		}
+
+		public async Task<ScheduledTaskDispatchResult> DispatchDueTasksV2Async()
+		{
+			var apiCredentials = new ApiCredentials
+			{
+				Password = _envSettings.AzureAppPw,
+				Username = _envSettings.AzureAppUser
+			};
+
+			var tokenResponse = await GetTokenAsync(apiCredentials);
+			var request = new HttpRequestMessage(HttpMethod.Post,
+				$"{_envSettings.BaseAPIUrl}api/ScheduledTasks/dispatch-v2");
+			request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenResponse.AccessToken);
+			return await CallServiceAsync<ScheduledTaskDispatchResult>(request);
 		}
 
 		private async Task ExecuteTasksAsync(IReadOnlyCollection<string> taskIds, string token)

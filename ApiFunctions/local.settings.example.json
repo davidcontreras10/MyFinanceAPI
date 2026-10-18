@@ -5,6 +5,7 @@
     "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
     "AzureWebJobs.DailyRefresh.Disabled": "true",
     "AzureWebJobs.ScheduledTasks.Disabled": "true",
+    "scheduledTasksV2Enabled": "false",
     "DefaultMYFNDB": "",
     "webApiBaseApi": "",
     "webApiCoreBaseApi": "",

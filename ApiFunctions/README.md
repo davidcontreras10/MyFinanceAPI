@@ -7,10 +7,16 @@ from `davidcontreras10/MyFinance` commit `f40a1cc`; runtime behavior is unchange
 Open `ApiFunctions/ApiFunctions.sln` in Visual Studio. It is intentionally separate from the
 API solution, with no API project references.
 
-The two timer jobs retain their existing schedules and behavior:
+The legacy timer jobs retain their existing schedules and behavior:
 
 - `DailyRefresh`: `0 1 6 * * *`, runs `SpUpdateCurrentPeriods` for all users.
 - `ScheduledTasks`: `0 10 6 * * *`, authenticates with the API and executes today's tasks.
+
+`ScheduledTasksV2` is an additive hourly dispatcher (`0 0 * * * *`). It is a no-op unless
+`scheduledTasksV2Enabled=true`. The API must also have `ScheduledTasks:HistoryEnabled`,
+`ScheduledTasks:ExecutionV2Enabled`, and `ScheduledTasks:DispatcherEnabled` enabled. Before
+activating v2 in production, disable the legacy `ScheduledTasks` timer to avoid overlapping
+execution paths. All v2 flags remain off by default; the legacy timer is unchanged.
 
 Schedules default to UTC unless the Azure app has `WEBSITE_TIME_ZONE` configured.
 Preserve that setting during migration.
