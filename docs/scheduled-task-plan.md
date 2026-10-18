@@ -135,9 +135,10 @@ commit and rollback: mocks or EF's in-memory provider cannot prove these guarant
 No test may invoke production financial jobs or require paid external calls.
 
 The rule, execution-service/controller and LocalDB ledger tests now implement a
-subset of this matrix. LocalDB financial writes are transactional probe rows, not
-full spend/transfer workflows; complete financial and UI end-to-end coverage remains
-a later requirement. See the implementation checkpoint below.
+subset of this matrix. Disposable LocalDB tests use transactional probe rows. A
+separate local-copy fixture covers real manual spend/transfer posting, late-failure
+rollback, and same-request recovery. Automatic financial execution and UI end-to-end
+coverage remain later requirements. See the implementation checkpoints below.
 
 | ID | Scenario | Required outcome | Layer |
 | --- | --- | --- | --- |
@@ -412,9 +413,38 @@ it is not the execution pause switch. No activation or flag change has been perf
   checks the persisted identity before recording failure; diagnostic-write errors
   never turn a committed financial result into a reported execution failure.
 - SQL tests cover durable callback and completion-write failures, safe retry with
-  incremented attempt numbers, and recovery of an unfinished attempt. Full spend/
-  transfer integration coverage remains outstanding.
+  incremented attempt numbers, and recovery of an unfinished attempt. The financial
+  workflow checkpoint below adds real manual spend/transfer rollback and recovery.
 - EF generated `20261018033003_ScheduledTaskExecutionAttempts` from Fluent API and
   it was applied to the local database on 2026-10-17. Production migration application
   remains pending. The owner-facing attempt-history API/UI is implemented, with
   focused UI coverage for loading, pagination and the feature-disabled response.
+
+## Implementation checkpoint: financial workflow integration
+
+- An opt-in SQL integration fixture exercises the real manual scheduled-task service
+  path for both a basic spend and a two-leg transfer against the explicitly
+  approved local database copy. It uses a deterministic 1:1 exchange stub and
+  existing account/category references; it does not call the Function dispatcher,
+  production jobs, or an external currency service.
+- Each workflow is retried with the same manual request ID. The test verifies one
+  completion and legacy history row, one successful attempt, a single basic spend
+  or exactly two transfer legs with their `AppTransfer` link, and an idempotent
+  retry response. Unique test rows are removed in `finally`, with cleanup checks.
+- Four late-failure cases cover basic spends and transfers when saving legacy
+  execution history or the completion receipt fails. Each observes saved financial
+  rows inside the transaction before injecting failure, then verifies rollback of
+  spends, period entries, transfer linkage and legacy history. The failed attempt
+  survives separately; retrying the same request succeeds as attempt 2, and replaying
+  that success creates no further financial rows or attempts.
+- Set `MYFINANCE_SCHEDULED_WORKFLOW_TEST_CONNECTION` to the approved LocalDB copy's
+  connection string in the process environment, then run
+  `dotnet test EFDataAccessTest/EFDataAccessTest.csproj --filter FullyQualifiedName~ScheduledFinancialWorkflowSqlTest`.
+  The fixture checks the approved database name before use and verifies cleanup
+  of its uniquely tagged records after every case.
+- All five guarded workflow cases passed against the local copy. The complete
+  `EFDataAccessTest` project passed (362 passed; 65 SQL integration tests skipped
+  with their opt-in variables unset). No production migration,
+  feature flag, or dispatcher activation was performed.
+- Currency conversion math, automatic dispatch, and posting-period creation are
+  not covered by this checkpoint; those remain separate verification concerns.
