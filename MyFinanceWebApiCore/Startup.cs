@@ -210,6 +210,11 @@ namespace MyFinanceWebApiCore
 			services.AddScoped<IScheduledScheduleRepository, EFScheduledScheduleRepository>();
 			services.AddScoped<IScheduledUserPreferencesRepository, EFScheduledScheduleRepository>();
 			services.AddScoped<IScheduledTaskExecutionService, ScheduledTaskExecutionService>();
+			services.AddSingleton(new ScheduledTaskDispatchOptions
+			{
+				Enabled = Configuration.GetValue<bool>("ScheduledTasks:DispatcherEnabled")
+			});
+			services.AddScoped<IScheduledTaskDispatcher, ScheduledTaskDispatcher>();
 			services.AddScoped<IAccountFinanceService, AccountFinanceService>();
 			services.AddScoped<ILoanService, LoanService>();
 			services.AddScoped<IDebtRequestRepository, EFDebtRequestRepository>();

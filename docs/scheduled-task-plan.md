@@ -4,7 +4,8 @@ Status: specification, execution ledger, bounded occurrence discovery, versioned
 schedule history, profile timezones, new-task registration and backend execution workflows implemented.
 The v2 execution path remains disabled.
 Ledger/history, timezone and retirement migrations are generated; production migration application remains pending.
-The current frontend and Function still use the old execution path/schedules.
+The frontend contains the manual-run choice flow and falls back while history is disabled.
+The Function retains its legacy daily path; the new hourly dispatcher remains opt-in.
 See [the source audit](scheduled-task-execution.md) for current gaps.
 
 ## Agreed product rules
@@ -355,9 +356,44 @@ it is not the execution pause switch. No activation or flag change has been perf
   an unsaved suggestion. API 404/503 leaves preferences unavailable without
   changing task execution or writing a client-invented default.
 - Authenticated `GET`/`PUT /api/Users/@current/scheduling-preferences` resolve the
-  owner from the authenticated identity and reuse the existing View/Edit policy.
-  The original administrator/target-user routes remain unchanged. No token
-  decoding or client-supplied owner ID is needed by the editor.
+  owner from the authenticated identity and authorize only that user's own
+  preference through the self-preference policy. The original administrator/
+  target-user routes retain their existing View/Edit policy. No token decoding
+  or client-supplied owner ID is needed by the editor.
 - This checkpoint does not adopt execution-v2, change Function schedules, enable
   either flag, apply migrations or activate historical tasks. Execution-choice
-  confirmation, stable manual identities and history UI remain pending.
+  confirmation and stable manual identities are covered by the later UI checkpoint.
+
+## Implementation checkpoint: manual execution choice UI
+
+- The Scheduled Tasks Run now action reads the owner-authorized execution context.
+  When today's occurrence is pending, the dialog defaults to that occurrence and
+  lets the user choose an independent extra run. It warns when extra work leaves
+  an automatic occurrence pending.
+- Confirmed v2 requests persist their occurrence or manual request identity and
+  posting date in browser storage before submission. Failures retain the same
+  identity for retry; success clears it. Repeated clicks are guarded while the
+  request is active.
+- When history is off, the explicit history-disabled response preserves the
+  existing legacy confirmation and route. A missing context route also supports
+  older API versions. Other failures do not fall back, and a context reporting
+  v2 disabled never invokes legacy execution.
+- The existing execution-history panel still reads legacy records. Durable
+  failure/attempt history and full financial transaction tests remain required
+  before enabling either feature flag.
+
+## Implementation checkpoint: hourly dispatcher
+
+- `POST /api/ScheduledTasks/dispatch-v2` verifies the caller through persisted
+  administrator checks, scans at most 50 activated schedules, and executes at
+  most 50 due occurrences per request. Each task contributes only its oldest
+  pending occurrence, so a failed older occurrence blocks newer ones for that task.
+- Discovery and execution failures are returned per task while other tasks
+  continue. Failed occurrences stay pending for a later batch; `HasMoreDiscovery`
+  and `HasMoreDueWork` indicate bounded work remains.
+- The additive `ScheduledTasksV2` timer runs hourly but is a no-op unless
+  `scheduledTasksV2Enabled` is explicitly true. The API also requires
+  `ScheduledTasks:HistoryEnabled`, `ExecutionV2Enabled` and `DispatcherEnabled`.
+  All remain off by default; the existing daily Function is unchanged and must
+  be stopped before any coordinated production activation.
+- No migration was applied, no flag was enabled and nothing was deployed.
