@@ -11,7 +11,11 @@ manual execution-choice UI and hourly Function dispatch are implemented; deletio
 cancels incomplete work without deleting history. Execution and retirement share owner-first locks,
 preserving committed receipts and rejecting new work after retirement. Failed/interrupted attempts are
 now persisted separately from financial transactions; the owner-facing attempt-history API is
-implemented, while its UI and full financial integration coverage remain pending.
+implemented together with its UI. Local-copy financial tests cover manual and
+automatic spend/transfer posting, rollback, catch-up and retry recovery. Packaging
+guards and a preview-first activation command are implemented; local UI/Function
+end-to-end validation and the reviewed cutover remain pending. See the
+[activation runbook](scheduled-task-rollout.md).
 
 ## Durable attempt records
 

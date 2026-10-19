@@ -9,7 +9,7 @@ using MyFinanceModel.ViewModel;
 
 namespace EFDataAccess.Repositories
 {
-    internal static class ScheduledTaskSnapshots
+    public static class ScheduledTaskSnapshots
     {
         public static BaseScheduledTaskVm Create(AutomaticTask task)
         {

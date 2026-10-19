@@ -6,6 +6,8 @@ The v2 execution path remains disabled.
 Ledger/history, timezone, retirement and execution-attempt migrations are generated; production migration application remains pending.
 The frontend contains the manual-run choice flow and falls back while history is disabled.
 The Function retains its legacy daily path; the new hourly dispatcher remains opt-in.
+Package verification and a preview-first operator activation tool are implemented;
+follow [the cutover runbook](scheduled-task-rollout.md) before enabling any host flags.
 See [the source audit](scheduled-task-execution.md) for current gaps.
 
 ## Agreed product rules
@@ -475,3 +477,41 @@ it is not the execution pause switch. No activation or flag change has been perf
   activation. Currency conversion remains a deterministic 1:1 stub. Hosted timer
   invocation, automatic period creation, and UI end-to-end validation remain
   separate concerns before production rollout.
+
+## Implementation checkpoint: packaging and activation procedure
+
+- The Function verifier now requires all three exact timer schedules in both the
+  publish folder and deployment ZIP. Its isolated regression script runs in the
+  packaging pipeline and rejects missing/duplicate functions and changed schedules.
+- `tools/ScheduledTaskActivation` defaults to read-only preview with explicit task
+  and owner IDs, server/database checks, a persisted administrator, a UTC cutoff,
+  saved profile timezones and definition fingerprints. Apply requires a reviewed
+  preview and approval note. It calls existing repository activation only; it does
+  not migrate, discover, dispatch, post financial entries or change host flags.
+- Activations commit per task and can be resumed with the same reviewed plan.
+  Existing boundaries/cursors are preserved. Snapshot checks do not replace freezing
+  writes during cutover. The linked runbook covers reconciliation, partial progress,
+  legacy shutdown, history enablement and safe pause requirements.
+- The basic manual UI flow is validated below. Function/API end-to-end validation,
+  remaining UI acceptance scenarios and production release approval remain pending.
+- Verification: 11 package-guard checks and the actual Release publish/ZIP passed.
+  All 27 selected activation/financial tests passed against the local test setup;
+  the regular suite passed with 377 tests and 72 opt-in SQL cases skipped. Test
+  activation was limited to temporary local-copy tasks with verified cleanup.
+  No host flags, production data or migrations were changed.
+
+## Manual acceptance checkpoint: local basic spend
+
+- On 2026-10-18, timezone saves required confirmation and survived a page refresh.
+  A temporary local-copy task offered today's pending occurrence by default and
+  an independent extra execution with the expected warning.
+- The extra run succeeded without satisfying today's occurrence. Running today's
+  occurrence then completed it; reopening the dialog offered only an extra run
+  and warned that the scheduled occurrence was already complete. The user verified
+  two separate $1 expenses and two successful history/attempt entries.
+- The manually exercised fixture is retained in the database copy for follow-up;
+  it is separate from the automated fixtures that verify their own cleanup.
+  Automatic dispatch remains disabled. Local role provisioning was explicitly
+  approved; production role/data changes remain a separate release decision.
+- Open display defect: the weekly Sunday test task shows `Frequency not set`.
+  Fix that label and validate Function-to-API dispatch before production activation.

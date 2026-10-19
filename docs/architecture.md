@@ -25,8 +25,8 @@ MyFinanceWebApiCore  (ASP.NET Core host: Controllers, Startup/Program, auth midd
 Scheduled-task reliability work is specified in [scheduled-task-plan.md](scheduled-task-plan.md)
 and audited in [scheduled-task-execution.md](scheduled-task-execution.md). The new
 occurrence/completion ledger has SQL-backed concurrency/rollback tests and a generated
-migration. Its v2 execution route is feature-gated off; the old Function/UI are not
-migrated. Transfers join a caller-owned transaction through `IUnitOfWork.ExecuteInTransactionAsync`
+migration. Its v2 execution route is feature-gated off; the UI and opt-in hourly Function
+path are implemented but await end-to-end rollout validation. Transfers join a caller-owned transaction through `IUnitOfWork.ExecuteInTransactionAsync`
 and own/dispose one for standalone calls. Do not enable v2 before coordinated rollout.
 
 `ScheduledTaskSchedule`/`ScheduledTaskRevision` add explicit activation, 31-day UTC
@@ -48,7 +48,11 @@ Timezone updates append future revisions for all activated tasks atomically with
 discovering an unbounded backlog or activating legacy tasks. Creation saves the task, definition,
 initial revision and creation-time activation boundary together when history is enabled; otherwise
 creation still validates schedule and owned references, without using history tables. Sunday survives
-legacy DTO round-trips. The UI and Function remain on their existing paths.
+legacy DTO round-trips. The UI has v2 confirmation/retry handling with a legacy fallback;
+the additive hourly Function stays disabled until coordinated activation. The offline
+`tools/ScheduledTaskActivation` command previews an explicit allowlist and applies only
+reviewed activation snapshots through the existing repository. It never dispatches or
+changes host flags. See [the activation runbook](scheduled-task-rollout.md).
 
 The timezone column requires its matching EF-generated migration before deploying this build, even
 with history disabled, because existing user entity queries include the column. EF generated
