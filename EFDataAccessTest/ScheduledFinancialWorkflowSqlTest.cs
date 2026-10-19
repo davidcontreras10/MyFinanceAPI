@@ -58,11 +58,11 @@ namespace EFDataAccessTest
                     Assert.Ignore("The local copy has no owner with overlapping account periods, same-currency accounts, and an available category.");
 
                 var execution = CreateExecutionService(context);
-                var spendTask = await CreateManualTaskAsync(context, posting, false, marker + " basic");
+                var spendTask = await CreateFinancialTaskAsync(context, posting, false, marker + " basic");
                 taskIds.Add(spendTask);
                 await AssertSingleSuccessfulExecutionAsync(context, execution, posting, spendTask, marker + " basic", 1);
 
-                var transferTask = await CreateManualTaskAsync(context, posting, true, marker + " transfer");
+                var transferTask = await CreateFinancialTaskAsync(context, posting, true, marker + " transfer");
                 taskIds.Add(transferTask);
                 await AssertSingleSuccessfulExecutionAsync(context, execution, posting, transferTask,
                     marker + " transfer", 2);
@@ -73,7 +73,7 @@ namespace EFDataAccessTest
             }
         }
 
-        private IScheduledTaskExecutionService CreateExecutionService(MyFinanceContext context)
+        private IScheduledTaskExecutionService CreateExecutionService(MyFinanceContext context, TimeProvider clock = null)
         {
             var exchange = DispatchProxy.Create<ITrxExchangeService, IdentityExchange>();
             var accountRepository = new EFAccountRepository(context, NullLogger<EFAccountRepository>.Instance);
@@ -91,13 +91,13 @@ namespace EFDataAccessTest
             var financialExecutor = new ScheduledTasksService(definitions, accountRepository, spends, transfers,
                 Log.Logger, executionOptions: new ScheduledExecutionOptions { HistoryEnabled = false });
             var executionOptions = new ScheduledExecutionOptions { Enabled = true, HistoryEnabled = true };
-            var repository = new EFScheduledExecutionRepository(context, Options(), TimeProvider.System,
+            var repository = new EFScheduledExecutionRepository(context, Options(), clock ?? TimeProvider.System,
                 definitions, NullLogger<EFScheduledExecutionRepository>.Instance);
             return new ScheduledTaskExecutionService(repository, financialExecutor, accountRepository, executionOptions);
         }
 
-        private static Task<Guid> CreateManualTaskAsync(MyFinanceContext context, PostingReferences posting,
-            bool transfer, string description)
+        private static Task<Guid> CreateFinancialTaskAsync(MyFinanceContext context, PostingReferences posting,
+            bool transfer, string description, bool daily = false)
         {
             ClientScheduledTask definition = transfer
                 ? new ClientScheduledTask.Transfer { ToAccountId = posting.DestinationAccountId }
@@ -107,8 +107,8 @@ namespace EFDataAccessTest
             definition.CurrencyId = posting.CurrencyId;
             definition.Amount = 1;
             definition.Description = description;
-            definition.FrequencyType = ScheduledTaskFrequencyType.Manual;
-            definition.Days = Array.Empty<int>();
+            definition.FrequencyType = daily ? ScheduledTaskFrequencyType.Weekly : ScheduledTaskFrequencyType.Manual;
+            definition.Days = daily ? Enumerable.Range(0, 7).ToArray() : Array.Empty<int>();
             var definitions = new EFAutomaticTaskRepository(context, NullLogger<EFAutomaticTaskRepository>.Instance);
             return definitions.CreateAsync(new ScheduledTaskCreateScope(posting.OwnerId), definition);
         }
@@ -239,7 +239,10 @@ namespace EFDataAccessTest
                 await context.AutomaticTask.AsNoTracking().AnyAsync(x => taskIds.Contains(x.AutomaticTaskId)) ||
                 await context.ExecutedTask.AsNoTracking().AnyAsync(x => taskIds.Contains(x.AutomaticTaskId)) ||
                 await context.Set<ScheduledTaskExecutionAttempt>().AsNoTracking().AnyAsync(x => taskIds.Contains(x.TaskId)) ||
-                await context.Set<ScheduledTaskCompletion>().AsNoTracking().AnyAsync(x => taskIds.Contains(x.TaskId)))
+                await context.Set<ScheduledTaskCompletion>().AsNoTracking().AnyAsync(x => taskIds.Contains(x.TaskId)) ||
+                await context.Set<ScheduledTaskOccurrence>().AsNoTracking().AnyAsync(x => taskIds.Contains(x.TaskId)) ||
+                await context.Set<ScheduledTaskRevision>().AsNoTracking().AnyAsync(x => taskIds.Contains(x.TaskId)) ||
+                await context.Set<ScheduledTaskSchedule>().AsNoTracking().AnyAsync(x => taskIds.Contains(x.TaskId)))
                 throw new InvalidOperationException("Scheduled workflow test cleanup left temporary rows in the local copy.");
         }
 

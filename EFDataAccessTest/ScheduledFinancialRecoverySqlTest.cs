@@ -34,7 +34,7 @@ namespace EFDataAccessTest
                     posting = await FindPostingReferencesAsync(setup);
                     if (posting == null)
                         Assert.Ignore("The local copy has no owner with overlapping account periods, same-currency accounts, and an available category.");
-                    taskId = await CreateManualTaskAsync(setup, posting, transfer, marker);
+                    taskId = await CreateFinancialTaskAsync(setup, posting, transfer, marker);
                     taskIds.Add(taskId);
                 }
 

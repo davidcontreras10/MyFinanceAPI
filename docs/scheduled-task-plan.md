@@ -136,9 +136,9 @@ No test may invoke production financial jobs or require paid external calls.
 
 The rule, execution-service/controller and LocalDB ledger tests now implement a
 subset of this matrix. Disposable LocalDB tests use transactional probe rows. A
-separate local-copy fixture covers real manual spend/transfer posting, late-failure
-rollback, and same-request recovery. Automatic financial execution and UI end-to-end
-coverage remain later requirements. See the implementation checkpoints below.
+separate local-copy fixture covers real manual and automatic spend/transfer posting,
+late-failure rollback, catch-up, and same-identity recovery. Hosted Function and UI
+end-to-end coverage remain later requirements. See the implementation checkpoints below.
 
 | ID | Scenario | Required outcome | Layer |
 | --- | --- | --- | --- |
@@ -448,3 +448,30 @@ it is not the execution pause switch. No activation or flag change has been perf
   feature flag, or dispatcher activation was performed.
 - Currency conversion math, automatic dispatch, and posting-period creation are
   not covered by this checkpoint; those remain separate verification concerns.
+
+## Implementation checkpoint: automatic financial catch-up
+
+- Four additional guarded local-copy cases exercise the real dispatcher, schedule
+  discovery, execution service and financial repositories. Temporary accounts,
+  periods and a persisted administrator keep financial writes separate from the
+  copy's existing accounts. Dispatch refuses to run if another activated schedule
+  or occurrence backlog exists. The same approved LocalDB opt-in applies.
+- Basic spends and two-leg transfers catch up January 29-31 oldest-first, one
+  occurrence per task per dispatch. These are weekly schedules with all weekdays
+  selected, so the monthly day-28 restriction must not suppress these dates.
+  Assertions check local-midnight UTC due times, original posting dates, financial
+  rows, transfer links, administrator actor identity, automatic attempts and
+  completions. Replaying a completed occurrence adds no effects or attempts.
+- Missing source periods for basic spends and missing destination periods for
+  transfers leave the oldest occurrence pending and persist a failed attempt,
+  without financial rows, success history or completion. A healthy task still
+  completes later in the same dispatch. Adding the missing temporary period lets
+  the same occurrence succeed as attempt 2; only then can its next date run.
+- Every case removes its tagged financial rows, tasks, schedule ledger, temporary
+  periods/accounts and administrator in cleanup and verifies their removal.
+  All nine financial workflow cases passed on the approved local copy. The regular
+  project suite passed with 362 tests and 69 opt-in SQL cases skipped.
+- This checkpoint changes tests only, not production code, schema, flags or
+  activation. Currency conversion remains a deterministic 1:1 stub. Hosted timer
+  invocation, automatic period creation, and UI end-to-end validation remain
+  separate concerns before production rollout.
