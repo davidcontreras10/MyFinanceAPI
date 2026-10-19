@@ -513,5 +513,7 @@ it is not the execution pause switch. No activation or flag change has been perf
   it is separate from the automated fixtures that verify their own cleanup.
   Automatic dispatch remains disabled. Local role provisioning was explicitly
   approved; production role/data changes remain a separate release decision.
-- Open display defect: the weekly Sunday test task shows `Frequency not set`.
-  Fix that label and validate Function-to-API dispatch before production activation.
+- The frontend's weekly Sunday label now checks explicitly for a missing day rather
+  than treating Sunday (`0`) as false. All 27 focused spend/transfer frequency-label
+  tests pass; the frontend production build passes with a bundle-size warning.
+  Function-to-API validation remains required before production activation.
