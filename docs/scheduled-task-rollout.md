@@ -149,3 +149,22 @@ persisted administrator/owner checks, reviewed snapshot requirements, stale-plan
 rejection before batch writes, invalid legacy monthly day 29, cutoff preservation and idempotent resume after
 discovery. They activate only temporary test tasks, invoke no financial execution
 for activation cases, and remove/verify removal of their temporary rows.
+
+### Hosted local validation on 2026-10-19
+
+The user ran the real hourly Function host against the local API and restored
+database copy, with v2 flags enabled and both legacy timers disabled locally.
+Authentication and dispatch returned HTTP 200. An 11:00 UTC-6 invocation found no
+due work. After preparing a labeled pending $1 basic expense for `dcontre10` in
+`CUENTA BAC`, the 12:00 invocation scanned three schedules, completed one execution
+and reported zero failures. The user confirmed the successful attempt and matching
+October 19 expense in the UI. The 13:00 and 14:00 invocations each completed zero
+executions with zero failures, verifying that later hourly checks did not rerun it.
+
+These results are based on user-supplied console logs and UI screenshots. They
+validate the hosted basic-spend path, not every UI/transfer/failure scenario. See
+[the implementation plan](scheduled-task-plan.md) for separate automated coverage.
+The recurring Monday fixture remains in the local copy; stop local dispatch or
+retire it before unwanted future test postings. No production activation is implied.
+Production still requires explicit task selection, legacy-work reconciliation,
+reviewed cutoffs and approval of migration/deployment order before any master push.

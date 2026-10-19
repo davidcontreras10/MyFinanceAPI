@@ -492,8 +492,8 @@ it is not the execution pause switch. No activation or flag change has been perf
   Existing boundaries/cursors are preserved. Snapshot checks do not replace freezing
   writes during cutover. The linked runbook covers reconciliation, partial progress,
   legacy shutdown, history enablement and safe pause requirements.
-- The basic manual UI flow is validated below. Function/API end-to-end validation,
-  remaining UI acceptance scenarios and production release approval remain pending.
+- The basic manual UI flow and hosted Function/API basic-spend dispatch are validated
+  below. Remaining UI acceptance scenarios and production release approval remain pending.
 - Verification: 11 package-guard checks and the actual Release publish/ZIP passed.
   All 27 selected activation/financial tests passed against the local test setup;
   the regular suite passed with 377 tests and 72 opt-in SQL cases skipped. Test
@@ -511,9 +511,37 @@ it is not the execution pause switch. No activation or flag change has been perf
   two separate $1 expenses and two successful history/attempt entries.
 - The manually exercised fixture is retained in the database copy for follow-up;
   it is separate from the automated fixtures that verify their own cleanup.
-  Automatic dispatch remains disabled. Local role provisioning was explicitly
+  Automatic dispatch was disabled for this manual checkpoint. Local role provisioning was explicitly
   approved; production role/data changes remain a separate release decision.
 - The frontend's weekly Sunday label now checks explicitly for a missing day rather
   than treating Sunday (`0`) as false. All 27 focused spend/transfer frequency-label
   tests pass; the frontend production build passes with a bundle-size warning.
-  Function-to-API validation remains required before production activation.
+  Hosted Function-to-API validation is recorded in the next checkpoint.
+
+## Hosted local validation checkpoint: automatic basic spend
+
+- On 2026-10-19, the user ran the Function host from the official API checkout against
+  the local API and restored LocalDB copy. API history, v2 execution and dispatch were
+  enabled, with `scheduledTasksV2Enabled=true` in the Function. Both legacy Function
+  timers (`DailyRefresh` and `ScheduledTasks`) were disabled for this local test.
+- The 11:00 Costa Rica/Guatemala time (UTC-6) timer invocation authenticated and
+  dispatched successfully (HTTP 200 for both calls), scanning two schedules with
+  zero new occurrences, executions or failures.
+- A separate labeled $1 expense task for `dcontre10` in `CUENTA BAC` was prepared
+  through the repository/activation workflow, due on October 19 in the saved
+  `America/Costa_Rica` timezone. Setup created a pending occurrence, not a financial
+  transaction, and did not reset the earlier manual fixture or existing task history.
+- At 12:00, the hosted timer authenticated and dispatched successfully, scanned three
+  schedules and completed one execution with zero failures. The user verified one
+  successful attempt in the UI and the matching $1 expense dated October 19.
+- The 13:00 and 14:00 hosted invocations each scanned three schedules, completed zero
+  executions and reported zero failures. These logs confirm repeated hourly checks
+  did not rerun the completed occurrence; duplicate task execution is not implied by
+  repeated successful Function invocations.
+- Evidence is the user-provided host logs and UI screenshots. This checkpoint covers
+  the hosted basic-spend success/repeated-dispatch path, not every UI scenario or a
+  hosted transfer/failure-recovery scenario. Existing automated coverage is separate.
+- The fixture is retained in the local copy and recurs weekly on Monday; stop local
+  dispatch or retire the test task before future unwanted test postings. No production
+  flags, data, migrations or deployments were changed. Production task selection,
+  legacy reconciliation, activation cutoffs and release approval remain pending.
