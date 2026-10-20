@@ -13,29 +13,33 @@ namespace MyFinanceBackend.Services
 	public interface IScheduledTasksService
 	{
 		Task CreateBasicTrxAsync(
-			string userId,
+			ScheduledTaskCreateScope scope,
 			ClientScheduledTask.Basic clientScheduledTask
 		);
 
 		Task CreateTransferTrxAsync(
-			string userId,
+			ScheduledTaskCreateScope scope,
 			ClientScheduledTask.Transfer clientScheduledTask
 		);
 
 		Task<IReadOnlyCollection<BaseScheduledTaskVm>> GetScheduledTasksByUserIdAsync(string userId);
-		Task<IReadOnlyCollection<ExecutedTaskViewModel>> GetExecutedTasksByTaskIdAsync(string taskId);
-		Task DeleteByIdAsync(string taskId);
+		Task<IReadOnlyCollection<ExecutedTaskViewModel>> GetExecutedTasksByTaskIdAsync(ScheduledTaskAccessScope scope);
+		Task RetireAsync(ScheduledTaskAccessScope scope);
+		Task<ScheduledTaskExecutionContext> GetExecutionContextAsync(ScheduledTaskAccessScope scope);
+		Task<ScheduledTaskHistoryPage> GetExecutionHistoryAsync(ScheduledTaskAccessScope scope, int skip, int limit);
 
 		Task<TaskExecutedResult> ExecuteScheduledTaskAsync(
-			string taskId,
+			ScheduledTaskExecutionScope scope,
 			DateTime dateTime,
-			ExecuteTaskRequestType requestType,
-			string userId
+			ExecuteTaskRequestType requestType
 		);
+
+		Task<TaskExecutedResult> ExecuteDefinitionAsync(BaseScheduledTaskVm scheduledTask,
+			DateTime dateTime, ExecuteTaskRequestType requestType, string userId);
 
 		Task<IReadOnlyCollection<BaseScheduledTaskVm>> GetScheduledTasksAsync();
 		Task<IReadOnlyCollection<BaseScheduledTaskVm>> GetTodayScheduledTaskAsync();
-		Task EditScheduledTaskAsync(ClientEditScheduledTask model);
+		Task EditScheduledTaskAsync(ClientEditScheduledTask model, ScheduledTaskEditScope scope);
 	}
 
 	public class ScheduledTasksService : IScheduledTasksService
@@ -45,13 +49,17 @@ namespace MyFinanceBackend.Services
 		private readonly ISpendsService _spendsService;
 		private readonly ITransferService _transferService;
 		private readonly ILogger _logger;
+		private readonly IScheduledScheduleRepository _scheduleRepository;
+		private readonly ScheduledExecutionOptions _executionOptions;
 
 		public ScheduledTasksService(
 			IAutomaticTaskRepository automaticTaskRepository,
 			IAccountRepository accountRepository,
 			ISpendsService spendsService,
 			ITransferService transferService,
-			ILogger logger
+			ILogger logger,
+			IScheduledScheduleRepository scheduleRepository = null,
+			ScheduledExecutionOptions executionOptions = null
 		)
 		{
 			_automaticTaskRepository = automaticTaskRepository;
@@ -59,26 +67,38 @@ namespace MyFinanceBackend.Services
 			_spendsService = spendsService;
 			_transferService = transferService;
 			_logger = logger;
+			_scheduleRepository = scheduleRepository;
+			_executionOptions = executionOptions;
 		}
 
 		public async Task<TaskExecutedResult> ExecuteScheduledTaskAsync(
-			string taskId,
+			ScheduledTaskExecutionScope scope,
 			DateTime dateTime,
-			ExecuteTaskRequestType requestType,
-			string userId
+			ExecuteTaskRequestType requestType
 		)
 		{
-			var scheduledTasks = await _automaticTaskRepository.GetScheduledByTaskIdAsync(taskId);
-			if (scheduledTasks == null || !scheduledTasks.Any())
+			ArgumentNullException.ThrowIfNull(scope);
+			if (requestType is not (ExecuteTaskRequestType.Automatic or ExecuteTaskRequestType.Manual) ||
+				(scope.ActorId != scope.OwnerId && requestType != ExecuteTaskRequestType.Automatic))
+				throw new ServiceException("The execution does not match the approved scope.", System.Net.HttpStatusCode.Forbidden);
+			return await _scheduleRepository.ExecuteLegacyAsync(scope, async () =>
 			{
-				return TaskExecutedResult.Error($"TaskId: {taskId} does not exist", taskId);
-			}
+				var definitions = await _automaticTaskRepository.GetScheduledByTaskIdAsync(scope.TaskId.ToString());
+				if (definitions == null || definitions.Count != 1)
+					throw new ServiceException("Task not found.", System.Net.HttpStatusCode.NotFound);
+				return await ExecuteDefinitionAsync(definitions.Single(), dateTime, requestType, scope.ActorId.ToString());
+			});
+		}
+
+		public async Task<TaskExecutedResult> ExecuteDefinitionAsync(BaseScheduledTaskVm scheduledTask,
+			DateTime dateTime, ExecuteTaskRequestType requestType, string userId)
+		{
+			ArgumentNullException.ThrowIfNull(scheduledTask);
+			var taskId = scheduledTask.Id.ToString();
 
 			try
 			{
 				TaskExecutedResult taskExecutedResult;
-				var scheduledTask = scheduledTasks.First();
-				//_automaticTaskRepository.BeginTransaction();
 				switch (scheduledTask)
 				{
 					case BasicScheduledTaskVm baseScheduledTaskVm:
@@ -95,31 +115,39 @@ namespace MyFinanceBackend.Services
 				}
 
 				await RecordExecutedTaskAsync(scheduledTask, taskExecutedResult, dateTime, userId);
-				//_automaticTaskRepository.Commit();
 				return taskExecutedResult;
 			}
 			catch (Exception e)
 			{
 				_logger.Error(e.ToString());
-				//_automaticTaskRepository.RollbackTransaction();
 				throw;
 			}
 		}
 
 		public async Task CreateBasicTrxAsync(
-			string userId,
+			ScheduledTaskCreateScope scope,
 			ClientScheduledTask.Basic clientScheduledTask
 		)
 		{
-			await _automaticTaskRepository.InsertBasicTrxAsync(userId, clientScheduledTask);
+			await CreateAsync(scope, clientScheduledTask);
 		}
 
 		public async Task CreateTransferTrxAsync(
-			string userId,
+			ScheduledTaskCreateScope scope,
 			ClientScheduledTask.Transfer clientScheduledTask
 		)
 		{
-			await _automaticTaskRepository.InsertTransferTrxAsync(userId, clientScheduledTask);
+			await CreateAsync(scope, clientScheduledTask);
+		}
+
+		private async Task CreateAsync(ScheduledTaskCreateScope scope, ClientScheduledTask model)
+		{
+			ArgumentNullException.ThrowIfNull(scope);
+			ScheduledExecutionRules.ValidateCreation(model);
+			if (_executionOptions?.HistoryEnabled == true)
+				await _scheduleRepository.RegisterAsync(scope.OwnerId, () => _automaticTaskRepository.CreateAsync(scope, model));
+			else
+				await _automaticTaskRepository.CreateAsync(scope, model);
 		}
 
 		public async Task<IReadOnlyCollection<BaseScheduledTaskVm>> GetTodayScheduledTaskAsync()
@@ -139,19 +167,29 @@ namespace MyFinanceBackend.Services
 			return await _automaticTaskRepository.GetScheduledByUserIdAsync(userId);
 		}
 
-		public async Task<IReadOnlyCollection<ExecutedTaskViewModel>> GetExecutedTasksByTaskIdAsync(string taskId)
+		public async Task<IReadOnlyCollection<ExecutedTaskViewModel>> GetExecutedTasksByTaskIdAsync(ScheduledTaskAccessScope scope)
 		{
-			return await _automaticTaskRepository.GetExecutedTasksByTaskIdAsync(taskId);
+			ArgumentNullException.ThrowIfNull(scope);
+			return await _automaticTaskRepository.GetExecutedTasksByTaskIdAsync(scope);
 		}
 
-		public async Task DeleteByIdAsync(string taskId)
-		{
-			await _automaticTaskRepository.DeleteByIdAsync(taskId);
-		}
+		public Task RetireAsync(ScheduledTaskAccessScope scope) => _scheduleRepository.RetireAsync(scope);
+		public Task<ScheduledTaskExecutionContext> GetExecutionContextAsync(ScheduledTaskAccessScope scope) =>
+			_scheduleRepository.GetExecutionContextAsync(scope);
+		public Task<ScheduledTaskHistoryPage> GetExecutionHistoryAsync(ScheduledTaskAccessScope scope, int skip, int limit) =>
+			_scheduleRepository.GetExecutionHistoryAsync(scope, skip, limit);
 
-		public async Task EditScheduledTaskAsync(ClientEditScheduledTask model)
+		public async Task EditScheduledTaskAsync(ClientEditScheduledTask model, ScheduledTaskEditScope scope)
 		{
-			await _automaticTaskRepository.EditScheduledTaskAsync(model);
+			ArgumentNullException.ThrowIfNull(model);
+			ArgumentNullException.ThrowIfNull(scope);
+			if (_executionOptions?.HistoryEnabled == true)
+			{
+				await _scheduleRepository.ReviseAsync(scope.TaskId, scope.OwnerId,
+					() => _automaticTaskRepository.EditScheduledTaskAsync(model, scope));
+				return;
+			}
+			await _automaticTaskRepository.EditScheduledTaskAsync(model, scope);
 		}
 
 		private bool IsTaskForToday(BaseScheduledTaskVm baseScheduledTaskVm, DateTime today)
@@ -175,7 +213,7 @@ namespace MyFinanceBackend.Services
 		{
 			return (int) dateTime.DayOfWeek;
 		}
-		
+
 		private int GetDayOfMonth(DateTime dateTime)
 		{
 			return dateTime.Day;

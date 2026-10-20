@@ -18,6 +18,12 @@ namespace MyFinanceBackend.Services.AuthServices
             _userRepository = userRepository;
         }
 
+        public Task<bool> IsAuthorizedForOwnSchedulingPreferencesAsync(string authenticatedUserId)
+        {
+            var authorized = Guid.TryParse(authenticatedUserId, out var actorId) && actorId != Guid.Empty;
+            return Task.FromResult(authorized);
+        }
+
         public async Task<bool> IsAuthorizedAsync(string authenticatedUserId, IEnumerable<string> targetUserIds,
             IEnumerable<ResourceActionNames> actionNames)
         {
