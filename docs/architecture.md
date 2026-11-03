@@ -22,6 +22,67 @@ MyFinanceWebApiCore  (ASP.NET Core host: Controllers, Startup/Program, auth midd
 
 ## Unit of Work + Repository pattern
 
+Scheduled-task reliability work is specified in [scheduled-task-plan.md](scheduled-task-plan.md)
+and audited in [scheduled-task-execution.md](scheduled-task-execution.md). The new
+occurrence/completion ledger has SQL-backed concurrency/rollback tests and a generated
+migration. Its v2 execution route is feature-gated off; the UI and opt-in hourly Function
+path are implemented but await end-to-end rollout validation. Transfers join a caller-owned transaction through `IUnitOfWork.ExecuteInTransactionAsync`
+and own/dispose one for standalone calls. Do not enable v2 before coordinated rollout.
+
+`ScheduledTaskSchedule`/`ScheduledTaskRevision` add explicit activation, 31-day UTC
+discovery windows and effective-dated snapshots. Occurrences and scan progress save
+together; edits preserve old definitions for still-undiscovered due dates. The separate
+default-off `ScheduledTasks:HistoryEnabled` flag guards discovery and revision-aware edits,
+so history maintenance can continue while v2 execution is paused. Profile timezone updates and
+new-task registration are now implemented behind history maintenance; dispatcher adoption remains a rollout prerequisite;
+see the plan's rollback warning before enabling or disabling history maintenance.
+
+`AppUser.SchedulingTimeZoneId` stores the explicitly selected IANA timezone, with the Costa Rica
+default declared in Fluent API. `GET`/`PUT /api/Users/scheduling-preferences?targetUserId=...`
+use existing user View/Edit authorization; PUT accepts `{ "timeZoneId": "Asia/Kathmandu" }`.
+Both routes return `{ "timeZoneId": "..." }` and require `ScheduledTasks:HistoryEnabled` (503 otherwise).
+Do not infer this value from request headers, IP, offset or device changes. Profile writes and all
+schedule-history changes acquire an owner-scoped SQL application lock before task locks. They use
+serializable transactions so concurrent registration, timezone updates and discovery remain consistent.
+Timezone updates append future revisions for all activated tasks atomically with the profile, without
+discovering an unbounded backlog or activating legacy tasks. Creation saves the task, definition,
+initial revision and creation-time activation boundary together when history is enabled; otherwise
+creation still validates schedule and owned references, without using history tables. Sunday survives
+legacy DTO round-trips. The UI has v2 confirmation/retry handling with a legacy fallback;
+the additive hourly Function stays disabled until coordinated activation. The offline
+`tools/ScheduledTaskActivation` command previews an explicit allowlist and applies only
+reviewed activation snapshots through the existing repository. It never dispatches or
+changes host flags. See [the activation runbook](scheduled-task-rollout.md).
+
+The timezone column requires its matching EF-generated migration before deploying this build, even
+with history disabled, because existing user entity queries include the column. EF generated
+`20261015173512_ScheduledUserTimeZone` from Fluent API; no generated files were manually edited
+and production migration application remains part of the reviewed rollout.
+
+Task deletion now retires the `AutomaticTask` using nullable `RetiredAtUtc`, configured through
+Fluent API and an EF-generated migration. It never physically deletes task definitions, occurrences,
+legacy history or completion receipts. All incomplete automatic work (including undiscovered dates)
+is canceled, and retired tasks cannot be edited, activated or executed with a new identity. Existing
+committed identities remain readable/idempotent. Normal task lists, discovery scans and pending-work
+queries exclude retired tasks. Profile timezone changes leave their archived revisions alone.
+
+`GET /api/ScheduledTasks/{id}/execution-context` performs at most one 31-day discovery pass and returns
+the profile-local date, today's occurrence/status, earliest pending work, discovery completeness,
+the default manual action and an extra-execution warning. Incomplete discovery or an older pending
+date prevents defaulting to today's action. The context is advisory: POST `execution-v2` uses the
+persisted occurrence ID or a stable client-generated manual request ID, never a recomputed default.
+`GET .../{id}/execution-history?skip=0&limit=50` returns completed receipts and materialized canceled
+occurrences (limit 1-100, skip 0-10000); the existing `ExecutedTasks` route retains legacy history.
+These new reads require history maintenance. DELETE retirement works with either flag setting.
+
+Execution, retirement and history changes use the same owner-first SQL application lock. Distinct
+manual identities remain independent financial intents, but same-owner operations serialize; unrelated
+owners can progress concurrently. Retirement waits for an in-flight commit/rollback. A committed
+receipt remains committed; an uncommitted or later request is canceled. The old execution endpoint
+also authorizes access and uses a financial/history transaction, but lacks retry identities. It is
+therefore rejected with 409 when history is enabled; use execution-v2 instead. Returned financial
+failures now roll back and surface as 409 rather than committing partial legacy work.
+
 `IUnitOfWork` (`MyFinanceBackend/Data/IUnitOfWork.cs`), implemented by `EFUnityOfWork`, aggregates all EF
 repositories and exposes explicit transaction control: `StartTransactionAsync` / `CommitTransactionAsync`
 / `RollbackAsync` / `SaveAsync`. Services that need atomicity across multiple repositories manage this
@@ -271,6 +332,21 @@ Owner constraints are also applied in EF reads and mutations, including finance 
 resolution. Account writes keep ownership/reference checks and saving in a serializable transaction
 (or reuse a caller's transaction). Authorization denial is 403 except AI-hint endpoints, which preserve
 their existing 404 for missing/other-owner accounts. Nonpositive group IDs still select the owner's default group.
+`ScheduledTasksController` creation and edits use the dedicated scheduled-task authorization service.
+Creation checks source/destination accounts and assigned category, returns `ScheduledTaskCreateScope`,
+and rechecks references during the repository transaction. Edits use `AuthorizeEditAsync` with
+trusted identity, the route task ID and any replacement spend type. The owner-only decision returns
+a typed `ScheduledTaskEditScope`; the controller forwards it unchanged to the edit service. Missing
+identity retains 401; denied, malformed or inaccessible targets return 403 without an operation call.
+The repository uses the scope's task/owner rather than the body ID, rechecks replacement category
+assignment and holds ownership/reference locks through the edit transaction, including when joining
+history maintenance. These protections apply with history both enabled and disabled. Scheduled-task
+context, history, retirement and both execution routes now also use domain authorization. View/delete
+scopes are owner-only. Execution scopes permit a persisted administrator to dispatch an existing
+scheduled occurrence across users, never an extra manual execution. Repositories recheck current
+ownership/administrator grants and enforce the approved owner through writes. Existing current-user
+lists remain owner-filtered; administrator list routes retain their established administrator attribute.
+
 Other controllers have not yet adopted this pattern. Shared finance repository methods now enforce
 ownership for their other callers too. The EF user profile/password update methods remain unimplemented.
 
@@ -286,7 +362,9 @@ Verify user authorization with `dotnet test --filter "FullyQualifiedName~UserAut
 account authorization with `dotnet test --filter "FullyQualifiedName~AccountAuthorizationTest"`.
 These tests cover controller denial/identity checks on every account endpoint, owner scope forwarding,
 batch/reference checks and invalid scopes/targets using repository and service proxies; they do not
-exercise SQL Server persistence.
+exercise SQL Server persistence. Scheduled-task edit authorization tests are in
+`ScheduledTaskAuthorizationTest` and `ScheduledTaskEditingTest`; the disposable LocalDB fixture also
+covers scoped writes and ownership changes between approval and mutation (`MYFINANCE_RUN_SQL_TESTS=1`).
 
 ## Exceptions
 

@@ -37,6 +37,9 @@ stages:
         steps:
           - checkout: self
 
+          - pwsh: ./ApiFunctions/scripts/Test-PublishPackage.Tests.ps1
+            displayName: Test package verification guards
+
           - task: UseDotNet@2
             displayName: Install .NET 10 SDK
             inputs:

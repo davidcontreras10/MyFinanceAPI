@@ -18,8 +18,10 @@ using System.Threading.Tasks;
 
 namespace EFDataAccess.Repositories
 {
-	public class EFAutomaticTaskRepository : BaseEFRepository, IAutomaticTaskRepository
+	public class EFAutomaticTaskRepository : BaseEFRepository, IAutomaticTaskRepository, IScheduledTaskAccessRepository
 	{
+		private const string AdministratorRoleName = "Admin";
+
 		private readonly ILogger<EFAutomaticTaskRepository> _logger;
 
 		public EFAutomaticTaskRepository(MyFinanceContext context, ILogger<EFAutomaticTaskRepository> logger) : base(context)
@@ -37,37 +39,14 @@ namespace EFDataAccess.Repositories
 			Context.Database.CommitTransaction();
 		}
 
-		public async Task DeleteByIdAsync(string taskId)
+		public async Task<IReadOnlyCollection<ExecutedTaskViewModel>> GetExecutedTasksByTaskIdAsync(ScheduledTaskAccessScope scope)
 		{
-			try
-			{
-				var taskGuid = new Guid(taskId);
-
-				var executedTasks = Context.ExecutedTask.Where(x => x.AutomaticTaskId == taskGuid);
-				Context.ExecutedTask.RemoveRange(executedTasks);
-
-				var spInTrxDefs = Context.SpInTrxDef.Where(x => x.SpInTrxDefId == taskGuid);
-				Context.SpInTrxDef.RemoveRange(spInTrxDefs);
-
-				var transferTrxDefs = Context.TransferTrxDef.Where(x => x.TransferTrxDefId == taskGuid);
-				Context.TransferTrxDef.RemoveRange(transferTrxDefs);
-
-				var automaticTasks = Context.AutomaticTask.Where(x => x.AutomaticTaskId == taskGuid);
-				Context.AutomaticTask.RemoveRange(automaticTasks);
-
-				await Context.SaveChangesAsync();
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Error on DeleteByIdAsync");
-				throw;
-			}
-		}
-
-		public async Task<IReadOnlyCollection<ExecutedTaskViewModel>> GetExecutedTasksByTaskIdAsync(string taskId)
-		{
+			ArgumentNullException.ThrowIfNull(scope);
+			if (scope.Action != ResourceActionNames.View)
+				throw new ServiceException("History access is denied.", HttpStatusCode.Forbidden);
 			return await Context.ExecutedTask.AsNoTracking()
-				.Where(x => x.AutomaticTaskId == new Guid(taskId))
+				.Where(x => x.AutomaticTaskId == scope.TaskId && Context.AutomaticTask.Any(task =>
+					task.AutomaticTaskId == x.AutomaticTaskId && task.UserId == scope.OwnerId))
 				.Select(x => new ExecutedTaskViewModel
 				{
 					ExecutedDate = x.ExecuteDatetime,
@@ -108,6 +87,29 @@ namespace EFDataAccess.Repositories
 			await Context.SaveChangesAsync();
 		}
 
+		public async Task<Guid> CreateAsync(ScheduledTaskCreateScope scope, ClientScheduledTask model)
+		{
+			ArgumentNullException.ThrowIfNull(scope);
+			MyFinanceBackend.Services.ScheduledExecutionRules.ValidateCreation(model);
+			await using var transaction = Context.Database.CurrentTransaction == null
+				? await Context.Database.BeginTransactionAsync(IsolationLevel.Serializable) : null;
+			var accounts = model is ClientScheduledTask.Transfer transfer
+				? new[] { model.AccountId, transfer.ToAccountId }.Distinct().ToArray() : new[] { model.AccountId };
+			if (await Context.Account.CountAsync(x => x.UserId == scope.OwnerId && accounts.Contains(x.AccountId)) != accounts.Length ||
+				!await Context.UserSpendType.AnyAsync(x => x.UserId == scope.OwnerId && x.SpendTypeId == model.SpendTypeId))
+				throw new ServiceException("Task references are outside the approved owner scope.", HttpStatusCode.NotFound);
+			var id = Guid.NewGuid();
+			var task = CreateAutomaticTask(model, id, scope.OwnerId);
+			if (model is ClientScheduledTask.Basic basic)
+				task.SpInTrxDef = new SpInTrxDef { SpInTrxDefId = id, IsSpendTrx = basic.IsSpendTrx };
+			else
+				task.TransferTrxDef = new TransferTrxDef { TransferTrxDefId = id, ToAccountId = ((ClientScheduledTask.Transfer)model).ToAccountId };
+			Context.Add(task);
+			await Context.SaveChangesAsync();
+			if (transaction != null) await transaction.CommitAsync();
+			return id;
+		}
+
 		public async Task InsertTransferTrxAsync(string userId, ClientScheduledTask.Transfer clientScheduledTask)
 		{
 			var taskId = Guid.NewGuid();
@@ -123,9 +125,20 @@ namespace EFDataAccess.Repositories
 			await Context.SaveChangesAsync();
 		}
 
-		public async Task EditScheduledTaskAsync(ClientEditScheduledTask model)
+		public Task<bool> IsOwnedByAsync(Guid taskId, Guid ownerId) =>
+			Context.AutomaticTask.AsNoTracking().AnyAsync(x => taskId != Guid.Empty && ownerId != Guid.Empty &&
+				x.AutomaticTaskId == taskId && x.UserId == ownerId);
+
+		public Task<Guid?> GetOwnerIdAsync(Guid taskId) => Context.AutomaticTask.AsNoTracking()
+			.Where(x => x.AutomaticTaskId == taskId).Select(x => (Guid?)x.UserId).SingleOrDefaultAsync();
+
+		public Task<bool> IsAdministratorAsync(Guid actorId) => Context.AppUser.AnyAsync(x =>
+			x.UserId == actorId && x.UserRoles.Any(role => role.Name == AdministratorRoleName));
+
+		public async Task EditScheduledTaskAsync(ClientEditScheduledTask model, ScheduledTaskEditScope scope)
 		{
-			if (model == null || string.IsNullOrEmpty(model.TaskId) || model.ModifyList == null || !model.ModifyList.Any())
+			ArgumentNullException.ThrowIfNull(scope);
+			if (model == null || model.ModifyList == null || !model.ModifyList.Any())
 			{
 				throw new ArgumentException("Invalid parameters", nameof(model));
 			}
@@ -143,12 +156,22 @@ namespace EFDataAccess.Repositories
 				throw new ServiceException("Days cannot be empty", HttpStatusCode.BadRequest);
 			}
 
-			var taskGuid = new Guid(model.TaskId);
-			var automaticTask = await Context.AutomaticTask.FirstOrDefaultAsync(x => x.AutomaticTaskId == taskGuid);
+			await using var transaction = Context.Database.CurrentTransaction == null
+				? await Context.Database.BeginTransactionAsync(IsolationLevel.Serializable) : null;
+			// Keep the approved owner constraint stable until the enclosing edit commits.
+			var automaticTask = await Context.AutomaticTask.FromSqlInterpolated(
+				$"SELECT * FROM [AutomaticTask] WITH (UPDLOCK, HOLDLOCK) WHERE [AutomaticTaskId] = {scope.TaskId} AND [UserId] = {scope.OwnerId}")
+				.SingleOrDefaultAsync();
 			if (automaticTask == null)
 			{
-				throw new ServiceException($"ScheduledTask {model.TaskId} not found", HttpStatusCode.NotFound);
+				throw new ServiceException("Scheduled task not found within the approved scope.", HttpStatusCode.NotFound);
 			}
+			if (automaticTask.RetiredAtUtc.HasValue)
+				throw new ServiceException("A retired task cannot be edited.", HttpStatusCode.Conflict);
+			if (modifyList.Contains(ClientEditScheduledTask.ScheduledTaskField.SpendTypeId) &&
+				(model.SpendTypeId <= 0 || !await Context.UserSpendType.FromSqlInterpolated(
+					$"SELECT * FROM [UserSpendType] WITH (HOLDLOCK) WHERE [UserId] = {scope.OwnerId} AND [SpendTypeId] = {model.SpendTypeId}").AnyAsync()))
+				throw new ServiceException("Spending category not found within the approved scope.", HttpStatusCode.NotFound);
 
 			foreach (var field in modifyList)
 			{
@@ -178,7 +201,11 @@ namespace EFDataAccess.Repositories
 				}
 			}
 
+			MyFinanceBackend.Services.ScheduledExecutionRules.ValidateSchedule(
+				(ScheduledTaskFrequencyType)automaticTask.PeriodTypeId, CreateArrayFromStringArray(automaticTask.Days));
 			await Context.SaveChangesAsync();
+			if (transaction != null)
+				await transaction.CommitAsync();
 		}
 
 		public async Task RecordClientExecutedTaskAsync(ClientExecutedTask clientExecutedTask)
@@ -221,6 +248,7 @@ namespace EFDataAccess.Repositories
 					.Include(x => x.SpInTrxDefNavigation)
 						.ThenInclude(x => x.ExecutedTask)
 					.Where(x => fullQuery || x.SpInTrxDefNavigation.UserId == userGuid || x.SpInTrxDefNavigation.AutomaticTaskId == taskGuid)
+					.Where(x => x.SpInTrxDefNavigation.RetiredAtUtc == null)
 					.ToListAsync();
 				FilterLatestExecutedTask(spInTrxTasks);
 				var transferTasks = await Context.TransferTrxDef.AsNoTracking()
@@ -232,6 +260,7 @@ namespace EFDataAccess.Repositories
 						.ThenInclude(x => x.ExecutedTask)
 					.Include(x => x.ToAccount)
 					.Where(x => fullQuery || x.TransferTrxDefNavigation.UserId == userGuid || x.TransferTrxDefNavigation.AutomaticTaskId == taskGuid)
+					.Where(x => x.TransferTrxDefNavigation.RetiredAtUtc == null)
 					.ToListAsync();
 				FilterLatestExecutedTask(transferTasks);
 				var scheduledTasks = new List<BaseScheduledTaskVm>();
@@ -354,8 +383,7 @@ namespace EFDataAccess.Repositories
 			foreach (var s in arrayValue)
 			{
 				int result;
-				result = int.TryParse(s, out result) ? result : 0;
-				if (result > 0)
+				if (int.TryParse(s, out result) && result >= 0)
 				{
 					list.Add(result);
 				}

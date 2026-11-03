@@ -1,5 +1,6 @@
 ﻿using MyFinanceBackend.Services;
 using System.Threading.Tasks;
+using System;
 
 namespace MyFinanceBackend.Data
 {
@@ -20,5 +21,6 @@ namespace MyFinanceBackend.Data
 		Task CommitTransactionAsync();
 		Task RollbackAsync();
 		Task SaveAsync();
+		Task ExecuteInTransactionAsync(Func<Task> action);
 	}
 }

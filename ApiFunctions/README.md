@@ -7,10 +7,19 @@ from `davidcontreras10/MyFinance` commit `f40a1cc`; runtime behavior is unchange
 Open `ApiFunctions/ApiFunctions.sln` in Visual Studio. It is intentionally separate from the
 API solution, with no API project references.
 
-The two timer jobs retain their existing schedules and behavior:
+The legacy timer jobs retain their existing schedules and behavior:
 
 - `DailyRefresh`: `0 1 6 * * *`, runs `SpUpdateCurrentPeriods` for all users.
 - `ScheduledTasks`: `0 10 6 * * *`, authenticates with the API and executes today's tasks.
+
+`ScheduledTasksV2` is an additive hourly dispatcher (`0 0 * * * *`). It is a no-op unless
+`scheduledTasksV2Enabled=true`. The API must also have `ScheduledTasks:HistoryEnabled`,
+`ScheduledTasks:ExecutionV2Enabled`, and `ScheduledTasks:DispatcherEnabled` enabled. Before
+activating v2 in production, disable the legacy `ScheduledTasks` timer to avoid overlapping
+execution paths. All v2 flags remain off by default; the legacy timer is unchanged.
+The pipeline verifies all three timer schedules, including metadata inside the ZIP.
+See the API [activation runbook](../docs/scheduled-task-rollout.md) for explicit
+existing-task activation, cutover reconciliation, and local validation prerequisites.
 
 Schedules default to UTC unless the Azure app has `WEBSITE_TIME_ZONE` configured.
 Preserve that setting during migration.
@@ -43,7 +52,7 @@ Keep the old repository's copy until publishing from this location is verified, 
 Use `ApiFunctions/local.settings.example.json` as the schema for the gitignored
 `ApiFunctions/local.settings.json`. Set `FUNCTIONS_WORKER_RUNTIME=dotnet-isolated`
 in any existing local settings. Keep real credentials outside source control.
-The example disables both jobs to prevent local startup from running financial operations.
+The example disables both legacy jobs and leaves v2 off to prevent local startup from running financial operations.
 Enable them only with intentional test database/API settings and local Azure Storage (Azurite).
 The legacy repository tracks a real `local.settings.json`; that file is deliberately excluded
 from this import. Initialize local configuration from the example instead.

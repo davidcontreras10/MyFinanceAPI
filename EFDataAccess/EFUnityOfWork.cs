@@ -1,6 +1,7 @@
 ﻿using EFDataAccess.Models;
 using MyFinanceBackend.Data;
 using System.Threading.Tasks;
+using System;
 
 namespace EFDataAccess
 {
@@ -31,6 +32,20 @@ namespace EFDataAccess
 		public IUserRespository UserRepository { get; } = userRespository;
 
 		private readonly MyFinanceContext _context = context;
+
+		public async Task ExecuteInTransactionAsync(Func<Task> action)
+		{
+			ArgumentNullException.ThrowIfNull(action);
+			if (_context.Database.CurrentTransaction != null)
+			{
+				await action();
+				return;
+			}
+
+			await using var transaction = await _context.Database.BeginTransactionAsync();
+			await action();
+			await transaction.CommitAsync();
+		}
 
 		public async Task CommitTransactionAsync()
 		{

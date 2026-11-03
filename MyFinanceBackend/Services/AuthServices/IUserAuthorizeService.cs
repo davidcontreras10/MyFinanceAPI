@@ -6,6 +6,8 @@ namespace MyFinanceBackend.Services.AuthServices
 {
     public interface IUserAuthorizeService
     {
+        Task<bool> IsAuthorizedForOwnSchedulingPreferencesAsync(string authenticatedUserId);
+
         Task<bool> IsAuthorizedAsync(string authenticatedUserId, IEnumerable<string> targetUserIds,
             IEnumerable<ResourceActionNames> actionNames);
     }

@@ -75,6 +75,7 @@ namespace EFDataAccess.Models
 
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{
+			ScheduledExecutionModel.Configure(modelBuilder);
 			modelBuilder.Entity<EFAppRole>(entity =>
 			{
 				const string tableName = "AppRole";

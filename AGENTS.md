@@ -77,6 +77,14 @@ changing service logic.
 
 ## Conventions
 
+Scheduled execution and history maintenance are independently default-off
+(`ScheduledTasks:ExecutionV2Enabled`, `ScheduledTasks:HistoryEnabled`). Keep history
+enabled after activation even when execution is paused. Their
+ledger, calendar/discovery, service/controller and transaction tests are in `EFDataAccessTest`. Set
+`MYFINANCE_RUN_SQL_TESTS=1` to include the disposable LocalDB concurrency/rollback
+tests. These use probe writes, not complete financial workflows; do not enable v2
+before the rollout work in `docs/scheduled-task-plan.md` is complete.
+
 - Services in `MyFinanceBackend` use repository interfaces and `IUnitOfWork` only — never EF or Mongo types.
 - Register new services/repositories in `MyFinanceWebApiCore/Startup.cs` (`Scoped`).
 - Throw typed exceptions (`ServiceException` in `MyFinanceModel/Exceptions.cs`, with an HTTP status) from
@@ -95,5 +103,6 @@ changing service logic.
 - Branching: work on `develop` or a feature branch (for example, `feature/ImproveAIConnectivity`). Continue on
   the current feature branch when it is relevant to the task; do not switch to `develop` just to start a session.
   Base new feature branches and worktrees on `develop` unless the user specifies another base.
+  Use the existing checkout by default; do not create another worktree unless the user asks.
   **`master` is production**, and **production is the only environment** (no dev or staging): a push to `master`
   runs the EF migrations on the Azure database and then deploys. See `docs/architecture.md` ("CI / deployment").

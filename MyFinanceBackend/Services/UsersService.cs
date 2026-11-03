@@ -16,16 +16,19 @@ namespace MyFinanceBackend.Services
 		private readonly IUserRespository _userRespository;
 		private readonly IEmailService _emailService;
 		private readonly ILogger _logger;
+		private readonly IScheduledUserPreferencesRepository _schedulingPreferences;
 
 		#endregion
 
 		#region Constructor
 
-		public UsersService(IUserRespository userRespository, IEmailService emailService, ILogger logger)
+		public UsersService(IUserRespository userRespository, IEmailService emailService, ILogger logger,
+			IScheduledUserPreferencesRepository schedulingPreferences = null)
 		{
 			_userRespository = userRespository;
 			_emailService = emailService;
 			_logger = logger;
+			_schedulingPreferences = schedulingPreferences;
 		}
 
 		#endregion
@@ -36,6 +39,15 @@ namespace MyFinanceBackend.Services
 		{
 			var user = await _userRespository.GetUserByUserIdAsync(userId);
 			return user;
+		}
+
+		public Task<ScheduledUserPreferences> GetSchedulingPreferencesAsync(string ownerId) =>
+			_schedulingPreferences.GetPreferencesAsync(Guid.Parse(ownerId));
+
+		public Task<ScheduledUserPreferences> UpdateSchedulingPreferencesAsync(string ownerId, string timeZoneId)
+		{
+			ScheduledOccurrenceCalendar.ResolveTimeZone(timeZoneId);
+			return _schedulingPreferences.UpdatePreferencesAsync(Guid.Parse(ownerId), timeZoneId);
 		}
 
 		public async Task<LoginResult> AttemptToLoginAsync(string username, string password)

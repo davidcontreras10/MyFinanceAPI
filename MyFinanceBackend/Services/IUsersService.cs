@@ -7,6 +7,8 @@ namespace MyFinanceBackend.Services
 {
     public interface IUsersService
     {
+        Task<ScheduledUserPreferences> GetSchedulingPreferencesAsync(string ownerId);
+        Task<ScheduledUserPreferences> UpdateSchedulingPreferencesAsync(string ownerId, string timeZoneId);
         Task<AppUser> GetUserAsync(string userId);
 
         Task<LoginResult> AttemptToLoginAsync(string username, string password);

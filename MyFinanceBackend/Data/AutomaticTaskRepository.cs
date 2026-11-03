@@ -8,12 +8,17 @@ using DataAccess;
 using MyFinanceBackend.Constants;
 using MyFinanceBackend.Services;
 using MyFinanceModel.ClientViewModel;
+using MyFinanceModel;
 using MyFinanceModel.ViewModel;
 
 namespace MyFinanceBackend.Data
 {
 	public class AutomaticTaskRepository : SqlServerBaseService, IAutomaticTaskRepository
 	{
+		public Task<IReadOnlyCollection<ExecutedTaskViewModel>> GetExecutedTasksByTaskIdAsync(ScheduledTaskAccessScope scope) =>
+			throw new NotSupportedException("Scoped history requires the registered EF repository.");
+		public Task<Guid> CreateAsync(ScheduledTaskCreateScope scope, ClientScheduledTask model) =>
+			throw new NotSupportedException("Scoped task creation requires the registered EF repository.");
 		public AutomaticTaskRepository(IConnectionConfig config) : base(config)
 		{
 		}
@@ -38,7 +43,7 @@ namespace MyFinanceBackend.Data
 			await ExecuteStoredProcedureAsync(DatabaseConstants.SP_AUTO_TASK_DELETE, taskIdPar);
 		}
 
-		public Task EditScheduledTaskAsync(ClientEditScheduledTask model)
+		public Task EditScheduledTaskAsync(ClientEditScheduledTask model, ScheduledTaskEditScope scope)
 		{
 			// Legacy ADO.NET implementation, superseded by EFAutomaticTaskRepository (the only
 			// implementation registered in Startup.cs). No stored procedure backs this path.
