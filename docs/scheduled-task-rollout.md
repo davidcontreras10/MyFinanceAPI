@@ -1,8 +1,9 @@
 # Scheduled-task activation runbook
 
-Status: operator tooling, guarded local-copy tests and the basic manual UI flow are
-verified. Function/API and remaining UI validation plus a production cutover decision
-are still required. This
+Status: operator tooling, guarded local-copy tests, the basic manual UI flow,
+hosted Function/API basic-spend dispatch and the 59-task local activation rehearsal
+are verified. Remaining acceptance scenarios and production cutover approval are
+still required. This
 document does not authorize a deployment, flag change, migration or activation.
 
 ## Safety boundaries
@@ -168,3 +169,59 @@ The recurring Monday fixture remains in the local copy; stop local dispatch or
 retire it before unwanted future test postings. No production activation is implied.
 Production still requires explicit task selection, legacy-work reconciliation,
 reviewed cutoffs and approval of migration/deployment order before any master push.
+
+### Restored-copy activation rehearsal on 2026-11-02
+
+A fresh production backup was reviewed using SELECT-only queries before local
+schema changes. It contained 60 monthly task definitions across two owners. For
+59 supported definitions, the latest successful legacy history matched one
+automatic financial candidate by timestamp, description, source account/owner,
+current amount, currency and category. Transaction direction and the configured
+destination linkage for all 14 transfers matched. Their latest execution dates
+also matched their most recent scheduled monthly dates as of November 2. One
+definition lacking both a basic and transfer subtype was excluded, not repaired.
+These are latest-occurrence checks, not an exhaustive historical reconciliation;
+legacy history has no immutable link to financial transaction IDs.
+
+The user selected all 59 supported tasks (25 for one owner, 34 for the other) and
+approved `America/Costa_Rica` for both owners. With explicit local-only approval,
+all five existing EF-generated scheduler migrations were applied to the copy;
+no migrations were edited and none remained pending. The existing Admin role was
+granted to `AzureAdmin` in that copy, with both task owners' memberships verified
+unchanged. The production role remains a separate approval/provisioning step.
+
+The read-only preview used the rehearsal boundary `2026-11-02T12:00:00Z` (06:00
+Costa Rica time), after the already-handled November 2 occurrences. First eligible
+local dates were November 3 (5 tasks), November 5 (1), November 6 (14), November 20
+(34), November 25 (1), and December 2 (4). The four November 2 occurrences were not
+selected for replay. This boundary is not an approved production cutoff.
+
+After the user confirmed that no local projects were running, the reviewed plan
+was applied through the activation tool. Verification found exactly 59 schedules
+and 59 initial revisions with the approved owners, boundary, scan cursors and
+Costa Rica timezone; the excluded task remained unactivated. Occurrences,
+completions and attempts stayed at zero, and the financial transaction count was
+unchanged. No dispatch or financial work was invoked. Starting a local host with
+dispatch enabled can subsequently execute due work; the rehearsal does not imply
+that those local flags were disabled.
+
+Detailed evidence, manifests and the local helper remain in ignored `artifacts/`
+files because they contain private financial metadata. They must not be copied
+to production without a new target-specific preview and review. Production
+continues changing while legacy scheduling runs: stop/drain it, reconcile final
+work and approve the final cutoff at cutover. No production migrations, roles,
+activation, flags or deployment were changed by this rehearsal.
+
+### Deployment order review
+
+The live GitHub Actions check found the non-migrating API deployment workflow
+manually disabled. The active `master_myfinancewebapicore_ef.yml` workflow runs
+migrations before deployment; recent production runs confirmed that order.
+Keep the old workflow disabled rather than assuming both YAML files execute.
+Reconfirm live workflow state before production release.
+
+Release the API schema/code first with v2 activation flags off, verify API health,
+then release the UI. Functions require a separate manual pipeline run from
+`master`; deploy with v2 dispatch disabled. Activation and coordinated flag
+enablement follow their own reviewed maintenance window. A push to `develop`
+builds but does not perform this production cutover.

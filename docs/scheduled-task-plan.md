@@ -545,3 +545,30 @@ it is not the execution pause switch. No activation or flag change has been perf
   dispatch or retire the test task before future unwanted test postings. No production
   flags, data, migrations or deployments were changed. Production task selection,
   legacy reconciliation, activation cutoffs and release approval remain pending.
+
+## Local activation rehearsal checkpoint: restored production copy
+
+- On 2026-11-02, read-only latest-occurrence reconciliation identified 59 supported
+  monthly tasks across two owners (25 and 34), with matching legacy history and
+  financial candidates, including destination links for 14 transfers. One task
+  missing its basic/transfer definition was excluded. The user approved selecting
+  all 59 supported tasks and Costa Rica time for both owners.
+- With explicit approval, the five existing EF-generated migrations were applied
+  only to the fresh local copy. The existing Admin role was provisioned only to
+  `AzureAdmin` there; task-owner memberships stayed unchanged. No migrations were
+  edited. The read-only preview passed with no migrations pending.
+- The rehearsal cutoff `2026-11-02T12:00:00Z` excluded November 2 legacy work.
+  First eligible dates: November 3 (5 tasks), 5 (1), 6 (14), 20 (34), 25 (1), and
+  December 2 (4). This is not a production cutoff approval.
+- With local projects stopped as confirmed by the user, applying the reviewed plan
+  produced exactly 59 schedules and initial revisions. Owners, timezone, activation
+  boundary and scan cursors matched; the excluded definition remained inactive.
+  No occurrences, completion receipts, attempts or financial transactions were
+  added. Private evidence/manifests remain in ignored artifacts, not source control.
+- The API/UI PRs are merged into `develop`, and the user reported successful builds.
+  Subsequent work continues on `develop`. Live Actions verification confirmed the
+  old non-migrating API deployment is manually disabled and the active production
+  workflow migrates before deployment. The Function pipeline is separately manual.
+- Production still requires final legacy shutdown/reconciliation, target-specific
+  preview, cutoff and role approval, coordinated releases and activation. No
+  production data, schema, flags or deployments were changed by this rehearsal.
