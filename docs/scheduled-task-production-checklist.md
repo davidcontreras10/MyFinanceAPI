@@ -17,6 +17,35 @@ or flag change is authorized by this checklist. Use the detailed
   allowlist/cutoff, and enabling financial execution. A local approval is not a
   production approval. Do not publish connection strings, settings exports or plans.
 
+## Prepare now, refresh at cutover
+
+The procedure has no fixed execution date. Keep legacy production scheduling
+running and v2 disabled until the approved maintenance window; do not stop legacy
+days early. Reusable preparation includes builds, package checks, generated migration
+SQL for review, flag names, pause steps and this checklist. The active release
+workflow pins dotnet-ef to 8.0.4, matching the current EF packages.
+
+The 59-task list is a reviewed baseline, not proof that production is unchanged.
+At the actual window, stop/drain legacy work and freeze relevant writes, then take
+fresh reconciliation evidence. Recheck definitions, owners, amounts, days, references,
+timezones, role membership and actual financial effects, including manual task runs.
+Bring additions, deletions or changed definitions back for approval; do not silently
+expand the allowlist. The final backup must include the last drained legacy work.
+
+Derive a new cutoff from that evidence, not the calendar date of this document.
+For example, a successfully handled scheduled occurrence on the eventual cutover
+date must be excluded from replay. A genuinely missed occurrence requires an
+explicit decision; do not move a shared cutoff past it merely to simplify rollout.
+Use separate approved plans if task boundaries differ. Preview first eligible dates
+in Costa Rica time and record the corresponding explicit UTC boundary.
+
+Copy the [blank cutover record](scheduled-task-cutover-record.template.md) into an
+ignored private artifacts folder for the actual operation. Never enter credentials
+in it. If the date, target, definitions, timezone, allowlist or reconciled final work
+changes before apply, keep dispatch disabled and regenerate/reapprove the preview.
+If some activations already committed, inspect and resume the same reviewed plan;
+do not change those activation boundaries to match a postponed date.
+
 ## Settings matrix
 
 Use these names in Azure App Settings; double underscores map to API configuration
@@ -49,7 +78,7 @@ target. Never point the local Function host at production SQL or API.
 1. Record release commit IDs, take/verify a recoverable database backup, and securely
    capture current API/Function settings. Verify the old non-migrating API workflow
    remains disabled and the migration-enabled workflow remains active. Check its EF
-   tooling/runtime prerequisites; the current dotnet-ef install is not version-pinned.
+   tooling/runtime prerequisites and that dotnet-ef matches the EF package version.
 2. Establish the write freeze. Disable both dispatch paths using the maintenance
    settings above and wait for in-flight calls to finish. Reconcile final legacy
    history against actual financial rows, including work since the restored backup.

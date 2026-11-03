@@ -40,7 +40,7 @@ jobs:
           echo "AZURE_SQL_DATABASE=MYFNDB" >> $env:GITHUB_ENV
 
       - name: Install dotnet-ef
-        run: dotnet tool install --global dotnet-ef
+        run: dotnet tool install --global dotnet-ef --version 8.0.4
 
       - name: Run EF Migrations
         env:
