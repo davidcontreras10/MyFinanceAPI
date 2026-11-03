@@ -6,6 +6,9 @@ are verified. Remaining acceptance scenarios and production cutover approval are
 still required. This
 document does not authorize a deployment, flag change, migration or activation.
 
+Use the [production cutover checklist](scheduled-task-production-checklist.md) for
+the setting matrix, approval gates, ordered release steps and monitoring/stop checks.
+
 ## Safety boundaries
 
 - Work in the official API checkout. Rehearse against the approved restorable local
